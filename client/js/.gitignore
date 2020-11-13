@@ -1,0 +1,6 @@
+/lib
+/esm
+
+/node_modules
+/report.*.json
+/yarn-error.log

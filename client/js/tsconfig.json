@@ -1,0 +1,31 @@
+{
+  "include": ["src/"],
+  "compilerOptions": {
+    //
+    // --- Target versioning ---
+    //
+    "target": "ES5",
+    "module": "commonjs",
+    "lib": ["ES5", "ES2015.promise", "ES2017.object", "ES2019.Object"],
+    //
+    // --- Outputs ---
+    //
+    "declaration": true,
+    "outDir": "./lib",
+    "rootDir": "./src",
+    //
+    // --- Strictness ---
+    //
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    //
+    // --- Module system ---
+    //
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    //
+    // --- Type definitions ---
+    //
+    "typeRoots": ["node_modules/@types"]
+  }
+}

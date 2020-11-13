@@ -1,0 +1,6 @@
+/dsps.zip
+
+/coverage*
+
+# Temporary file in Makefile
+/go.mod.bak

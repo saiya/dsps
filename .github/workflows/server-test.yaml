@@ -1,0 +1,75 @@
+name: Server Test
+on: push
+
+jobs:
+  lint:
+    strategy:
+      matrix:
+        go-version: [ '1.15.5' ]
+    name: lint
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.33.0
+          working-directory: server
+      - name: Other Lint
+        shell: bash
+        working-directory: server
+        run: |
+          go mod download
+          make lint
+      - name: Update Go Report Card
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        working-directory: server
+        run: curl -X POST -F "repo=github.com/$GITHUB_REPOSITORY" https://goreportcard.com/checks
+
+  test:
+    strategy:
+      matrix:
+        redis-version: [ '6.0.9' ]
+        go-version: [ '1.15.5' ]
+    name: test redis:${{ matrix.redis-version }} go:${{ matrix.go-version }}
+
+    runs-on: ubuntu-latest
+    container: golang:${{ matrix.go-version }}-buster
+
+    services:
+      redis:
+        image: redis:${{ matrix.redis-version }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Test
+        shell: bash
+        working-directory: server
+        run: make test
+      - name: Upload to codecov
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        working-directory: server
+        run: |
+          curl -s https://codecov.io/bash > codecov.sh
+          bash codecov.sh
+      - uses: actions/upload-artifact@v2
+        with:
+          name: coverage.html
+          path: server/coverage.html

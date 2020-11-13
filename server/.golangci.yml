@@ -1,0 +1,19 @@
+# see: https://golangci-lint.run/usage/configuration/
+
+run:
+  tests: true
+
+issues:
+  exclude-use-default: false
+
+linters:
+  enable:
+    - goimports
+    - golint
+    # - godox  # TODO: Enable before release!
+    - gosec
+    - noctx
+    - nolintlint
+    - prealloc
+    - misspell
+
