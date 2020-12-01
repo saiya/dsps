@@ -54,7 +54,7 @@ export type Channel = {
      */
     abnormalEndCallback: (e: SubscriptionUnrecoverableError) => void;
 
-    /** Size of bulk message fetch (no guarantee, could receive more ore less for each callback). */
+    /** Size of bulk message fetch (no guarantee, could receive more or less for each callback). */
     bulkSize?: number;
 
     /**
