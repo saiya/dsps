@@ -45,8 +45,15 @@ jobs:
           echo "::set-output name=version::$version"
       - name: Checkout
         uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '12.x'
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@dsps'
       - name: Yarn publish
-        run: yarn publish --frozen-lockfile --non-interactive --new-version ${{ steps.get-version.outputs.version }} --no-git-tag-version
+        run: |
+          yarn install
+          yarn publish --frozen-lockfile --non-interactive --new-version ${{ steps.get-version.outputs.version }} --no-git-tag-version
         working-directory: client/js
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
