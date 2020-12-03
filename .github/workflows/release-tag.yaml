@@ -11,7 +11,7 @@ jobs:
     steps:
       - id: get-tag
         run: |
-          tag=$(echo "${{github.ref}}" | sed 's/^v//')
+          tag=$(echo "${{github.ref}}" | sed 's/^refs\/tags\/v//')
           echo "::set-output name=tag::$tag"
       - name: Checkout
         uses: actions/checkout@v2
@@ -32,6 +32,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: saiya/dsps:${{ steps.get-tag.outputs.tag }}
+          build-args: |
+              DSPS_VERSION_ID=${{ github.sha }}
 
   github-release:
     name: Create GitHub release
