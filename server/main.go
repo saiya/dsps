@@ -11,6 +11,7 @@ import (
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/http"
+	httputil "github.com/saiya/dsps/server/http/util"
 	"github.com/saiya/dsps/server/logger"
 	"github.com/saiya/dsps/server/storage"
 )
@@ -49,6 +50,8 @@ func main() {
 	http.StartServer(&config, &http.ServerDependencies{
 		Logger:          logger,
 		DebugLogEnabler: dle,
+
+		ServerClose: httputil.NewServerClose(),
 
 		Storage: storage,
 	})

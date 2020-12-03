@@ -1,7 +1,9 @@
 package endpoints
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -9,16 +11,19 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/http/util"
 )
 
 // PollingEndpointDependency is to inject required objects to the endpoint
 type PollingEndpointDependency interface {
+	GetServerClose() util.ServerClose
 	GetStorage() domain.Storage
 }
 
 // InitPollingEndpoints registers endpoints
-func InitPollingEndpoints(router gin.IRoutes, deps ProbeEndpointDependency) {
+func InitPollingEndpoints(router gin.IRoutes, deps PollingEndpointDependency) {
 	pubsub := deps.GetStorage().AsPubSubStorage()
+	serverClose := deps.GetServerClose()
 
 	router.PUT("/channel/:channelID/subscription/polling/:subscriberID", func(ctx *gin.Context) {
 		if pubsub == nil {
@@ -126,43 +131,53 @@ func InitPollingEndpoints(router gin.IRoutes, deps ProbeEndpointDependency) {
 			return
 		}
 
-		msgs, moreMsg, ackHandle, err := pubsub.FetchMessages(
-			ctx,
-			domain.SubscriberLocator{
-				ChannelID:    channelID,
-				SubscriberID: subscriberID,
-			},
-			int(max),
-			domain.Duration{Duration: timeout},
-		)
-		if err != nil {
-			if errors.Is(err, domain.ErrInvalidChannel) {
-				sendError(ctx, http.StatusForbidden, err.Error(), err)
-			} else if errors.Is(err, domain.ErrSubscriptionNotFound) {
-				// Channel / subscriber might be expired or intentionally deleted.
-				sendError(ctx, http.StatusNotFound, err.Error(), err)
-			} else {
-				sentInternalServerError(ctx, err)
+		serverClose.WithCancel(ctx, func(ctxWithCancel context.Context) {
+			msgs, moreMsg, ackHandle, err := pubsub.FetchMessages(
+				ctxWithCancel, // Stop polling on server close.
+				domain.SubscriberLocator{
+					ChannelID:    channelID,
+					SubscriberID: subscriberID,
+				},
+				int(max),
+				domain.Duration{Duration: timeout},
+			)
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					fmt.Println("Polling canceled due to context cancel, returned empty messages to client.") // TODO: Use logger
+					msgs = []domain.Message{}
+					moreMsg = false
+					ackHandle = domain.AckHandle{}
+					// Continue to normal flow
+				} else {
+					if errors.Is(err, domain.ErrInvalidChannel) {
+						sendError(ctx, http.StatusForbidden, err.Error(), err)
+					} else if errors.Is(err, domain.ErrSubscriptionNotFound) {
+						// Channel / subscriber might be expired or intentionally deleted.
+						sendError(ctx, http.StatusNotFound, err.Error(), err)
+					} else {
+						sentInternalServerError(ctx, err)
+					}
+					return
+				}
 			}
-			return
-		}
 
-		resultMsgs := make([]gin.H, 0, len(msgs))
-		for _, msg := range msgs {
-			resultMsgs = append(resultMsgs, gin.H{
-				"messageID": msg.MessageID,
-				"content":   msg.Content,
-			})
-		}
-		result := gin.H{
-			"channelID":    channelID,
-			"messages":     resultMsgs,
-			"moreMessages": moreMsg,
-		}
-		if len(msgs) > 0 {
-			result["ackHandle"] = ackHandle.Handle
-		}
-		ctx.JSON(http.StatusOK, result)
+			resultMsgs := make([]gin.H, 0, len(msgs))
+			for _, msg := range msgs {
+				resultMsgs = append(resultMsgs, gin.H{
+					"messageID": msg.MessageID,
+					"content":   msg.Content,
+				})
+			}
+			result := gin.H{
+				"channelID":    channelID,
+				"messages":     resultMsgs,
+				"moreMessages": moreMsg,
+			}
+			if len(msgs) > 0 {
+				result["ackHandle"] = ackHandle.Handle
+			}
+			ctx.JSON(http.StatusOK, result)
+		})
 	})
 
 	router.DELETE("/channel/:channelID/subscription/polling/:subscriberID/message", func(ctx *gin.Context) {

@@ -2,6 +2,7 @@ package http
 
 import (
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/http/util"
 	"github.com/saiya/dsps/server/logger"
 )
 
@@ -10,7 +11,14 @@ type ServerDependencies struct {
 	Logger          logger.Logger
 	DebugLogEnabler logger.DebugLogEnabler
 
+	ServerClose util.ServerClose
+
 	Storage domain.Storage
+}
+
+// GetServerClose returns ServerClose instance
+func (deps *ServerDependencies) GetServerClose() util.ServerClose {
+	return deps.ServerClose
 }
 
 // GetStorage returns Storage instance
