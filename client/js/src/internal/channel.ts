@@ -245,7 +245,7 @@ export class ChannelImpl implements Channel {
 
       timeoutOffsetMs: pollingMode === "long-polling" ? longPollingSec * 1000 : 0,
     };
-    const res = await this.apiCall(req, { retry: false, });
+    const res = await this.apiCall(req, { retry: false });
     if (args.isStopped()) {
       // Note that error (such as 401 due to subscription end) could occur in this case but it is not problem.
       // Thus this code should take precedence before handlePollingErrorResponse().
@@ -340,7 +340,7 @@ export class ChannelImpl implements Channel {
 class Dedup {
   private ids: string[] = [];
 
-  constructor(private windowSize: number) { }
+  constructor(private windowSize: number) {}
 
   filter(messages: Message<any>[]): Message<any>[] {
     const result: Message<any>[] = [];

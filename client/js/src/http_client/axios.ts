@@ -1,8 +1,8 @@
 import Axios, { AxiosInstance, AxiosBasicCredentials, AxiosProxyConfig, AxiosError, AxiosResponse } from "axios";
 import qs from "qs";
 import { UnreachableCaseError } from "../internal/errors";
-import { HttpClient, HttpRequest, HttpResponse, HttpRequestError, HttpResponseStatusError, normalizeHeaders } from ".";
 import { console } from "../internal/util/console";
+import { HttpClient, HttpRequest, HttpResponse, HttpRequestError, HttpResponseStatusError, normalizeHeaders } from ".";
 
 /**
  * HTTP client configuration to use axios HTTP client.
@@ -133,6 +133,6 @@ class HttpClientAxiosImpl implements HttpClient {
   }
 }
 
-export const HttpClientAxios: { new(config: HttpClientAxiosConfig): HttpClient } = HttpClientAxiosImpl;
+export const HttpClientAxios: { new (config: HttpClientAxiosConfig): HttpClient } = HttpClientAxiosImpl;
 
 const isAxiosError = (e: any): e is AxiosError => (e as AxiosError).isAxiosError; // https://github.com/axios/axios/issues/1415

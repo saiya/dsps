@@ -1,0 +1,41 @@
+name: Client (JS) Test
+on: push
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        go-version: [ '1.15.5' ]
+    name: test
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - uses: actions/cache@v2
+        with:
+          path: client/js/node_modules
+          key: ${{ runner.os }}-clinet-js-modules-${{ hashFiles('**/yarn.lock') }}
+      - name: Install modules
+        run: yarn
+        working-directory: client/js
+      - name: Run tests
+        run: |
+          pushd server
+          go build -o dsps.bin main.go
+          ./dsps.bin &
+          sleep 1
+          curl http://localhost:3000/probe/liveness
+          popd
+
+          pushd client/js
+          DSPS_BASE_URL="http://localhost:3000/" yarn test:ci
+      - uses: actions/upload-artifact@v2
+        with:
+          name: coverage
+          path: client/js/coverage

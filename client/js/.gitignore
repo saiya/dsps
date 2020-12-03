@@ -1,5 +1,6 @@
 /lib
 /esm
+/coverage
 
 /node_modules
 /report.*.json
