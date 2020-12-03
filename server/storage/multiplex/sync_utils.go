@@ -67,7 +67,7 @@ func (s *storageMultiplexer) parallelAtLeastOneSuccess(ctx context.Context, oper
 		if firstErr == nil || domain.IsStorageNonFatalError(err) { // Report non-fatal error (business error) rather than fatal errors
 			firstErr = err
 		}
-		if !domain.IsStorageNonFatalError(err) {
+		if (!domain.IsStorageNonFatalError(err)) && (!errors.Is(err, context.Canceled)) && (!errors.Is(err, context.DeadlineExceeded)) {
 			fmt.Printf("%v\n", err) // TODO: Use logger
 		}
 	}

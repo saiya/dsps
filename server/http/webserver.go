@@ -14,12 +14,13 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/saiya/dsps/server/config"
+	httputil "github.com/saiya/dsps/server/http/util"
 )
 
 // StartServer starts HTTP web server
 func StartServer(config *config.ServerConfig, deps *ServerDependencies) {
 	engine := createServer(config, deps)
-	runServer(config, engine)
+	runServer(config, engine, deps.GetServerClose())
 }
 
 func createServer(config *config.ServerConfig, deps *ServerDependencies) *gin.Engine {
@@ -40,7 +41,7 @@ func createServer(config *config.ServerConfig, deps *ServerDependencies) *gin.En
 }
 
 // see: https://github.com/gin-gonic/gin#manually
-func runServer(config *config.ServerConfig, engine *gin.Engine) {
+func runServer(config *config.ServerConfig, engine *gin.Engine, serverClose httputil.ServerClose) {
 	srv := &http.Server{
 		// FIXME: Make listen address configurable and document it
 		// https://forum.eset.com/topic/22080-mac-firewall-issue-after-update-to-684000/
@@ -68,6 +69,7 @@ func runServer(config *config.ServerConfig, engine *gin.Engine) {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down server...")
+	serverClose.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), config.HTTPServer.GracefulShutdownTimeout.Duration)
 	defer cancel()
