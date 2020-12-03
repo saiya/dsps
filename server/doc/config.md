@@ -64,6 +64,7 @@ Configuration items under `http`:
 - <a name="ipheader"></a> `sourceIpHeader` (string, optional, default null): HTTP header name contains reliable IP address of the client
   - Note that `admin.auth.networks` rely on this configuration.
 - `showForbiddenDetail` (boolean, default `false`): Show detail reason of 403 to clients
+- `longPollingMaxTimeout` (Duration string, optional, default `30s`): Max duration of the [long-polling requests](./interface/subscribe/polling.md#polling-get).
 - `gracefulShutdownTimeout` (Duration string, optional, default `5s`): Timeout to await end of running requests.
 
 ## logging configuration block

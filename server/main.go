@@ -54,6 +54,8 @@ func main() {
 		ServerClose: httputil.NewServerClose(),
 
 		Storage: storage,
+
+		LongPollingMaxTimeout: config.HTTPServer.LongPollingMaxTimeout,
 	})
 }
 

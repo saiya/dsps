@@ -18,12 +18,15 @@ import (
 type PollingEndpointDependency interface {
 	GetServerClose() util.ServerClose
 	GetStorage() domain.Storage
+
+	GetLongPollingMaxTimeout() domain.Duration
 }
 
 // InitPollingEndpoints registers endpoints
 func InitPollingEndpoints(router gin.IRoutes, deps PollingEndpointDependency) {
 	pubsub := deps.GetStorage().AsPubSubStorage()
 	serverClose := deps.GetServerClose()
+	longPollingMaxTimeout := deps.GetLongPollingMaxTimeout().Duration
 
 	router.PUT("/channel/:channelID/subscription/polling/:subscriberID", func(ctx *gin.Context) {
 		if pubsub == nil {
@@ -123,6 +126,10 @@ func InitPollingEndpoints(router gin.IRoutes, deps PollingEndpointDependency) {
 		if err != nil {
 			sendInvalidParameter(ctx, "timeout", err)
 			return
+		}
+		if timeout > longPollingMaxTimeout {
+			fmt.Printf("Client requested long-polling timeout %v is too long, rounded to longPollingMaxTimeout (%v)\n", timeout, longPollingMaxTimeout) // TODO: Use logger
+			timeout = longPollingMaxTimeout
 		}
 
 		max, err := strconv.ParseInt(ctx.DefaultQuery("max", "64"), 10, 0)

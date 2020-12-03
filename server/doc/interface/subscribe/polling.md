@@ -107,7 +107,7 @@ ID of the created subscriber, exactly same as request parameter.
 
 
 
-# GET `/channel/{channelID}/subscription/polling/{subscriberID}?timeout={timeout}`
+# <a name="polling-get"></a> GET `/channel/{channelID}/subscription/polling/{subscriberID}?timeout={timeout}`
 
 Receive messages with long polling.
 

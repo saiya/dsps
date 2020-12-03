@@ -9,17 +9,21 @@ import (
 
 // HTTPServerConfig represents HTTP webserver settings
 type HTTPServerConfig struct {
-	Port                    int             `json:"port" validate:"min=0,max=65535"`
-	PathPrefix              string          `json:"pathPrefix"`
-	SourceIPHeader          string          `json:"sourceIpHeader"`
-	ShowForbiddenDetail     bool            `json:"showForbiddenDetail"`
+	Port                int    `json:"port" validate:"min=0,max=65535"`
+	PathPrefix          string `json:"pathPrefix"`
+	SourceIPHeader      string `json:"sourceIpHeader"`
+	ShowForbiddenDetail bool   `json:"showForbiddenDetail"`
+
+	LongPollingMaxTimeout   domain.Duration `json:"longPollingMaxTimeout"`
 	GracefulShutdownTimeout domain.Duration `json:"gracefulShutdownTimeout"`
 }
 
 var httpServerConfigDefault = HTTPServerConfig{
-	Port:                    3000,
-	SourceIPHeader:          "",
-	ShowForbiddenDetail:     false,
+	Port:                3000,
+	SourceIPHeader:      "",
+	ShowForbiddenDetail: false,
+
+	LongPollingMaxTimeout:   makeDuration("30s"),
 	GracefulShutdownTimeout: makeDuration("5s"),
 }
 

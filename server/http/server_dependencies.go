@@ -14,6 +14,8 @@ type ServerDependencies struct {
 	ServerClose util.ServerClose
 
 	Storage domain.Storage
+
+	LongPollingMaxTimeout domain.Duration
 }
 
 // GetServerClose returns ServerClose instance
@@ -24,4 +26,9 @@ func (deps *ServerDependencies) GetServerClose() util.ServerClose {
 // GetStorage returns Storage instance
 func (deps *ServerDependencies) GetStorage() domain.Storage {
 	return deps.Storage
+}
+
+// GetLongPollingMaxTimeout returns configuration value
+func (deps *ServerDependencies) GetLongPollingMaxTimeout() domain.Duration {
+	return deps.LongPollingMaxTimeout
 }
