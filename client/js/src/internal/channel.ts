@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { Channel, Message, defaultLongPollingSec, Subscription, defaultPollingPagingIntervalSec, defaultLongPollingIntervalJitterSec, defaultLongPollingIntervalSec, defaultShortPollingIntervalSec, defaultPollingErrorIntervalSec, defaultPollingErrorIntervalJitterSec, defaultShortPollingIntervalJitterSec, SubscriptionUnrecoverableError, subscriptionUnrecoverableErrorCodes } from "../client_interface";
-import { HttpClient, HttpRequest, HttpResponse, HttpResponseStatusError } from "../http_client";
+import { HttpClient, HttpRequest, HttpRequestCanceledError, HttpRequestError, HttpResponse, HttpResponseStatusError } from "../http_client";
 import { Retry } from "../retry";
 import { findErrorCode } from "./error_response";
 import { UnreachableCaseError } from "./errors";
@@ -119,7 +119,7 @@ export class ChannelImpl implements Channel {
   }
 
   private longPollingLoop(
-    args: (Omit<Parameters<ChannelImpl["longPoolingCall"]>[0], "isStopped" | "dedup"> & Parameters<ChannelImpl["pollingIntervalSec"]>[0]) & {
+    args: (Omit<Parameters<ChannelImpl["longPoolingCall"]>[0], "isStopped" | "dedup" | "onStopped"> & Parameters<ChannelImpl["pollingIntervalSec"]>[0]) & {
       abnormalEndCallback: (e: SubscriptionUnrecoverableError) => void;
       bulkSize: number;
     }
@@ -128,6 +128,7 @@ export class ChannelImpl implements Channel {
   } {
     let stop = false;
     const isStopped = () => stop;
+    let stopRunningPolling: null | (() => void) = null;
     const dedup = new Dedup(args.bulkSize * dedupWindowSizeMultiplier);
     // eslint-disable-next-line no-void
     void (async () => {
@@ -135,7 +136,15 @@ export class ChannelImpl implements Channel {
       while (!isStopped()) {
         let intervalMode: PollingIntervalMode;
         try {
-          const intervalModeOrFailure = await this.longPoolingCall({ ...args, dedup, isStopped });
+          const intervalModeOrFailure = await this.longPoolingCall({
+            ...args,
+            dedup,
+            isStopped,
+            // eslint-disable-next-line @typescript-eslint/no-loop-func
+            onStopped: (handler) => {
+              stopRunningPolling = handler;
+            },
+          });
           if (intervalModeOrFailure === "stopped") {
             break;
           } else if (typeof intervalModeOrFailure === "object") {
@@ -155,6 +164,7 @@ export class ChannelImpl implements Channel {
     return {
       stopPolling: () => {
         stop = true;
+        if (stopRunningPolling) stopRunningPolling();
       },
     };
   }
@@ -177,7 +187,7 @@ export class ChannelImpl implements Channel {
       const fetchSec = (Date.now() - fetchStartAt) / 1000;
       ackHandle = result.ackHandle;
       mode = result.mode;
-      if (typeof mode === "object" || mode === "error" || mode === "stopped") return mode;
+      if (args.isStopped() || typeof mode === "object" || mode === "error" || mode === "stopped") return mode;
 
       if (args.pollingMode === "long-polling" && mode === "no-messages" && args.longPollingSec > fetchSec) {
         console.info("Server returned empty messages without waiting longPollingSec (why?). Sleeping to prevent massive API call...");
@@ -222,6 +232,7 @@ export class ChannelImpl implements Channel {
 
   private async longPollingFetchMessages(args: {
     isStopped: () => boolean;
+    onStopped: (handler: () => void) => void;
     subscriberID: string;
     bulkSize: number;
     pollingMode: PollingMode;
@@ -244,8 +255,16 @@ export class ChannelImpl implements Channel {
       expected2xxResponseBody: "json",
 
       timeoutOffsetMs: pollingMode === "long-polling" ? longPollingSec * 1000 : 0,
+      cancelable: (cancel) => args.onStopped(() => cancel("Long polling canceled (onStopped)")),
     };
-    const res = await this.apiCall(req, { retry: false });
+    let res: HttpResponse;
+    try {
+      res = await this.apiCall(req, { retry: false });
+    } catch (e) {
+      if (HttpRequestCanceledError.isInstance(e)) return { mode: "no-messages", messages: [] };
+      if (HttpRequestError.isInstance(e)) return { mode: "error", messages: [] }; // Error already reported to eventTarget by apiCall().
+      throw e;
+    }
     if (args.isStopped()) {
       // Note that error (such as 401 due to subscription end) could occur in this case but it is not problem.
       // Thus this code should take precedence before handlePollingErrorResponse().
@@ -329,9 +348,11 @@ export class ChannelImpl implements Channel {
       if (handling?.retry) {
         return await this.apiRetry.perform(req.path, async () => this.http.request(req));
       }
-      return this.http.request(req);
+      return await this.http.request(req);
     } catch (e) {
-      this.eventTarget.onApiFailed(e);
+      if (!HttpRequestCanceledError.isInstance(e)) {
+        this.eventTarget.onApiFailed(e);
+      }
       throw e;
     }
   }

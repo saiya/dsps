@@ -35,6 +35,9 @@ export type HttpRequest = {
 
   /** If need to increase timeout setting (e.g. long-polling), set this value. */
   timeoutOffsetMs?: number;
+
+  /** If function given, passes cancel function object. */
+  cancelable?: (cancel: (message: string) => void) => void;
 };
 
 export type HttpResponse = {
@@ -76,5 +79,17 @@ export class HttpResponseStatusError extends HttpRequestError {
 
   constructor(public readonly request: HttpRequest, public readonly response: HttpResponse) {
     super(`Unexpected HTTP response status ${response.status} (${response.statusText}, body: ${response.text ?? "(none)"}) from ${request.method} ${request.path}`);
+  }
+}
+
+export class HttpRequestCanceledError extends HttpRequestError {
+  static isInstance(e: any): e is HttpRequestCanceledError {
+    return (e as HttpRequestCanceledError).isHttpRequestCanceledError ?? false;
+  }
+
+  private isHttpRequestCanceledError: true = true;
+
+  constructor(public readonly request: HttpRequest, public readonly detail: any) {
+    super(`HTTP request ${request.method} ${request.path} has been canceled: ${detail}`);
   }
 }
