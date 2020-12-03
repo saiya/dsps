@@ -35,6 +35,20 @@ jobs:
           build-args: |
               DSPS_VERSION_ID=${{ github.sha }}
 
+  js-client-npm-release:
+    name: Publish JS client
+    runs-on: ubuntu-latest
+    steps:
+      - id: get-version
+        run: |
+          version=$(echo "${{github.ref}}" | sed 's/^refs\/tags\/v//')
+          echo "::set-output name=version::$version"
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Yarn publish
+        run: yarn publish --frozen-lockfile --non-interactive --new-version ${{ steps.get-version.outputs.version }} --no-git-tag-version
+        working-directory: client/js
+
   github-release:
     name: Create GitHub release
     runs-on: ubuntu-latest
