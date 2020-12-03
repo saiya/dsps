@@ -27,13 +27,8 @@ Note that DSPS does **NOT** aim to provide followings:
 # 3 minutes to getting started with DSPS
 
 ```sh
-# Get binary from https://github.com/saiya/dsps/releases
-curl -L -o dsps.zip $(curl -s https://api.github.com/repos/saiya/dsps/releases | jq -r ".[0].assets[] | select(.name | test(\"dsps.zip\")) | .browser_download_url")
-unzip dsps.zip
-cp dsps/dsps-$(uname -o | sed 's/GNU\///')-$(uname -m) ./dsps.bin && rm -r dsps && mv dsps{.bin,}
-
-# Launch DSPS server (you can choose any port number).
-./dsps --port 3099
+# Download & run DSPS server
+docker run -i -p 3000:3000/tcp saiya/dsps:latest
 
 #
 # ... Open another terminal window to run following tutorial ...

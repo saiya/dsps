@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 // HTTPServerConfig represents HTTP webserver settings
 type HTTPServerConfig struct {
 	Port                int    `json:"port" validate:"min=0,max=65535"`
+	Listen              string `json:"listen"`
 	PathPrefix          string `json:"pathPrefix"`
 	SourceIPHeader      string `json:"sourceIpHeader"`
 	ShowForbiddenDetail bool   `json:"showForbiddenDetail"`
@@ -20,6 +22,7 @@ type HTTPServerConfig struct {
 
 var httpServerConfigDefault = HTTPServerConfig{
 	Port:                3000,
+	Listen:              "",
 	SourceIPHeader:      "",
 	ShowForbiddenDetail: false,
 
@@ -31,6 +34,12 @@ var httpServerConfigDefault = HTTPServerConfig{
 func PostprocessHTTPServerConfig(config *HTTPServerConfig, overrides Overrides) error {
 	if overrides.Port != 0 {
 		config.Port = overrides.Port
+	}
+	if config.Listen == "" {
+		config.Listen = fmt.Sprintf(":%d", config.Port)
+	}
+	if overrides.Listen != "" {
+		config.Listen = overrides.Listen
 	}
 
 	// Remove trailing "/", add "/" prefix

@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - feature/docker-release
 
 jobs:
   docker-images:

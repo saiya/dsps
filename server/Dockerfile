@@ -9,4 +9,5 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 COPY --from=0 /dsps.bin ./dsps
+EXPOSE 3000
 CMD ["./dsps"]
