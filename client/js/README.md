@@ -4,7 +4,7 @@
 
 ## 3 minutes to start
 
-1. `npm install dsps` or `yarn install dsps`
+1. `npm add dsps` or `yarn add dsps`
 2. Copy & edit sample code below:
 
 ```js
