@@ -2,21 +2,13 @@ name: Client (JS) Test
 on: push
 
 jobs:
-  test:
-    strategy:
-      matrix:
-        go-version: [ '1.15.5' ]
-    name: JS client test
+  lint:
+    name: JS client lint
 
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
-
-      - uses: actions/setup-go@v2
-        with:
-          go-version: ${{ matrix.go-version }}
-
       - uses: actions/cache@v2
         with:
           path: client/js/node_modules
@@ -26,6 +18,28 @@ jobs:
         working-directory: client/js
       - name: Lint
         run: yarn lint
+        working-directory: client/js
+
+  test:
+    name: JS client test
+
+    runs-on: ubuntu-latest
+    env:
+      go-version: 1.15.5
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.go-version }}
+
+      - uses: actions/cache@v2
+        with:
+          path: client/js/node_modules
+          key: ${{ runner.os }}-clinet-js-modules-${{ hashFiles('**/yarn.lock') }}
+      - name: Install modules
+        run: yarn
         working-directory: client/js
       - name: Run tests
         run: |
