@@ -5,8 +5,8 @@ go_module_files = go.mod go.sum
 go_src_files = $(shell find . -type f -name '*.go')
 build_deps = $(go_module_files) $(go_src_files) | $(release_dir)
 
-version_id = $(shell git rev-list -1 HEAD)
-ldflags = "-X main.buildVersion=$(version_id) -X main.buildAt=$(shell date +'%s')"
+DSPS_VERSION_ID ?= $(shell git rev-list -1 HEAD)
+ldflags = "-X main.buildVersion=$(DSPS_VERSION_ID) -X main.buildAt=$(shell date +'%s')"
 
 .PHONY: build test lint
 
@@ -34,17 +34,17 @@ $(release_dir):
 	mkdir $(release_dir)
 
 $(release_dir)/CREDITS: $(go_module_files) | $(release_dir)
-	rm $@ || true
+	rm -f $@
 	gocredits -skip-missing . > $@
 
 $(release_dir)/dsps-Linux-x86_64: $(build_deps)
-	GOOS=linux GOARCH=amd64 go build -o $@ -ldflags $(ldflags) main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ -ldflags $(ldflags) main.go
 
 $(release_dir)/dsps-Linux-aarch64: $(build_deps)
-	GOOS=linux GOARCH=arm64 go build -o $@ -ldflags $(ldflags) main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o $@ -ldflags $(ldflags) main.go
 
 $(release_dir)/dsps-Windows-x86_64.exe: $(build_deps)
-	GOOS=windows GOARCH=amd64 go build -o $@ -ldflags $(ldflags) main.go
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o $@ -ldflags $(ldflags) main.go
 
 $(release_dir)/dsps-Darwin-x86_64: $(build_deps)
-	GOOS=darwin GOARCH=amd64 go build -o $@ -ldflags $(ldflags) main.go
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o $@ -ldflags $(ldflags) main.go

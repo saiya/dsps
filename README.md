@@ -30,7 +30,7 @@ Note that DSPS does **NOT** aim to provide followings:
 # Get binary from https://github.com/saiya/dsps/releases
 curl -L -o dsps.zip $(curl -s https://api.github.com/repos/saiya/dsps/releases | jq -r ".[0].assets[] | select(.name | test(\"dsps.zip\")) | .browser_download_url")
 unzip dsps.zip
-cp dsps/dsps-$(uname -o)-$(uname -m) ./dsps.bin && rm -r dsps && mv dsps{.bin,}
+cp dsps/dsps-$(uname -o | sed 's/GNU\///')-$(uname -m) ./dsps.bin && rm -r dsps && mv dsps{.bin,}
 
 # Launch DSPS server (you can choose any port number).
 ./dsps --port 3099
