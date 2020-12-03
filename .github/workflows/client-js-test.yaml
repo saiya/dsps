@@ -12,7 +12,9 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: client/js/node_modules
-          key: ${{ runner.os }}-clinet-js-modules-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-clinet-js-modules-${{ hashFiles('client/js/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-clinet-js-modules-
       - name: Install modules
         run: yarn
         working-directory: client/js
@@ -37,7 +39,9 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: client/js/node_modules
-          key: ${{ runner.os }}-clinet-js-modules-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-clinet-js-modules-${{ hashFiles('client/js/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-clinet-js-modules-
       - name: Install modules
         run: yarn
         working-directory: client/js
