@@ -4,7 +4,7 @@
 
 ## 3 minutes to start
 
-1. `npm add dsps` or `yarn add dsps`
+1. `npm add @dsps/client` or `yarn add @dsps/client`
 2. Copy & edit sample code below:
 
 ```js
