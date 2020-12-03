@@ -8,7 +8,7 @@ import { DspsClientConfig } from "./dsps_client_config";
 import { DspsClientImpl } from "./internal/dsps_client";
 
 /** `new Dsps({ ...config... })` creates {@link DspsClient} instance. */
-export const Dsps: { new(config: DspsClientConfig): DspsClient } = DspsClientImpl;
+export const Dsps: { new (config: DspsClientConfig): DspsClient } = DspsClientImpl;
 
 export * from "./dsps_client_config";
 export * from "./client_interface";
