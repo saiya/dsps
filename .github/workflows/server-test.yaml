@@ -11,6 +11,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      # Note: golangci/golangci-lint-action caches. Should not use actions/cache@v2 otherwise result in so many "File exists"
       - uses: actions/setup-go@v2
         with:
           go-version: ${{ env.go-version }}
@@ -49,6 +50,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: /go/pkg/mod  # Not ~/go/pkg/mod because "container" is active.
+          key: ${{ runner.os }}-server-gomod-${{ hashFiles('server/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-server-gomod-
       - uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go-version }}
