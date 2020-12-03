@@ -1,7 +1,7 @@
 import Axios, { AxiosInstance, AxiosBasicCredentials, AxiosProxyConfig, AxiosError, AxiosResponse } from "axios";
 import qs from "qs";
 import { UnreachableCaseError } from "../internal/errors";
-import { HttpClient, HttpRequest, HttpResponse, HttpRequestError, HttpResponseStatusError, normalizeHeaders } from ".";
+import { HttpClient, HttpRequest, HttpResponse, HttpRequestError, HttpResponseStatusError, normalizeHeaders, HttpRequestCanceledError } from ".";
 
 /**
  * HTTP client configuration to use axios HTTP client.
@@ -76,6 +76,11 @@ class HttpClientAxiosImpl implements HttpClient {
   }
 
   async request(req: HttpRequest): Promise<HttpResponse> {
+    const cancelSource = req.cancelable ? Axios.CancelToken.source() : null;
+    if (req.cancelable)
+      req.cancelable((message) => {
+        cancelSource!.cancel(message);
+      });
     try {
       return this.parseResponse(
         req,
@@ -92,9 +97,11 @@ class HttpClientAxiosImpl implements HttpClient {
           data: req.bodyJson,
 
           timeout: req.timeoutOffsetMs ? this.timeoutSec + req.timeoutOffsetMs : this.timeoutSec,
+          cancelToken: cancelSource?.token,
         })
       );
     } catch (e) {
+      if (Axios.isCancel(e)) throw new HttpRequestCanceledError(req, e);
       if (isAxiosError(e)) throw new HttpRequestError(`${e.message} (code: ${e.code ?? "(none)"})`);
       throw e;
     }
