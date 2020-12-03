@@ -1,1 +1,1 @@
-export default globalThis as any;
+export default globalThis as any; // eslint-disable-line import/no-default-export

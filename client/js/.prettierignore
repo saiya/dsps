@@ -1,5 +1,3 @@
 /lib/**
 /esm/**
 /coverage/**
-
-.eslintrc.js

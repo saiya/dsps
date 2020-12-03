@@ -1,7 +1,6 @@
 import Axios, { AxiosInstance, AxiosBasicCredentials, AxiosProxyConfig, AxiosError, AxiosResponse } from "axios";
 import qs from "qs";
 import { UnreachableCaseError } from "../internal/errors";
-import { console } from "../internal/util/console";
 import { HttpClient, HttpRequest, HttpResponse, HttpRequestError, HttpResponseStatusError, normalizeHeaders } from ".";
 
 /**
@@ -65,6 +64,7 @@ class HttpClientAxiosImpl implements HttpClient {
       ...config,
       headers: normalizeHeaders({
         ...(config.headers ?? {}),
+        /* eslint-disable @typescript-eslint/naming-convention */
         Accept: "application/json",
       }),
 
