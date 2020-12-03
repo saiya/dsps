@@ -17,7 +17,8 @@ type Overrides struct {
 	BuildVersion string // Supplied by compiler
 	BuildAt      string // UNIX epoch, supplied by compiler
 
-	Port int
+	Port   int
+	Listen string
 }
 
 // ServerConfig represents parsed/post-processed configuration.

@@ -59,6 +59,8 @@ Configuration items under `http`:
 
 - `port` (number, optional, default `3000`): TCP port to listen for HTTP requests
   - You can override this value with `--port` command line option
+- `listen` (string, optional): Listen string (e.g. ":3000"), this option overrides `port`
+  - With [some security software](https://forum.eset.com/topic/22080-mac-firewall-issue-after-update-to-684000/), you may need to specify local IP as such as `127.0.0.1:3000` due to MTIM proxy problem.
 - `pathPrefix` (string, optional): Prefix to add all endpoints
   - e.g. If `pathPrefix` is `/foo/bar`, endpoint `/probe/readiness` is served as `/foobar/probe/readiness`
 - <a name="ipheader"></a> `sourceIpHeader` (string, optional, default null): HTTP header name contains reliable IP address of the client

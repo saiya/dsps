@@ -23,7 +23,8 @@ var buildAt string
 
 func main() {
 	var (
-		port = flag.Int("port", 0, "Override http.port configuration item")
+		port   = flag.Int("port", 0, "Override http.port configuration item")
+		listen = flag.String("listen", "", "Override http.listen configuration item")
 	)
 	flag.Parse()
 	configFile := flag.Arg(0)
@@ -31,6 +32,7 @@ func main() {
 		BuildVersion: buildVersion,
 		BuildAt:      buildAt,
 		Port:         *port,
+		Listen:       *listen,
 	}
 
 	clock := domain.RealSystemClock

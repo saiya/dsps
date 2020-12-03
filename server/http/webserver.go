@@ -43,9 +43,7 @@ func createServer(config *config.ServerConfig, deps *ServerDependencies) *gin.En
 // see: https://github.com/gin-gonic/gin#manually
 func runServer(config *config.ServerConfig, engine *gin.Engine, serverClose httputil.ServerClose) {
 	srv := &http.Server{
-		// FIXME: Make listen address configurable and document it
-		// https://forum.eset.com/topic/22080-mac-firewall-issue-after-update-to-684000/
-		Addr:           fmt.Sprintf("127.0.0.1:%d", config.HTTPServer.Port),
+		Addr:           config.HTTPServer.Listen,
 		Handler:        engine,
 		ReadTimeout:    60 * time.Second, // FIXME: Fix hardcorded
 		WriteTimeout:   60 * time.Second, // FIXME: Fix hardcorded
@@ -60,7 +58,7 @@ func runServer(config *config.ServerConfig, engine *gin.Engine, serverClose http
 			}
 		}
 	}()
-	log.Println(fmt.Sprintf("Server running on port %d", config.HTTPServer.Port)) // FIXME: Use logger
+	log.Println(fmt.Sprintf("Server running on %s", config.HTTPServer.Listen)) // FIXME: Use logger
 
 	quit := make(chan os.Signal, 1)
 	// kill (no param) default send syscall.SIGTERM

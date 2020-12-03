@@ -4,6 +4,7 @@
 [![Server Test](https://github.com/saiya/dsps/workflows/Server%20Test/badge.svg?1)](https://github.com/saiya/dsps/actions?query=workflow%3A%22Server+Test%22)
 [![Codecov](https://codecov.io/gh/saiya/dsps/branch/main/graph/badge.svg?token=DSSOWMB60X)](https://codecov.io/gh/saiya/dsps)
 [![Go Report Card](https://goreportcard.com/badge/github.com/saiya/dsps?1)](https://goreportcard.com/report/github.com/saiya/dsps)
+[![DockerHub saiya/dsps](https://img.shields.io/badge/dockerhub-saiya%2Fdsps-blue)](https://hub.docker.com/r/saiya/dsps)
 
 DSPS is a PubSub system that provides following advantages:
 
@@ -27,13 +28,8 @@ Note that DSPS does **NOT** aim to provide followings:
 # 3 minutes to getting started with DSPS
 
 ```sh
-# Get binary from https://github.com/saiya/dsps/releases
-curl -L -o dsps.zip $(curl -s https://api.github.com/repos/saiya/dsps/releases | jq -r ".[0].assets[] | select(.name | test(\"dsps.zip\")) | .browser_download_url")
-unzip dsps.zip
-cp dsps/dsps-$(uname -o)-$(uname -m) ./dsps.bin && rm -r dsps && mv dsps{.bin,}
-
-# Launch DSPS server (you can choose any port number).
-./dsps --port 3099
+# Download & run DSPS server
+docker run -i -p 3000:3000/tcp saiya/dsps:latest
 
 #
 # ... Open another terminal window to run following tutorial ...
@@ -53,7 +49,7 @@ curl -w "\n" -X PUT -H "Content-Type: application/json" \
 # Receive messages with HTTP long-polling.
 # In this example, this API immediately returns
 # because the subscriber already have been received a message.
-curl -w "\n" -X GET "http://localhost:3099/channel/${CHANNEL}/subscription/polling/${SUBSCRIBER}?timeout=60s&max=64"
+curl -w "\n" -X GET "http://localhost:3099/channel/${CHANNEL}/subscription/polling/${SUBSCRIBER}?timeout=30s&max=64"
 
 ACK_HANDLE="<< set string returned in the above API response >>"
 
