@@ -52,7 +52,7 @@ jobs:
           scope: '@dsps'
       - name: Yarn publish
         run: |
-          yarn install
+          yarn install --frozen-lockfile
           yarn publish --frozen-lockfile --non-interactive --new-version ${{ steps.get-version.outputs.version }} --no-git-tag-version
         working-directory: client/js
         env:
