@@ -8,8 +8,10 @@ import (
 
 // Logger represents implementation independent logger, also easy to inject mock.
 type Logger interface {
-	Fatalf(template string, args ...interface{})
-	Errorf(template string, args ...interface{})
+	Fatal(msg string, err error)
+	Error(msg string, err error)
+	InfoError(msg string, err error)
+
 	Warnf(template string, args ...interface{})
 	Infof(template string, args ...interface{})
 	Debugf(template string, args ...interface{})
@@ -25,12 +27,16 @@ func (logger *loggerImpl) WithAttributes(fields []zap.Field) *loggerImpl {
 	}
 }
 
-func (logger *loggerImpl) Fatalf(template string, args ...interface{}) {
-	logger.zap.Fatal(fmt.Sprintf(template, args...))
+func (logger *loggerImpl) Fatal(msg string, err error) {
+	logger.zap.Fatal(msg, zap.Error(err))
 }
 
-func (logger *loggerImpl) Errorf(template string, args ...interface{}) {
-	logger.zap.Error(fmt.Sprintf(template, args...))
+func (logger *loggerImpl) Error(msg string, err error) {
+	logger.zap.Error(msg, zap.Error(err))
+}
+
+func (logger *loggerImpl) InfoError(msg string, err error) {
+	logger.zap.Info(msg, zap.Error(err))
 }
 
 func (logger *loggerImpl) Warnf(template string, args ...interface{}) {

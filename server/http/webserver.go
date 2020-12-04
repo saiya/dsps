@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,8 +27,8 @@ func createServer(mainContext context.Context, config *config.ServerConfig, deps
 	if os.Getenv("GIN_MODE") == "" { // Use release mode by default
 		gin.SetMode(gin.ReleaseMode)
 	}
-	engine := gin.New() // TODO: Use gin.New()
-	// FIXME: Set logging & recovery (error capture) middlewares
+	engine := gin.New()
+	engine.Use(logger.LoggingMiddleware())
 
 	var router gin.IRoutes
 	if config.HTTPServer.PathPrefix == "/" {
@@ -54,7 +55,7 @@ func runServer(mainContext context.Context, config *config.ServerConfig, engine 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			if err != http.ErrServerClosed {
-				logger.Of(mainContext).Fatalf("HTTP server listen failed on %s: %v", addr, err)
+				logger.Of(mainContext).Fatal(fmt.Sprintf("HTTP server listen failed on %s", addr), err)
 			} else {
 				logger.Of(mainContext).Infof("HTTP server listener closed")
 			}
