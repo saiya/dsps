@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/logger"
 )
 
 type childResult struct {
@@ -68,7 +69,7 @@ func (s *storageMultiplexer) parallelAtLeastOneSuccess(ctx context.Context, oper
 			firstErr = err
 		}
 		if (!domain.IsStorageNonFatalError(err)) && (!errors.Is(err, context.Canceled)) && (!errors.Is(err, context.DeadlineExceeded)) {
-			fmt.Printf("%v\n", err) // TODO: Use logger
+			logger.Of(ctx).WarnError("Error returned from multiplexed storage", err)
 		}
 	}
 	if len(result) == 0 && firstErr != nil {

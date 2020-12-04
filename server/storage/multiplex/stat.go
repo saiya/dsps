@@ -2,7 +2,10 @@ package multiplex
 
 import (
 	"context"
+	"fmt"
 	"sync"
+
+	"github.com/saiya/dsps/server/logger"
 )
 
 func (s *storageMultiplexer) Stat(ctx context.Context) (interface{}, error) {
@@ -18,7 +21,7 @@ func (s *storageMultiplexer) Stat(ctx context.Context) (interface{}, error) {
 
 			stat, err := child.Stat(ctx)
 			if err != nil {
-				// TODO: Show error log (use logger)
+				logger.Of(ctx).WarnError(fmt.Sprintf("Storage \"%s\" stat resulted in error", id), err)
 				ch <- childResult{
 					id: id,
 					value: struct {
