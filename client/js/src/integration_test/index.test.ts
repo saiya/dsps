@@ -11,13 +11,14 @@ const dsps = new Dsps({
 test("Publish + Subscribe", async () => {
   const channel = dsps.channel(randomChannelID());
   await withSubscription({ channel }, async ({ waitNewMessages }) => {
+    const waitNew = waitNewMessages();
     const msg1 = await channel.publish(null, {
       hi: "hello!",
       nested: {
         value: Math.PI,
       },
     });
-    expect((await waitNewMessages())[0]).toEqual(msg1);
+    expect((await waitNew)[0]).toEqual(msg1);
   });
 }, 3000);
 
