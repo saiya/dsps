@@ -10,7 +10,7 @@ import (
 )
 
 // NewOnmemoryStorage creates Storage instance
-func NewOnmemoryStorage(config *config.OnmemoryStorageConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
+func NewOnmemoryStorage(ctx context.Context, config *config.OnmemoryStorageConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
 	s := &onmemoryStorage{
 		lock: sync.NewLock(),
 		stat: &onmemoryStorageStat{},

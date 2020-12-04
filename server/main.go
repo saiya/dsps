@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -25,6 +26,8 @@ func main() {
 	var (
 		port   = flag.Int("port", 0, "Override http.port configuration item")
 		listen = flag.String("listen", "", "Override http.listen configuration item")
+
+		debug = flag.Bool("debug", false, "Enable debug logs")
 	)
 	flag.Parse()
 	configFile := flag.Arg(0)
@@ -33,30 +36,26 @@ func main() {
 		BuildAt:      buildAt,
 		Port:         *port,
 		Listen:       *listen,
+		Debug:        *debug,
 	}
 
+	ctx := context.Background()
 	clock := domain.RealSystemClock
 	config := loadConfig(configFile, configOverrides)
 	channelProvider := newChannelProvider(&config)
-	logger, dle, err := logger.NewLogger(&config)
+	if err := logger.InitLogger(&config); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	storage, err := storage.NewStorage(ctx, &config.Storages, clock, channelProvider)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	storage, err := storage.NewStorage(&config.Storages, clock, channelProvider)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
 
-	http.StartServer(&config, &http.ServerDependencies{
-		Logger:          logger,
-		DebugLogEnabler: dle,
-
-		ServerClose: httputil.NewServerClose(),
-
-		Storage: storage,
-
+	http.StartServer(ctx, &config, &http.ServerDependencies{
+		ServerClose:           httputil.NewServerClose(),
+		Storage:               storage,
 		LongPollingMaxTimeout: config.HTTPServer.LongPollingMaxTimeout,
 	})
 }

@@ -8,22 +8,18 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/logger"
 )
 
 func sendError(ctx *gin.Context, status int, message string, err error) {
-	// TODO: Output error to log
-	fmt.Printf("sendError(status = %d, message = \"%s\", err = %#v)\n", status, message, err)
-
-	var code *string = nil
+	res := gin.H{"error": message}
 	if errWithCode := domain.NewErrorWithCode(""); errors.As(err, &errWithCode) {
-		code = errWithCode.Code()
+		res["code"] = errWithCode.Code()
+		logger.ModifyGinContext(ctx).WithStr("code", errWithCode.Code()).Build()
 	}
 
-	ctx.AbortWithStatusJSON(status, gin.H{
-		"error":  message,
-		"detail": err, // TODO: Hide err detail in production mode
-		"code":   code,
-	})
+	logger.Of(ctx).InfoError(fmt.Sprintf("Sending error to client: %s", message), err)
+	ctx.AbortWithStatusJSON(status, res)
 }
 
 func sentInternalServerError(ctx *gin.Context, err error) {

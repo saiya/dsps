@@ -2,8 +2,9 @@ package onmemory
 
 import (
 	"context"
-	"fmt"
 	"time"
+
+	"github.com/saiya/dsps/server/logger"
 )
 
 var gcTimeout = 3 * time.Second
@@ -22,7 +23,7 @@ func (s *onmemoryStorage) startGC() {
 
 					err := s.GC(ctx)
 					if err != nil {
-						fmt.Printf("Onmemory storage GC failed: %v\n", err) // TODO: Use logger instead
+						logger.Of(ctx).WarnError("Onmemory storage GC failed", err)
 					}
 				}()
 			}

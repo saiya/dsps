@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/logger"
 	storageinternal "github.com/saiya/dsps/server/storage/internal"
 )
 
@@ -120,7 +121,7 @@ func (s *storageMultiplexer) IsOldMessages(ctx context.Context, sl domain.Subscr
 				staleMap, err := child.IsOldMessages(ctx, sl, msgs)
 				if err != nil {
 					if !domain.IsStorageNonFatalError(err) {
-						fmt.Printf("IsOldMessages of \"%s\" failed: %v\n", id, err) // TODO: Use logger
+						logger.Of(ctx).WarnError(fmt.Sprintf("IsOldMessages of \"%s\" failed", id), err)
 					}
 					return
 				}
