@@ -14,7 +14,7 @@ var storageCtor StorageCtor = func(ctx context.Context, systemClock domain.Syste
 	config := config.OnmemoryStorageConfig{
 		RunGCOnShutdown: true,
 	}
-	return NewOnmemoryStorage(&config, systemClock, channelProvider)
+	return NewOnmemoryStorage(context.Background(), &config, systemClock, channelProvider)
 }
 
 func TestCoreFunction(t *testing.T) {

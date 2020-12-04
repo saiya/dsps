@@ -19,6 +19,8 @@ type Overrides struct {
 
 	Port   int
 	Listen string
+
+	Debug bool
 }
 
 // ServerConfig represents parsed/post-processed configuration.
@@ -54,6 +56,9 @@ func ParseConfig(overrides Overrides, yaml string) (ServerConfig, error) {
 		return config, fmt.Errorf("Failed to parse configuration YAML file: %w", err)
 	}
 
+	if overrides.Debug {
+		config.Logging.Debug = true
+	}
 	if err := PostprocessStorageConfig(&config.Storages); err != nil {
 		return config, fmt.Errorf("Storage configration problem: %w", err)
 	}

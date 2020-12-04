@@ -74,6 +74,7 @@ Configuration items under `http`:
 Configuration items under `logging`:
 
 - `debug` (boolean, optional, default `false`): Output DEBUG level logs
+  - `--debug` command line option also enables DEBUG log
 - `attributes` (string to string map, optional): Attributes set to every log records
   - Useful to set machine ID etcetera.
 

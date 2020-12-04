@@ -18,7 +18,7 @@ var onmemoryMultiplexCtor = func(onmemConfigs ...config.OnmemoryStorageConfig) S
 	return func(ctx context.Context, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
 		storages := map[domain.StorageID]domain.Storage{}
 		for i := range onmemConfigs {
-			storage, err := onmemory.NewOnmemoryStorage(&(onmemConfigs[i]), systemClock, channelProvider)
+			storage, err := onmemory.NewOnmemoryStorage(context.Background(), &(onmemConfigs[i]), systemClock, channelProvider)
 			if err != nil {
 				return nil, err
 			}
@@ -72,15 +72,16 @@ func TestJwt(t *testing.T) {
 }
 
 func TestInsufficientStorages(t *testing.T) {
+	ctx := context.Background()
 	_, err := NewStorageMultiplexer(map[domain.StorageID]domain.Storage{})
 	assert.EqualError(t, err, "List of storages must not be empty")
 
 	pubSubDisabledCfg := config.OnmemoryStorageConfig{
 		DisablePubSub: true,
 	}
-	pubSubDisabled1, err := onmemory.NewOnmemoryStorage(&pubSubDisabledCfg, domain.RealSystemClock, StubChannelProvider)
+	pubSubDisabled1, err := onmemory.NewOnmemoryStorage(ctx, &pubSubDisabledCfg, domain.RealSystemClock, StubChannelProvider)
 	assert.NoError(t, err)
-	pubSubDisabled2, err := onmemory.NewOnmemoryStorage(&pubSubDisabledCfg, domain.RealSystemClock, StubChannelProvider)
+	pubSubDisabled2, err := onmemory.NewOnmemoryStorage(ctx, &pubSubDisabledCfg, domain.RealSystemClock, StubChannelProvider)
 	assert.NoError(t, err)
 	multiWithoutPubSub, err := NewStorageMultiplexer(map[domain.StorageID]domain.Storage{
 		"test1": pubSubDisabled1,
@@ -93,9 +94,9 @@ func TestInsufficientStorages(t *testing.T) {
 	jwtDisabledCfg := config.OnmemoryStorageConfig{
 		DisableJwt: true,
 	}
-	jwtDisabled1, err := onmemory.NewOnmemoryStorage(&jwtDisabledCfg, domain.RealSystemClock, StubChannelProvider)
+	jwtDisabled1, err := onmemory.NewOnmemoryStorage(ctx, &jwtDisabledCfg, domain.RealSystemClock, StubChannelProvider)
 	assert.NoError(t, err)
-	jwtDisabled2, err := onmemory.NewOnmemoryStorage(&jwtDisabledCfg, domain.RealSystemClock, StubChannelProvider)
+	jwtDisabled2, err := onmemory.NewOnmemoryStorage(ctx, &jwtDisabledCfg, domain.RealSystemClock, StubChannelProvider)
 	assert.NoError(t, err)
 	multiWithoutJwt, err := NewStorageMultiplexer(map[domain.StorageID]domain.Storage{
 		"test1": jwtDisabled1,

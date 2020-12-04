@@ -13,7 +13,7 @@ import (
 
 var onmemoryTracingCtor = func(onmemConfig config.OnmemoryStorageConfig) StorageCtor {
 	return func(ctx context.Context, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
-		storage, err := onmemory.NewOnmemoryStorage(&onmemConfig, systemClock, channelProvider)
+		storage, err := onmemory.NewOnmemoryStorage(context.Background(), &onmemConfig, systemClock, channelProvider)
 		if err != nil {
 			return nil, err
 		}

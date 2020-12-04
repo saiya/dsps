@@ -9,7 +9,7 @@ import (
 )
 
 // NewRedisStorage creates Storage instance
-func NewRedisStorage(config *config.RedisStorageConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
+func NewRedisStorage(ctx context.Context, config *config.RedisStorageConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
 	return &redisStorage{
 		stat: &redisStorageStat{},
 

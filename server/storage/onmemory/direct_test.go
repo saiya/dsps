@@ -1,6 +1,7 @@
 package onmemory
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,7 +12,7 @@ import (
 )
 
 func makeRawStorage(t *testing.T) *onmemoryStorage {
-	s, err := NewOnmemoryStorage(&config.OnmemoryStorageConfig{}, domain.RealSystemClock, StubChannelProvider)
+	s, err := NewOnmemoryStorage(context.Background(), &config.OnmemoryStorageConfig{}, domain.RealSystemClock, StubChannelProvider)
 	if !assert.NoError(t, err) {
 		return nil
 	}

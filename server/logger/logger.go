@@ -1,36 +1,46 @@
 package logger
 
 import (
-	"go.uber.org/zap"
+	"fmt"
 
-	"github.com/saiya/dsps/server/config"
+	"go.uber.org/zap"
 )
 
-// Logger is an interface of logger in this project
-type Logger *zap.Logger
+// Logger represents implementation independent logger, also easy to inject mock.
+type Logger interface {
+	Fatalf(template string, args ...interface{})
+	Errorf(template string, args ...interface{})
+	Warnf(template string, args ...interface{})
+	Infof(template string, args ...interface{})
+	Debugf(template string, args ...interface{})
+}
 
-// DebugLogEnabler is an function to enable DEBUG level log on runtime
-type DebugLogEnabler func()
+type loggerImpl struct {
+	zap *zap.Logger
+}
 
-// NewLogger initializes Logger
-func NewLogger(config *config.ServerConfig) (Logger, DebugLogEnabler, error) {
-	cfg := zap.NewProductionConfig()
-
-	var dle DebugLogEnabler = func() {
-		cfg.Level.SetLevel(zap.DebugLevel)
+func (logger *loggerImpl) WithAttributes(fields []zap.Field) *loggerImpl {
+	return &loggerImpl{
+		zap: logger.zap.With(fields...),
 	}
-	if config.Logging.Debug {
-		dle()
-	}
+}
 
-	fields := []zap.Field{}
-	for key, value := range config.Logging.Attributes {
-		fields = append(fields, zap.String(key, value))
-	}
+func (logger *loggerImpl) Fatalf(template string, args ...interface{}) {
+	logger.zap.Fatal(fmt.Sprintf(template, args...))
+}
 
-	logger, err := cfg.Build(zap.Fields(fields...))
-	if err != nil {
-		return nil, nil, err
-	}
-	return logger, dle, nil
+func (logger *loggerImpl) Errorf(template string, args ...interface{}) {
+	logger.zap.Error(fmt.Sprintf(template, args...))
+}
+
+func (logger *loggerImpl) Warnf(template string, args ...interface{}) {
+	logger.zap.Warn(fmt.Sprintf(template, args...))
+}
+
+func (logger *loggerImpl) Infof(template string, args ...interface{}) {
+	logger.zap.Info(fmt.Sprintf(template, args...))
+}
+
+func (logger *loggerImpl) Debugf(template string, args ...interface{}) {
+	logger.zap.Debug(fmt.Sprintf(template, args...))
 }

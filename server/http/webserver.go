@@ -3,8 +3,6 @@ package http
 import (
 	"context"
 	"errors"
-	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,16 +13,19 @@ import (
 
 	"github.com/saiya/dsps/server/config"
 	httputil "github.com/saiya/dsps/server/http/util"
+	"github.com/saiya/dsps/server/logger"
 )
 
 // StartServer starts HTTP web server
-func StartServer(config *config.ServerConfig, deps *ServerDependencies) {
-	engine := createServer(config, deps)
-	runServer(config, engine, deps.GetServerClose())
+func StartServer(mainContext context.Context, config *config.ServerConfig, deps *ServerDependencies) {
+	engine := createServer(mainContext, config, deps)
+	runServer(mainContext, config, engine, deps.GetServerClose())
 }
 
-func createServer(config *config.ServerConfig, deps *ServerDependencies) *gin.Engine {
-	// TODO: Disable Gin debug mode if no GIN_MODE given
+func createServer(mainContext context.Context, config *config.ServerConfig, deps *ServerDependencies) *gin.Engine {
+	if os.Getenv("GIN_MODE") == "" { // Use release mode by default
+		gin.SetMode(gin.ReleaseMode)
+	}
 	engine := gin.New() // TODO: Use gin.New()
 	// FIXME: Set logging & recovery (error capture) middlewares
 
@@ -35,15 +36,16 @@ func createServer(config *config.ServerConfig, deps *ServerDependencies) *gin.En
 		router = engine.Group(config.HTTPServer.PathPrefix)
 	}
 
-	InitEndpoints(router, deps)
+	InitEndpoints(mainContext, router, deps)
 
 	return engine
 }
 
 // see: https://github.com/gin-gonic/gin#manually
-func runServer(config *config.ServerConfig, engine *gin.Engine, serverClose httputil.ServerClose) {
+func runServer(mainContext context.Context, config *config.ServerConfig, engine *gin.Engine, serverClose httputil.ServerClose) {
+	addr := config.HTTPServer.Listen
 	srv := &http.Server{
-		Addr:           config.HTTPServer.Listen,
+		Addr:           addr,
 		Handler:        engine,
 		ReadTimeout:    60 * time.Second, // FIXME: Fix hardcorded
 		WriteTimeout:   60 * time.Second, // FIXME: Fix hardcorded
@@ -52,32 +54,31 @@ func runServer(config *config.ServerConfig, engine *gin.Engine, serverClose http
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			if err != http.ErrServerClosed {
-				log.Fatalf("listen failed: %s\n", err) // FIXME: Use logger
+				logger.Of(mainContext).Fatalf("HTTP server listen failed on %s: %v", addr, err)
 			} else {
-				log.Println("Server listener closed")
+				logger.Of(mainContext).Infof("HTTP server listener closed")
 			}
 		}
 	}()
-	log.Println(fmt.Sprintf("Server running on %s", config.HTTPServer.Listen)) // FIXME: Use logger
+	logger.Of(mainContext).Infof("HTTP server running on %s", addr)
 
 	quit := make(chan os.Signal, 1)
 	// kill (no param) default send syscall.SIGTERM
 	// kill -2 is syscall.SIGINT
 	// kill -9 is syscall.SIGKILL but can't be catch, so don't need add it
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Shutting down server...")
+	signal := <-quit // Wait until signal...
+	logger.Of(mainContext).Infof("Shutting down server (%v)...", signal)
 	serverClose.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), config.HTTPServer.GracefulShutdownTimeout.Duration)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			log.Println("Aborted long-running requests (e.g. awaiting long pollings)") // FIXME: Use logger
+			logger.Of(mainContext).Infof("Stopping long-running requests (e.g. long pollings)")
 		} else {
-			log.Fatal("Server forced to shutdown ", err) // FIXME: Use logger
+			logger.Of(mainContext).Warnf("Server forced to shutdown: %v", err)
 		}
 	}
-
-	log.Println("Server exiting") // FIXME: Use logger
+	logger.Of(mainContext).Infof("Server exiting...")
 }
