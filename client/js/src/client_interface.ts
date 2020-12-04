@@ -87,6 +87,7 @@ export type Channel = {
   }): Promise<Subscription>;
 };
 
+export const defaultPollingBulkSize = 32;
 export const defaultLongPollingSec = 30;
 export const defaultLongPollingIntervalSec = 0.05;
 export const defaultLongPollingIntervalJitterSec = 0.1;
@@ -122,6 +123,12 @@ export type SubscriptionCallbackErrorInfo = {
 export const subscriptionUnrecoverableErrorCodes = ["dsps.auth.invalid-credentials", "dsps.auth.channel-forbidden", "dsps.storage.subscription-not-found", "dsps.storage.invalid-channel"] as const;
 
 export class SubscriptionUnrecoverableError extends Error {
+  readonly isSubscriptionUnrecoverableError = true;
+
+  static isInstance(e: any): e is SubscriptionUnrecoverableError {
+    return (e as SubscriptionUnrecoverableError).isSubscriptionUnrecoverableError;
+  }
+
   /**
    * @param code Note that list of {@link subscriptionUnrecoverableErrorCodes} possibly change in future version.
    */
