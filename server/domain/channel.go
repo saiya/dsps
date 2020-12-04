@@ -10,11 +10,11 @@ type ChannelID string
 
 // ChannelProvider provides configured Channel object.
 // If given ChannelID is not valid for this server process, returns nil.
-type ChannelProvider func(id ChannelID) *Channel
+type ChannelProvider func(id ChannelID) Channel
 
 // Channel struct holds all objects/information of a channel
-type Channel struct {
-	Expire Duration
+type Channel interface {
+	Expire() Duration
 }
 
 // see: doc/interface/validation_rule.md

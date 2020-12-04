@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"regexp"
 
 	"github.com/saiya/dsps/server/domain"
 	jwtpkg "github.com/saiya/dsps/server/jwt"
@@ -10,7 +9,7 @@ import (
 
 var channlesConfigDefault = ChannelsConfig{
 	ChannelConfig{
-		Regex:  domain.Regex{Regexp: regexp.MustCompile(".+")},
+		Regex:  makeRegex(".+"),
 		Expire: channelConfigDefaults.Expire,
 	},
 }
@@ -36,7 +35,7 @@ type ChannelsConfig []ChannelConfig
 
 // ChannelConfig represents channel configuration
 type ChannelConfig struct {
-	Regex  domain.Regex     `json:"regex"`
+	Regex  *domain.Regex    `json:"regex"`
 	Expire *domain.Duration `json:"expire"`
 
 	Webhooks []OutgoingWebhookConfig `json:"webhooks"`
@@ -68,9 +67,9 @@ type OutgoingWebhookRetryConfig struct {
 
 // JwtValidationConfig is JWT configuration of a channel
 type JwtValidationConfig struct {
-	Alg  string   `json:"alg"`
-	Iss  []string `json:"iss"`
-	Keys []string `json:"keys"`
+	Alg  string          `json:"alg"`
+	Iss  []domain.JwtIss `json:"iss"`
+	Keys []string        `json:"keys"`
 
 	Claims map[string]domain.TemplateString `json:"claims"`
 }

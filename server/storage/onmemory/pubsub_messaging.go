@@ -36,7 +36,7 @@ func (s *onmemoryStorage) PublishMessages(ctx context.Context, msgs []domain.Mes
 		ch.channelClock = ch.channelClock + 1 // Must start with 1
 		wrapped := onmemoryMessage{
 			channelClock: ch.channelClock,
-			ExpireAt:     domain.Time{Time: s.systemClock.Now().Add(ch.Expire.Duration)},
+			ExpireAt:     domain.Time{Time: s.systemClock.Now().Add(ch.Expire().Duration)},
 			Message:      msg,
 		}
 		ch.log[msg.MessageLocator] = &wrapped

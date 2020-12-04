@@ -25,13 +25,13 @@ channels:
   - regex: 'chat-room-(?P<id>\d+)'
     expire: 15m
     webhooks:
-      - url: 'http://localhost:3001/you-got-message/room/{{.id}}'
+      - url: 'http://localhost:3001/you-got-message/room/{{.regex.id}}'
 ```
 
 ## Words & definitions used in this document
 
 - `Regex string` means YAML string that constructs [golang compatible regular expression](https://golang.org/pkg/regexp/) (e.g. `'chat-room-(?P<id>\d+)'`)
-- `Template string` means YAML string that follows [golang Template](https://golang.org/pkg/text/template) syntax (e.g. `'http://localhost:3001/room/{{.id}}'`)
+- `Template string` means YAML string that follows [golang Template](https://golang.org/pkg/text/template) syntax (e.g. `'http://localhost:3001/room/{{.regex.id}}'`)
 - `Duration string` means YAML string that follows [golang ParseDuration](https://golang.org/pkg/time/#ParseDuration) syntax (e.g. `'1h30m'`)
 
 ## storages configuration block
@@ -92,7 +92,7 @@ Configuration items under `channels[n]`:
 
 - `regex` (Regex string, required): Regex string to match with name of a channel
   - Must match with *entire string* of the channel name (no need to write `^` nor `$`).
-  - You can use named group (e.g. `(?P<id>\d+)`). In the channel configuration, captured value of the group is visible to template strings.
+  - You can use named group/subexp (e.g. `(?P<id>\d+)`). In the channel configuration, captured value of the group is visible to template strings under `.regex` (e.g. `{{.regex.id}}`).
 - `expire` (Duration string, default `30m`): DSPS server may discard inactive subscribers & messages after this duration
   - Duration counts from last access of the subscriber or sent time of the message.
   - DSPS may not resend after this expiration duration, so that this value must be larger than client's polling period if you polling.
@@ -110,7 +110,7 @@ channels:
     # Must be larger than final retry attempt time
     expire: 15m
     webhooks:
-      - url: 'http://localhost:3001/you-got-message/room/{{.id}}'
+      - url: 'http://localhost:3001/you-got-message/room/{{.regex.id}}'
         timeout: 30s
         retry:
           # Enable 3 retries as below:
@@ -123,7 +123,7 @@ channels:
           intervalJitter: 1s500ms
         headers:
           User-Agent: my DSPS server
-          X-Chat-Room-ID: '{{.id}}'
+          X-Chat-Room-ID: '{{.regex.id}}'
 ```
 
 If there are multiple webhooks, DSPS server calls them concurrently. Configuration order of the webhooks has no meaning.
@@ -154,23 +154,9 @@ channels:
       iss:
         - https://issuer.example.com/issuer-url
       keys:
-        - |-
-          -----BEGIN PUBLIC KEY-----
-          MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAlgY7fpgGEKqGaoUc1O9K
-          CdytNmBa7P1DWfA8QWFE042yn/dBLW8M+uWqsvD/pDWaSDNfEgY6J8nyKZ7DMps6
-          E1TJNBkZ7/4TDVpmsIE8vqK/bhTz5SYTnLyMd2Wh7Yy+uUOk6XTR2Ade9ysHPD5U
-          mmFBzQX2r+S25lpRUHXmSGl7cYiTbWmI2JVTId3agHR1jqZ1EeWDorEZ3HF7hExl
-          pKXa0vZaMoK2mvzHOhaNPn57BNqcXfzLVYjny1br7qJOHgMBW+AwCbb7yE+aRsur
-          WQEc6XyhbFG443Sb6tHvbiROg2nTXu1Pq0ZaB90mytpm0Md+p0QI0mqizhbOD3d3
-          Lf10Zj86nlvT4dKbWwZHfrh9oiR9tLGgCyUtVQYhgv7BehdLnpJmxxaohteLJHon
-          PfzIKqOY24OmteqAML7+G8gbrRIXMS8aTvPJvJ3XT51QD+61CMwExMWXz1CTXlc3
-          tSZ0nx8hquPI9C/B9AIlnk0lgKNmq+A2aU98OnSlTPqsdZo3xr4PPMthiNr/dfEq
-          HsijJ3dq9pwaO9t0xKti+Hd9ic/IqUH2OyT0Nw36f/MvDBAILF8SVimSKnEaQI04
-          5AME2BK5WZiwL47SqZIWTNUglhyPEZCZ2tFJYHZHFSW6AbnDWAxYKBuDE7MB+t/u
-          Y4XfEnmCs8dK48LUuB+IgF8CAwEAAQ==
-          -----END PUBLIC KEY-----
+        - path/to/public-key-file.pem
       claims:
-        chatroom: '{{.id}}'
+        chatroom: '{{.regex.id}}'
 ```
 
 If this configuration present on the channel, clients must present valid JWT with `Authorization: Bearer <jwt>` request header for every API call.
@@ -182,13 +168,13 @@ Configuration item under `channels[n].jwt`:
 - `alg` (string, required): Acceptable JWT signing algorithm such as `RS256`
   - `none` alg is easy way for testing purpose, but do not accept it on production.
 - `iss` (list of string, required): Acceptable JWT issuers
-- `keys` (list of string, required): key of signing
-  - For `none` alg, this configuration does not have meaning (can be empty list)
-  - For HMAC alg such as `HS256`, set Base64 encoded key here
-  - For RSA alg such as `RS256` or ECDSA alg such as `ES256`, set PEM encoded x509 certificate that contains public key
+- `keys` (list of string, required): path to file that contains public key for signature verification
+  - For `none` alg, this configuration does not have meaning (can be omitted)
+  - For HMAC alg such as `HS256`, content of the file should be Base64 encoded key
+  - For RSA alg such as `RS256` or ECDSA alg such as `ES256`, the file should be PEM encoded x509 certificate that contains public key
 - `claims` (string to Template string map, optional): Validation rule of custom claims
   - For example, `foo: 'bar'` means JWT must have custom claim named `foo` with a value `bar`
-  - You can use template string to validate value (e.g. `chatroom: '{{.id}}'` means custom claim `chatroom` must match with `id` of `channels.regex`).
+  - You can use template string to validate value (e.g. `chatroom: '{{.regex.id}}'` means custom claim `chatroom` must match with `id` of `channels.regex`).
 
 ### <a name="admin"></a> `admin` configuration block
 

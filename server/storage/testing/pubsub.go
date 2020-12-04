@@ -10,24 +10,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
-	domain "github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/domain"
 	dspstesting "github.com/saiya/dsps/server/testing"
 )
-
-// DisabledChannelID is ChannelID that StubChannelProvider always rejects.
-var DisabledChannelID domain.ChannelID = "disabled-channel"
-
-// StubChannelProvider is simple stub implementation of ChannelProvider
-var StubChannelProvider domain.ChannelProvider = func(id domain.ChannelID) *domain.Channel {
-	if id == DisabledChannelID {
-		return nil
-	}
-
-	ch := domain.Channel{
-		Expire: dspstesting.MakeDuration("5m"),
-	}
-	return &ch
-}
 
 // PubSubTest tests common Storage behaviors
 func PubSubTest(t *testing.T, storageCtor StorageCtor) {
