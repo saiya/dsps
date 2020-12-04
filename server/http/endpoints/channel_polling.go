@@ -3,7 +3,6 @@ package endpoints
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/http/util"
+	"github.com/saiya/dsps/server/logger"
 )
 
 // PollingEndpointDependency is to inject required objects to the endpoint
@@ -23,12 +23,18 @@ type PollingEndpointDependency interface {
 }
 
 // InitPollingEndpoints registers endpoints
-func InitPollingEndpoints(router gin.IRoutes, deps PollingEndpointDependency) {
+func InitPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
 	pubsub := deps.GetStorage().AsPubSubStorage()
 	serverClose := deps.GetServerClose()
 	longPollingMaxTimeout := deps.GetLongPollingMaxTimeout().Duration
 
-	router.PUT("/channel/:channelID/subscription/polling/:subscriberID", func(ctx *gin.Context) {
+	group := router.Group("/subscription/polling/:subscriberID")
+	group.Use(func(ctx *gin.Context) {
+		logger.ModifyGinContext(ctx).WithStr("subscriberID", ctx.Param("subscriberID")).Build()
+		ctx.Next()
+	})
+
+	group.PUT("", func(ctx *gin.Context) {
 		if pubsub == nil {
 			sendPubSubUnsupportedError(ctx)
 			return
@@ -66,7 +72,7 @@ func InitPollingEndpoints(router gin.IRoutes, deps PollingEndpointDependency) {
 		})
 	})
 
-	router.DELETE("/channel/:channelID/subscription/polling/:subscriberID", func(ctx *gin.Context) {
+	group.DELETE("", func(ctx *gin.Context) {
 		if pubsub == nil {
 			sendPubSubUnsupportedError(ctx)
 			return
@@ -104,7 +110,7 @@ func InitPollingEndpoints(router gin.IRoutes, deps PollingEndpointDependency) {
 		})
 	})
 
-	router.GET("/channel/:channelID/subscription/polling/:subscriberID", func(ctx *gin.Context) {
+	group.GET("", func(ctx *gin.Context) {
 		if pubsub == nil {
 			sendPubSubUnsupportedError(ctx)
 			return
@@ -128,7 +134,7 @@ func InitPollingEndpoints(router gin.IRoutes, deps PollingEndpointDependency) {
 			return
 		}
 		if timeout > longPollingMaxTimeout {
-			fmt.Printf("Client requested long-polling timeout %v is too long, rounded to longPollingMaxTimeout (%v)\n", timeout, longPollingMaxTimeout) // TODO: Use logger
+			logger.Of(ctx).Infof("Client requested long-polling timeout %v is too long, rounded to longPollingMaxTimeout (%v)", timeout, longPollingMaxTimeout)
 			timeout = longPollingMaxTimeout
 		}
 
@@ -150,7 +156,7 @@ func InitPollingEndpoints(router gin.IRoutes, deps PollingEndpointDependency) {
 			)
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
-					fmt.Println("Polling canceled due to context cancel, returned empty messages to client.") // TODO: Use logger
+					logger.Of(ctx).Infof("Polling canceled due to context cancel, returned empty messages to client.")
 					msgs = []domain.Message{}
 					moreMsg = false
 					ackHandle = domain.AckHandle{}
@@ -187,7 +193,7 @@ func InitPollingEndpoints(router gin.IRoutes, deps PollingEndpointDependency) {
 		})
 	})
 
-	router.DELETE("/channel/:channelID/subscription/polling/:subscriberID/message", func(ctx *gin.Context) {
+	group.DELETE("/message", func(ctx *gin.Context) {
 		if pubsub == nil {
 			sendPubSubUnsupportedError(ctx)
 			return

@@ -30,7 +30,7 @@ func createServer(mainContext context.Context, config *config.ServerConfig, deps
 	engine := gin.New()
 	engine.Use(logger.LoggingMiddleware())
 
-	var router gin.IRoutes
+	var router gin.IRouter
 	if config.HTTPServer.PathPrefix == "/" {
 		router = engine
 	} else {

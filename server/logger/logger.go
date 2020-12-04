@@ -10,6 +10,7 @@ import (
 type Logger interface {
 	Fatal(msg string, err error)
 	Error(msg string, err error)
+	WarnError(msg string, err error)
 	InfoError(msg string, err error)
 
 	Warnf(template string, args ...interface{})
@@ -33,6 +34,10 @@ func (logger *loggerImpl) Fatal(msg string, err error) {
 
 func (logger *loggerImpl) Error(msg string, err error) {
 	logger.zap.Error(msg, zap.Error(err))
+}
+
+func (logger *loggerImpl) WarnError(msg string, err error) {
+	logger.zap.Warn(msg, zap.Error(err))
 }
 
 func (logger *loggerImpl) InfoError(msg string, err error) {

@@ -10,33 +10,33 @@ import (
 
 // LoggingMiddleware is middleware for logging
 func LoggingMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
+	return func(ctx *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				Of(c).Error("Panic in HTTP endpoint", panicAsError(err))
-				c.AbortWithStatus(http.StatusInternalServerError)
+				Of(ctx).Error("Panic in HTTP endpoint", panicAsError(err))
+				ctx.AbortWithStatus(http.StatusInternalServerError)
 			}
 		}()
 
-		ModifyGinContext(c).
-			WithStr("method", c.Request.Method).
-			WithStr("path", c.Request.URL.Path).
-			WithStr("ip", c.ClientIP()).
-			WithStr("ua", c.Request.UserAgent()).
-			WithStr("referer", c.Request.Referer()).
-			WithInt64("reqLength", c.Request.ContentLength).
+		ModifyGinContext(ctx).
+			WithStr("method", ctx.Request.Method).
+			WithStr("path", ctx.Request.URL.Path).
+			WithStr("ip", ctx.ClientIP()).
+			WithStr("ua", ctx.Request.UserAgent()).
+			WithStr("referer", ctx.Request.Referer()).
+			WithInt64("reqLength", ctx.Request.ContentLength).
 			Build()
 
 		startAt := time.Now()
-		c.Next()
+		ctx.Next()
 		elapsed := time.Since(startAt)
 
-		ModifyGinContext(c).
-			WithInt("status", c.Writer.Status()).
+		ModifyGinContext(ctx).
+			WithInt("status", ctx.Writer.Status()).
 			WithInt64("elapsedMs", elapsed.Milliseconds()).
-			WithInt("resLength", c.Writer.Size()).
+			WithInt("resLength", ctx.Writer.Size()).
 			Build()
-		Of(c).Infof("HTTP endpoint ended")
+		Of(ctx).Infof("HTTP endpoint ended")
 	}
 }
 

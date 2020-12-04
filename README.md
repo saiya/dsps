@@ -30,7 +30,7 @@ Note that DSPS does **NOT** aim to provide followings:
 
 ```sh
 # Download & run DSPS server
-docker run -i -p 3000:3000/tcp saiya/dsps:latest
+docker run -i -p 3000:3099/tcp saiya/dsps:latest
 
 #
 # ... Open another terminal window to run following tutorial ...
