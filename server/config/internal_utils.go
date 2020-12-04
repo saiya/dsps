@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -8,6 +9,10 @@ import (
 )
 
 func makeIntPtr(value int) *int {
+	return &value
+}
+
+func makeFloat64Ptr(value float64) *float64 {
 	return &value
 }
 
@@ -22,4 +27,18 @@ func makeDuration(str string) domain.Duration {
 func makeDurationPtr(str string) *domain.Duration {
 	d := makeDuration(str)
 	return &d
+}
+
+func intMustBeLargerThanZero(name string, value int) error {
+	if value <= 0 {
+		return errors.New("%s must not be negative")
+	}
+	return nil
+}
+
+func durationMustBeLargerThanZero(name string, d domain.Duration) error {
+	if d.Duration <= 0 {
+		return errors.New("%s must not be negative")
+	}
+	return nil
 }

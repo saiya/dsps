@@ -86,14 +86,14 @@ Each channel configuration must have `regex` to match with name of a channel.
 If multiple configuration match with a channel, server merges them.
 
 If you configure one or more `channels` blocks, DSPS server will reject unmatched channel name.
-If `channels` configuration is empty, DSPS server automatically define `.*` channel configuration to accept any channel name.
+If `channels` configuration is empty, DSPS server automatically define `.+` channel configuration to accept any channel name.
 
 Configuration items under `channels[n]`:
 
 - `regex` (Regex string, required): Regex string to match with name of a channel
   - Must match with *entire string* of the channel name (no need to write `^` nor `$`).
   - You can use named group (e.g. `(?P<id>\d+)`). In the channel configuration, captured value of the group is visible to template strings.
-- `expire` (Duration string, required): DSPS server may discard inactive subscribers & messages after this duration
+- `expire` (Duration string, default `30m`): DSPS server may discard inactive subscribers & messages after this duration
   - Duration counts from last access of the subscriber or sent time of the message.
   - DSPS may not resend after this expiration duration, so that this value must be larger than client's polling period if you polling.
   - If multiple channel configuration matches to a channel, largest value wins.
@@ -107,13 +107,12 @@ You can configure outgoing webhook to send messages from DSPS server to any HTTP
 # Webhook with retry configuration example
 channels:
   - regex: 'chat-room-(?P<id>\d+)'
-    message:
-      # Must be larger than final retry attempt time
-      expire: 15m
+    # Must be larger than final retry attempt time
+    expire: 15m
     webhooks:
       - url: 'http://localhost:3001/you-got-message/room/{{.id}}'
+        timeout: 30s
         retry:
-          timeout: 30s
           # Enable 3 retries as below:
           # 1st retry: 3 * 1.5^0 ± 1.5 = 3    ± 1.5 [sec] after first webhook attempt
           # 2nd retry: 3 * 1.5^1 ± 1.5 = 4.5  ± 1.5 [sec] after 1st retry
