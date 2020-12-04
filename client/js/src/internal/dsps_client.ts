@@ -1,13 +1,15 @@
 import { Channel, DspsClient } from "../client_interface";
 import { defaultApiRetry, DspsClientConfig } from "../dsps_client_config";
-import { HttpClient, HttpRequest, HttpResponse, isHttpClient } from "../http_client";
+import { HttpClient, HttpRequest, HttpRequestCanceledError, HttpResponse, isHttpClient } from "../http_client";
 import { HttpClientAxios } from "../http_client/axios";
 import { Retry, makeRetry } from "../retry";
 import { ChannelImpl } from "./channel";
 import { DspsClientEventTargetImpl } from "./event_target";
+import { ClientInternals } from ".";
 
-export class DspsClientImpl implements DspsClient {
-  private eventTarget: DspsClientEventTargetImpl = new DspsClientEventTargetImpl();
+export class DspsClientImpl implements DspsClient, ClientInternals {
+  /** @internal */
+  public eventTarget: DspsClientEventTargetImpl = new DspsClientEventTargetImpl();
 
   private http: HttpClient;
 
@@ -24,12 +26,7 @@ export class DspsClientImpl implements DspsClient {
    * Note that this method does not check validity & accessibility of the channel.
    */
   channel(channelID: string): Channel {
-    return new ChannelImpl({
-      channelID,
-      apiRetry: this.apiRetry,
-      http: this.http,
-      eventTarget: this.eventTarget,
-    });
+    return new ChannelImpl(this, channelID);
   }
 
   addEventListener(type: Parameters<DspsClientEventTargetImpl["addEventListener"]>[0], listener: Parameters<DspsClientEventTargetImpl["addEventListener"]>[1]): ReturnType<DspsClientEventTargetImpl["addEventListener"]> {
@@ -38,6 +35,25 @@ export class DspsClientImpl implements DspsClient {
 
   removeEventListener(type: Parameters<DspsClientEventTargetImpl["removeEventListener"]>[0], listener: Parameters<DspsClientEventTargetImpl["removeEventListener"]>[1]): void {
     this.eventTarget.removeEventListener(type, listener);
+  }
+
+  async apiCall(
+    req: HttpRequest,
+    handling?: {
+      retry?: boolean;
+    }
+  ): Promise<HttpResponse> {
+    try {
+      if (handling?.retry) {
+        return await this.apiRetry.perform(req.path, async () => this.http.request(req));
+      }
+      return await this.http.request(req);
+    } catch (e) {
+      if (!HttpRequestCanceledError.isInstance(e)) {
+        this.eventTarget.onApiFailed(e);
+      }
+      throw e;
+    }
   }
 }
 
