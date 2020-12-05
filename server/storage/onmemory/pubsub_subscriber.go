@@ -9,7 +9,7 @@ import (
 )
 
 type onmemoryChannel struct {
-	*domain.Channel
+	domain.Channel
 	channelClock uint64
 
 	subscribers map[domain.SubscriberID]*onmemorySubscriber

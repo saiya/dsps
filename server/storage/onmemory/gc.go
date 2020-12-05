@@ -44,7 +44,7 @@ func (s *onmemoryStorage) GC(ctx context.Context) error {
 		if err := ctx.Err(); err != nil {
 			return err // Context canceled
 		}
-		expireBefore := s.systemClock.Now().Add(-ch.Expire.Duration)
+		expireBefore := s.systemClock.Now().Add(-ch.Expire().Duration)
 
 		for sid, sbsc := range ch.subscribers {
 			if err := ctx.Err(); err != nil {

@@ -7,12 +7,7 @@ import (
 	"golang.org/x/xerrors"
 )
 
-// Duration wrapper struct (for marshal/unmarshal)
-type Duration struct {
-	time.Duration
-}
-
-// Time wrapper struct (for marshal/unmarshal)
+// Time wrapper struct
 type Time struct {
 	time.Time
 }
@@ -36,7 +31,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 		var err error
 		d.Duration, err = time.ParseDuration(value)
 		if err != nil {
-			return err
+			return xerrors.Errorf("Unable to parse Duration \"%s\" %w", value, err)
 		}
 		return nil
 	default:

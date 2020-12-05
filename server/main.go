@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"time"
 
+	"github.com/saiya/dsps/server/channel"
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/http"
@@ -27,7 +28,8 @@ func main() {
 		port   = flag.Int("port", 0, "Override http.port configuration item")
 		listen = flag.String("listen", "", "Override http.listen configuration item")
 
-		debug = flag.Bool("debug", false, "Enable debug logs")
+		debug      = flag.Bool("debug", false, "Enable debug logs")
+		dumpConfig = flag.Bool("dump-config", false, "Dump loaded configuration to stdout (for debug only)")
 	)
 	flag.Parse()
 	configFile := flag.Arg(0)
@@ -42,7 +44,20 @@ func main() {
 	ctx := context.Background()
 	clock := domain.RealSystemClock
 	config := loadConfig(configFile, configOverrides)
-	channelProvider := newChannelProvider(&config)
+	if *dumpConfig {
+		data, err := json.MarshalIndent(config, "", "  ")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		fmt.Println(string(data))
+	}
+
+	channelProvider, err := channel.NewChannelProvider(&config, clock)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
 	if err := logger.InitLogger(&config); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
@@ -80,13 +95,4 @@ func loadConfigFile(configFile string) string {
 		log.Fatal(err) // FIXME: Improve error handling
 	}
 	return string(yamlBytes)
-}
-
-func newChannelProvider(config *config.ServerConfig) domain.ChannelProvider {
-	// FIXME: Implement
-	return func(id domain.ChannelID) *domain.Channel {
-		return &domain.Channel{
-			Expire: domain.Duration{Duration: 3 * time.Hour},
-		}
-	}
 }

@@ -27,8 +27,9 @@ type Overrides struct {
 type ServerConfig struct {
 	BuildInfo  *BuildInfo
 	Storages   StoragesConfig    `json:"storages"`
-	Logging    *LoggingConfig    `json:"logging"`
 	HTTPServer *HTTPServerConfig `json:"http"`
+	Logging    *LoggingConfig    `json:"logging"`
+	Channels   ChannelsConfig    `json:"channels"`
 }
 
 // BuildInfo represents compile time metadata.
@@ -64,6 +65,9 @@ func ParseConfig(overrides Overrides, yaml string) (ServerConfig, error) {
 	}
 	if err := PostprocessHTTPServerConfig(config.HTTPServer, overrides); err != nil {
 		return config, fmt.Errorf("HTTP server configration problem: %w", err)
+	}
+	if err := PostprocessChannelsConfig(&config.Channels); err != nil {
+		return config, fmt.Errorf("Channel configration problem: %w", err)
 	}
 
 	return config, nil
