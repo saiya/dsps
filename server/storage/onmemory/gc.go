@@ -38,8 +38,6 @@ func (s *onmemoryStorage) GC(ctx context.Context) error {
 	}
 	defer unlock()
 
-	startAt := s.systemClock.Now()
-	s.stat.GC.LastStartAt = startAt
 	for _, ch := range s.channels {
 		if err := ctx.Err(); err != nil {
 			return err // Context canceled
@@ -54,7 +52,6 @@ func (s *onmemoryStorage) GC(ctx context.Context) error {
 			// Remove expired subscriber.
 			if sbsc.lastActivity.Before(expireBefore) {
 				delete(ch.subscribers, sid)
-				s.stat.GC.Evicted.Subscribers++
 				continue
 			}
 
@@ -76,7 +73,6 @@ func (s *onmemoryStorage) GC(ctx context.Context) error {
 
 			if msg.ExpireAt.Before(expireBefore) {
 				delete(ch.log, msgLoc)
-				s.stat.GC.Evicted.Messages++
 			}
 		}
 	}
@@ -89,10 +85,7 @@ func (s *onmemoryStorage) GC(ctx context.Context) error {
 
 		if time.Time(exp).Before(s.systemClock.Now().Time) {
 			delete(s.revokedJwts, jti)
-			s.stat.GC.Evicted.JwtRevocations++
 		}
 	}
-	s.stat.GC.LastGCSec = s.systemClock.Now().Sub(startAt.Time).Seconds()
-
 	return nil
 }

@@ -2,27 +2,44 @@ package redis
 
 import (
 	"context"
-	"errors"
+	"time"
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
 )
 
+// In case of clock drift
+const ttlMargin = 15 * time.Second
+
 // NewRedisStorage creates Storage instance
 func NewRedisStorage(ctx context.Context, config *config.RedisStorageConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
-	return &redisStorage{
-		stat: &redisStorageStat{},
+	conn, err := connect(ctx, config)
+	if err != nil {
+		return &redisStorage{}, err
+	}
+	s := &redisStorage{
+		clock:           systemClock,
+		channelProvider: channelProvider,
 
 		pubsubEnabled: !config.DisablePubSub,
 		jwtEnabled:    !config.DisableJwt,
-	}, nil
+
+		redisConnection: conn,
+	}
+	if err := s.loadScripts(ctx); err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
 type redisStorage struct {
-	stat *redisStorageStat
+	clock           domain.SystemClock
+	channelProvider domain.ChannelProvider
 
 	pubsubEnabled bool
 	jwtEnabled    bool
+
+	redisConnection
 }
 
 func (s *redisStorage) AsPubSubStorage() domain.PubSubStorage {
@@ -39,9 +56,16 @@ func (s *redisStorage) AsJwtStorage() domain.JwtStorage {
 }
 
 func (s *redisStorage) String() string {
-	return "redis" // TODO: Add "-cluster" / "-singlenode" suffix
+	if s.redisConnection.isSingleNode {
+		return "redis-singlenode"
+	}
+	return "redis-cluster"
 }
 
 func (s *redisStorage) Shutdown(ctx context.Context) error {
-	return errors.New("Not Implemented yet")
+	return s.redisConnection.close()
+}
+
+func (s *redisStorage) GetNoFilePressure() int {
+	return s.maxConnections
 }

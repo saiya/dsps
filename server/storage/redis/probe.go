@@ -2,13 +2,15 @@ package redis
 
 import (
 	"context"
-	"errors"
 )
 
 func (s *redisStorage) Liveness(ctx context.Context) (interface{}, error) {
-	return map[string]string{}, errors.New("Not Implemented yet")
+	return map[string]string{}, nil
 }
 
 func (s *redisStorage) Readiness(ctx context.Context) (interface{}, error) {
-	return map[string]string{}, errors.New("Not Implemented yet")
+	if err := s.redisCmd.Ping(ctx); err != nil {
+		return nil, err
+	}
+	return map[string]string{"redis": "ping OK"}, nil
 }

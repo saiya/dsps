@@ -7,7 +7,6 @@ import (
 
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/logger"
-	storageinternal "github.com/saiya/dsps/server/storage/internal"
 )
 
 func (s *storageMultiplexer) PublishMessages(ctx context.Context, msgs []domain.Message) error {
@@ -79,7 +78,7 @@ func (s *storageMultiplexer) FetchMessages(ctx context.Context, sl domain.Subscr
 		}
 	}
 
-	ackHandle, err = storageinternal.EncodeMultiplexAckHandle(ackHandles)
+	ackHandle, err = encodeMultiplexAckHandle(ackHandles)
 	if err != nil {
 		return nil, false, domain.AckHandle{}, err
 	}
@@ -87,7 +86,7 @@ func (s *storageMultiplexer) FetchMessages(ctx context.Context, sl domain.Subscr
 }
 
 func (s *storageMultiplexer) AcknowledgeMessages(ctx context.Context, handle domain.AckHandle) error {
-	h, err := storageinternal.DecodeMultiplexAckHandle(handle)
+	h, err := decodeMultiplexAckHandle(handle)
 	if err != nil {
 		return err
 	}

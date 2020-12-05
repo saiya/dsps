@@ -99,6 +99,7 @@ Configuration items:
 - `username` (string, optional, default `""`): Username of Redis authentication
 - `password` (string, optional, default `""`): Password of Redis authentication
 - `db` (number, optional, default `0`): Database number of the Redis
+  - Note: ignored if using redis cluster because it does not support database number
 - `timeout.connect` (duration, optional, default `5s`): Timeout to connect to the Redis
 - `timeout.read` (duration, optional, default `5s`): Timeout to wait response from the Redis
 - `timeout.write` (duration, optional, default `5s`): Timeout of request write operation to the Redis

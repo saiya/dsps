@@ -13,7 +13,6 @@ import (
 func NewOnmemoryStorage(ctx context.Context, config *config.OnmemoryStorageConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
 	s := &onmemoryStorage{
 		lock: sync.NewLock(),
-		stat: &onmemoryStorageStat{},
 
 		systemClock:     systemClock,
 		channelProvider: channelProvider,
@@ -37,7 +36,6 @@ func NewOnmemoryStorage(ctx context.Context, config *config.OnmemoryStorageConfi
 
 type onmemoryStorage struct {
 	lock sync.Lock
-	stat *onmemoryStorageStat
 
 	pubsubEnabled bool
 	jwtEnabled    bool
@@ -91,4 +89,8 @@ func (s *onmemoryStorage) AsJwtStorage() domain.JwtStorage {
 		return nil
 	}
 	return s
+}
+
+func (s *onmemoryStorage) GetNoFilePressure() int {
+	return 0
 }

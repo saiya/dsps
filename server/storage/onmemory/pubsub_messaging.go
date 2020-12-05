@@ -2,13 +2,13 @@ package onmemory
 
 import (
 	"context"
+	"encoding/json"
 	"sync/atomic"
 	"time"
 
 	"golang.org/x/xerrors"
 
 	"github.com/saiya/dsps/server/domain"
-	storageinternal "github.com/saiya/dsps/server/storage/internal"
 )
 
 type onmemoryMessage struct {
@@ -17,7 +17,18 @@ type onmemoryMessage struct {
 	ExpireAt     domain.Time
 }
 
+func (msg *onmemoryMessage) Validate() error {
+	if _, err := json.Marshal(msg.Message.Content); err != nil {
+		return xerrors.Errorf("%w: %v", domain.ErrMalformedMessageJSON, err)
+	}
+	return nil
+}
+
 func (s *onmemoryStorage) PublishMessages(ctx context.Context, msgs []domain.Message) error {
+	if !domain.BelongsToSameChannel(msgs) {
+		return xerrors.New("Messages belongs to various channels")
+	}
+
 	unlock, err := s.lock.Lock(ctx)
 	if err != nil {
 		return err
@@ -38,6 +49,9 @@ func (s *onmemoryStorage) PublishMessages(ctx context.Context, msgs []domain.Mes
 			channelClock: ch.channelClock,
 			ExpireAt:     domain.Time{Time: s.systemClock.Now().Add(ch.Expire().Duration)},
 			Message:      msg,
+		}
+		if err := wrapped.Validate(); err != nil {
+			return err
 		}
 		ch.log[msg.MessageLocator] = &wrapped
 
@@ -126,7 +140,7 @@ func (s *onmemoryStorage) FetchMessages(ctx context.Context, sl domain.Subscribe
 	moreMessages = (atomic.LoadInt32(&full) == int32(1))
 
 	if len(messages) > 0 {
-		ackHandle = storageinternal.EncodeAckHandle(sl, storageinternal.AckHandleData{
+		ackHandle = encodeAckHandle(sl, ackHandleData{
 			LastMessageID: messages[len(messages)-1].MessageID,
 		})
 	} else {
@@ -153,7 +167,7 @@ func (s *onmemoryStorage) AcknowledgeMessages(ctx context.Context, handle domain
 	}
 	sbsc.lastActivity = s.systemClock.Now()
 
-	rhd, err := storageinternal.DecodeAckHandle(handle)
+	rhd, err := decodeAckHandle(handle)
 	if err != nil {
 		return err
 	}

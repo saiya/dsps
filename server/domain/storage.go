@@ -15,6 +15,8 @@ var (
 	ErrSubscriptionNotFound = NewErrorWithCode("dsps.storage.subscription-not-found")
 	// ErrMalformedAckHandle : Failed to decode/decrypt given AckHandle
 	ErrMalformedAckHandle = NewErrorWithCode("dsps.storage.ack-handle-malformed")
+	// ErrMalformedMessageJSON : Given message content is not valid JSON
+	ErrMalformedMessageJSON = NewErrorWithCode("dsps.storage.message-json-malformed")
 )
 
 // IsStorageNonFatalError returns true if given error does not indicate storage system error
@@ -32,13 +34,13 @@ type Storage interface {
 	// Readiness probe, returns "encoding/json" encodable value.
 	Readiness(ctx context.Context) (interface{}, error)
 
-	// Returns statistics, returns "encoding/json" encodable value.
-	Stat(ctx context.Context) (interface{}, error)
-
 	// Retruns nil if neither supported nor supported.
 	AsPubSubStorage() PubSubStorage
 	// Retruns nil if neither supported nor supported.
 	AsJwtStorage() JwtStorage
+
+	// Estimated maximum pressure of syscall.RLIMIT_NOFILE
+	GetNoFilePressure() int
 }
 
 // PubSubStorage interface is an abstraction layer of PubSub storage implementations
@@ -46,6 +48,7 @@ type PubSubStorage interface {
 	NewSubscriber(ctx context.Context, sl SubscriberLocator) error
 	RemoveSubscriber(ctx context.Context, sl SubscriberLocator) error
 
+	// All messages must belong to same channel.
 	PublishMessages(ctx context.Context, msgs []Message) error
 	// Storage implementation can return more messages than given max count.
 	// When length of the returned messages is zero, returned AckHandle is not valid thus caller should ignore it.

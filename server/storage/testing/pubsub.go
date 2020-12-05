@@ -2,6 +2,7 @@ package testing
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -16,13 +17,15 @@ import (
 
 // PubSubTest tests common Storage behaviors
 func PubSubTest(t *testing.T, storageCtor StorageCtor) {
-	_pubSubScenarioTest(t, storageCtor)
-	_longPollingTest(t, storageCtor)
-	_longPollingCancelTest(t, storageCtor)
-	_messageAgeDetectionTest(t, storageCtor)
-	_manyQueuesMessagesTest(t, storageCtor)
-	_pubSubInvalidChannelTest(t, storageCtor)
-	_pubsubInvalidSubscriber(t, storageCtor)
+	storageSubTest(t, storageCtor, "pubSubScenario", _pubSubScenarioTest)
+	storageSubTest(t, storageCtor, "longPolling", _longPollingTest)
+	storageSubTest(t, storageCtor, "longPollngCancel", _longPollingCancelTest)
+	storageSubTest(t, storageCtor, "messageAgeDetection", _messageAgeDetectionTest)
+	storageSubTest(t, storageCtor, "manyQueuesMessages", _manyQueuesMessagesTest)
+	storageSubTest(t, storageCtor, "pubSubMixedChannePublish", _pubSubMixedChannelPublishTest)
+	storageSubTest(t, storageCtor, "pubSubInvalidChannel", _pubSubInvalidChannelTest)
+	storageSubTest(t, storageCtor, "pubsubInvalidSubscriber", _pubsubInvalidSubscriber)
+	storageSubTest(t, storageCtor, "pubSubInvalidMessage", _pubSubInvalidMessageTest)
 }
 
 func _pubSubScenarioTest(t *testing.T, storageCtor StorageCtor) {
@@ -35,7 +38,7 @@ func _pubSubScenarioTest(t *testing.T, storageCtor StorageCtor) {
 	storage := s.AsPubSubStorage()
 	assert.NotNil(t, storage)
 
-	var ch domain.ChannelID = _randomChannelID()
+	var ch domain.ChannelID = randomChannelID()
 	sl := domain.SubscriberLocator{
 		ChannelID:    ch,
 		SubscriberID: "sbsc1",
@@ -68,9 +71,10 @@ func _pubSubScenarioTest(t *testing.T, storageCtor StorageCtor) {
 				ChannelID: ch,
 				MessageID: domain.MessageID(fmt.Sprintf("msg-%d", i)),
 			},
-			Content: []byte(fmt.Sprintf("{ \"hi\": \"hello %d\" }", i)),
+			Content: []byte(fmt.Sprintf("{\"hi\":\"hello %d\"}", i)),
 		}
 	}
+	assert.NoError(t, storage.PublishMessages(ctx, []domain.Message{})) // Publish 0 messages (no-op)
 	if !assert.NoError(t, storage.PublishMessages(ctx, messages)) {
 		return
 	}
@@ -125,7 +129,7 @@ func _pubSubScenarioTest(t *testing.T, storageCtor StorageCtor) {
 				ChannelID: ch,
 				MessageID: "additional-msg",
 			},
-			Content: []byte("{ \"hi\": \"hello, again\" }"),
+			Content: []byte("{\"hi\":\"hello, again\"}"),
 		},
 	}
 	if !assert.NoError(t, storage.PublishMessages(ctx, moreMessages)) {
@@ -160,7 +164,7 @@ func _manyQueuesMessagesTest(t *testing.T, storageCtor StorageCtor) {
 	storage := s.AsPubSubStorage()
 	assert.NotNil(t, storage)
 
-	var ch domain.ChannelID = _randomChannelID()
+	var ch domain.ChannelID = randomChannelID()
 	sl := domain.SubscriberLocator{
 		ChannelID:    ch,
 		SubscriberID: "sbsc1",
@@ -180,7 +184,7 @@ func _manyQueuesMessagesTest(t *testing.T, storageCtor StorageCtor) {
 				ChannelID: ch,
 				MessageID: domain.MessageID(fmt.Sprintf("msg-%d", i)),
 			},
-			Content: []byte(fmt.Sprintf("{ \"hi\": \"hello %d\" }", i)),
+			Content: []byte(fmt.Sprintf("{\"hi\":\"hello %d\"}", i)),
 		}
 	}
 	if !assert.NoError(t, storage.PublishMessages(ctx, messages)) {
@@ -220,7 +224,7 @@ func _longPollingTest(t *testing.T, storageCtor StorageCtor) {
 	storage := s.AsPubSubStorage()
 	assert.NotNil(t, storage)
 
-	var ch domain.ChannelID = _randomChannelID()
+	var ch domain.ChannelID = randomChannelID()
 	sl := domain.SubscriberLocator{
 		ChannelID:    ch,
 		SubscriberID: "sbsc1",
@@ -240,7 +244,7 @@ func _longPollingTest(t *testing.T, storageCtor StorageCtor) {
 				ChannelID: ch,
 				MessageID: domain.MessageID(fmt.Sprintf("msg-%d", i)),
 			},
-			Content: []byte(fmt.Sprintf("{ \"hi\": \"hello %d\" }", i)),
+			Content: []byte(fmt.Sprintf("{\"hi\":\"hello %d\"}", i)),
 		}
 	}
 	willPublishAt := time.Now().Add(dspstesting.MakeDuration("600ms").Duration)
@@ -271,7 +275,7 @@ func _longPollingCancelTest(t *testing.T, storageCtor StorageCtor) {
 	storage := s.AsPubSubStorage()
 	assert.NotNil(t, storage)
 
-	var ch domain.ChannelID = _randomChannelID()
+	var ch domain.ChannelID = randomChannelID()
 	sl := domain.SubscriberLocator{
 		ChannelID:    ch,
 		SubscriberID: "sbsc1",
@@ -305,7 +309,7 @@ func _messageAgeDetectionTest(t *testing.T, storageCtor StorageCtor) {
 	storage := s.AsPubSubStorage()
 	assert.NotNil(t, storage)
 
-	var ch domain.ChannelID = _randomChannelID()
+	var ch domain.ChannelID = randomChannelID()
 	var messages = make([]domain.Message, 5)
 	var locators = make([]domain.MessageLocator, len(messages))
 	for i := range messages {
@@ -314,7 +318,7 @@ func _messageAgeDetectionTest(t *testing.T, storageCtor StorageCtor) {
 				ChannelID: ch,
 				MessageID: domain.MessageID(fmt.Sprintf("msg-%d", i)),
 			},
-			Content: []byte(fmt.Sprintf("{ \"hi\": \"hello %d\" }", i)),
+			Content: []byte(fmt.Sprintf("{\"hi\":\"hello %d\"}", i)),
 		}
 		locators[i] = messages[i].MessageLocator
 	}
@@ -410,6 +414,34 @@ func _messageAgeDetectionTest(t *testing.T, storageCtor StorageCtor) {
 	}, ageMap)
 }
 
+func _pubSubMixedChannelPublishTest(t *testing.T, storageCtor StorageCtor) {
+	ctx := context.Background()
+	s, err := storageCtor(ctx, domain.RealSystemClock, StubChannelProvider)
+	if !assert.NoError(t, err) {
+		return
+	}
+	defer func() { assert.NoError(t, s.Shutdown(ctx)) }()
+	storage := s.AsPubSubStorage()
+	assert.NotNil(t, storage)
+
+	assert.Error(t, storage.PublishMessages(ctx, []domain.Message{
+		{
+			MessageLocator: domain.MessageLocator{
+				ChannelID: randomChannelID(),
+				MessageID: "msg1",
+			},
+			Content: []byte(`{}`),
+		},
+		{
+			MessageLocator: domain.MessageLocator{
+				ChannelID: randomChannelID(),
+				MessageID: "msg2",
+			},
+			Content: []byte(`{}`),
+		},
+	}))
+}
+
 func _pubSubInvalidChannelTest(t *testing.T, storageCtor StorageCtor) {
 	ctx := context.Background()
 	s, err := storageCtor(ctx, domain.RealSystemClock, StubChannelProvider)
@@ -420,7 +452,7 @@ func _pubSubInvalidChannelTest(t *testing.T, storageCtor StorageCtor) {
 	storage := s.AsPubSubStorage()
 	assert.NotNil(t, storage)
 
-	validCh := _randomChannelID()
+	validCh := randomChannelID()
 	validSL := domain.SubscriberLocator{
 		ChannelID:    validCh,
 		SubscriberID: "sbsc1",
@@ -451,10 +483,10 @@ func _pubSubInvalidChannelTest(t *testing.T, storageCtor StorageCtor) {
 				ChannelID: ch,
 				MessageID: "msg-to-invalid-channel",
 			},
-			Content: []byte("{ \"hi\": \"hello, again\" }"),
+			Content: []byte("{\"hi\":\"hello, again\"}"),
 		},
 	}))
-	if _, _, _, err := storage.FetchMessages(ctx, sl, 1, dspstesting.MakeDuration("0s")); !dspstesting.IsError(t, domain.ErrInvalidChannel, err) {
+	if _, _, _, err := storage.FetchMessages(ctx, sl, 1, dspstesting.MakeDuration("0s")); !dspstesting.IsOneOfErrors(t, []error{domain.ErrInvalidChannel, domain.ErrSubscriptionNotFound}, err) {
 		return
 	}
 	dspstesting.IsError(t, domain.ErrInvalidChannel, storage.AcknowledgeMessages(ctx, domain.AckHandle{
@@ -487,7 +519,7 @@ func _pubsubInvalidSubscriber(t *testing.T, storageCtor StorageCtor) {
 	storage := s.AsPubSubStorage()
 	assert.NotNil(t, storage)
 
-	ch := _randomChannelID()
+	ch := randomChannelID()
 	validSL := domain.SubscriberLocator{
 		ChannelID:    ch,
 		SubscriberID: "sbsc1",
@@ -511,7 +543,7 @@ func _pubsubInvalidSubscriber(t *testing.T, storageCtor StorageCtor) {
 	}
 	_, _, _, err = storage.FetchMessages(ctx, sl, 1, dspstesting.MakeDuration("10s"))
 	dspstesting.IsError(t, domain.ErrSubscriptionNotFound, err)
-	dspstesting.IsError(t, domain.ErrSubscriptionNotFound, storage.AcknowledgeMessages(ctx, domain.AckHandle{
+	dspstesting.IsOneOfErrors(t, []error{domain.ErrSubscriptionNotFound, domain.ErrMalformedAckHandle}, storage.AcknowledgeMessages(ctx, domain.AckHandle{
 		SubscriberLocator: sl,
 		Handle:            ackHandle.Handle,
 	}))
@@ -525,10 +557,32 @@ func _pubsubInvalidSubscriber(t *testing.T, storageCtor StorageCtor) {
 	assert.True(t, (!isOld[isOldTarget]) || errors.Is(err, domain.ErrSubscriptionNotFound))
 }
 
-func _randomChannelID() domain.ChannelID {
+func randomChannelID() domain.ChannelID {
 	uuid, err := uuid.NewRandom()
 	if err != nil {
 		panic(err)
 	}
 	return domain.ChannelID(fmt.Sprintf("ch-%s", uuid))
+}
+
+func _pubSubInvalidMessageTest(t *testing.T, storageCtor StorageCtor) {
+	ctx := context.Background()
+	s, err := storageCtor(ctx, domain.RealSystemClock, StubChannelProvider)
+	if !assert.NoError(t, err) {
+		return
+	}
+	defer func() { assert.NoError(t, s.Shutdown(ctx)) }()
+	storage := s.AsPubSubStorage()
+	assert.NotNil(t, storage)
+
+	ch := randomChannelID()
+	dspstesting.IsError(t, domain.ErrMalformedMessageJSON, storage.PublishMessages(ctx, []domain.Message{
+		{
+			MessageLocator: domain.MessageLocator{
+				ChannelID: ch,
+				MessageID: "msg-1",
+			},
+			Content: json.RawMessage(`INVALID JSON`),
+		},
+	}))
 }
