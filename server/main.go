@@ -16,6 +16,7 @@ import (
 	httputil "github.com/saiya/dsps/server/http/util"
 	"github.com/saiya/dsps/server/logger"
 	"github.com/saiya/dsps/server/storage"
+	"github.com/saiya/dsps/server/unix"
 )
 
 var buildVersion string
@@ -67,6 +68,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
+
+	unix.NotifyUlimit(ctx, unix.UlimitRequirement{
+		NoFiles: storage.GetNoFilePressure(),
+	})
 
 	http.StartServer(ctx, &config, &http.ServerDependencies{
 		ServerClose:           httputil.NewServerClose(),

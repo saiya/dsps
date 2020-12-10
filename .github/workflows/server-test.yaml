@@ -15,6 +15,12 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: ${{ env.go-version }}
+      - name: generate
+        shell: bash
+        working-directory: server
+        run: |
+          go mod download
+          make generate
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
@@ -24,7 +30,6 @@ jobs:
         shell: bash
         working-directory: server
         run: |
-          go mod download
           make lint
       - name: Update Go Report Card
         if: github.ref == 'refs/heads/main'
@@ -62,7 +67,10 @@ jobs:
       - name: Test
         shell: bash
         working-directory: server
-        run: make test
+        run: |
+          make test
+        env:
+          DSPS_REDIS: "redis:6379"
       - name: Upload to codecov
         if: github.ref == 'refs/heads/main'
         shell: bash
@@ -74,3 +82,23 @@ jobs:
         with:
           name: coverage.html
           path: server/coverage.html
+  
+  build-test:
+    name: Server Build
+
+    runs-on: ubuntu-latest
+    env:
+      go-version: 1.15.5
+
+    steps:
+      - uses: actions/checkout@v2
+      # Note: golangci/golangci-lint-action caches. Should not use actions/cache@v2 otherwise result in so many "File exists"
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.go-version }}
+      - name: build
+        shell: bash
+        working-directory: server
+        run: |
+          go mod download
+          make build

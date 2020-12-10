@@ -28,8 +28,6 @@ func NewStorageMultiplexer(children map[domain.StorageID]domain.Storage) (domain
 	}
 
 	return &storageMultiplexer{
-		stat: &storageMultiplexerOwnStat{},
-
 		children: children,
 
 		pubsubSupported: pubsubSupported,
@@ -38,19 +36,11 @@ func NewStorageMultiplexer(children map[domain.StorageID]domain.Storage) (domain
 }
 
 type storageMultiplexer struct {
-	stat *storageMultiplexerOwnStat
-
 	children map[domain.StorageID]domain.Storage
 
 	pubsubSupported bool
 	jwtSupported    bool
 }
-
-type storageMultiplexerStat struct {
-	Multiplex *storageMultiplexerOwnStat `json:"multiplex"`
-	Children  map[domain.StorageID]interface{}
-}
-type storageMultiplexerOwnStat struct{}
 
 func (s *storageMultiplexer) AsPubSubStorage() domain.PubSubStorage {
 	if !s.pubsubSupported {
@@ -86,4 +76,12 @@ func (s *storageMultiplexer) Shutdown(ctx context.Context) error {
 		})
 	}
 	return g.Wait()
+}
+
+func (s *storageMultiplexer) GetNoFilePressure() int {
+	result := 0
+	for _, c := range s.children {
+		result += c.GetNoFilePressure()
+	}
+	return result
 }

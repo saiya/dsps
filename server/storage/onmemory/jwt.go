@@ -24,5 +24,6 @@ func (s *onmemoryStorage) IsRevokedJwt(ctx context.Context, jti domain.JwtJti) (
 	}
 	defer unlock()
 
-	return (s.revokedJwts[jti] != domain.JwtExp{}), nil
+	exp, found := s.revokedJwts[jti]
+	return found && !s.systemClock.Now().After(exp.Time()), nil
 }

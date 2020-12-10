@@ -23,6 +23,11 @@ func (exp JwtExp) String() string {
 	return strconv.FormatInt(time.Time(exp).Unix(), 10)
 }
 
+// Time returns time.Time instance equivalent to this
+func (exp JwtExp) Time() time.Time {
+	return time.Time(exp)
+}
+
 // JwtJti is "jti" claim, ID of a JWT
 type JwtJti string
 

@@ -69,7 +69,6 @@ jobs:
       - name: Build
         run: |
           go get
-          go get github.com/Songmu/gocredits/cmd/gocredits
           make build
         working-directory: server
 
