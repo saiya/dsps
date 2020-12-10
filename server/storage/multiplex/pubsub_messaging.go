@@ -2,12 +2,16 @@ package multiplex
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/logger"
 )
+
+const parallelFetchEarlyReturnWindow = 300 * time.Millisecond
 
 func (s *storageMultiplexer) PublishMessages(ctx context.Context, msgs []domain.Message) error {
 	_, err := s.parallelAtLeastOneSuccess(ctx, "PublishMessages", func(ctx context.Context, _ domain.StorageID, child domain.Storage) (interface{}, error) {
@@ -25,18 +29,39 @@ func (s *storageMultiplexer) FetchMessages(ctx context.Context, sl domain.Subscr
 		moreMessages bool
 		ackHandle    domain.AckHandle
 	}
-	results, err := s.parallelAtLeastOneSuccess(ctx, "FetchMessages", func(ctx context.Context, _ domain.StorageID, child domain.Storage) (interface{}, error) {
+	parallelCtx, parallelCtxCancel := context.WithCancel(ctx)
+	defer parallelCtxCancel()
+	subscriptionMissingCh := make(chan domain.StorageID, len(s.children))
+	results, err := s.parallelAtLeastOneSuccess(parallelCtx, "FetchMessages", func(ctx context.Context, storageID domain.StorageID, child domain.Storage) (interface{}, error) {
 		if child := child.AsPubSubStorage(); child != nil {
 			msgs, moreMsgs, ackHandle, err := child.FetchMessages(ctx, sl, max, waituntil)
 			if err != nil {
+				if errors.Is(err, domain.ErrSubscriptionNotFound) || errors.Is(err, domain.ErrInvalidChannel) {
+					subscriptionMissingCh <- storageID
+				}
 				return nil, err
+			}
+			if len(msgs) > 0 {
+				// If one or more storage returns messages, multiplexer should immediately return them even if other storages still polling.
+				time.AfterFunc(parallelFetchEarlyReturnWindow, parallelCtxCancel)
 			}
 			return fetchResult{msgs: msgs, moreMessages: moreMsgs, ackHandle: ackHandle}, nil
 		}
 		return nil, errMultiplexSkipped
 	})
+	close(subscriptionMissingCh)
 	if err != nil {
 		return nil, false, domain.AckHandle{}, err
+	}
+
+	for id := range subscriptionMissingCh {
+		// Subscriber missing on this storage.
+		// This situation could occur if the storage had been temporary unavailable when subscriber created.
+		// So that automatically create subscriber to receive future messages.
+		logger.Of(ctx).Debugf(`Auto-creating (recovering) subscriber %v on storage '%s' because fetch succeeded in the multiplexer but this storage reported the subscriber does not exist.`, sl, id)
+		if err := s.children[id].AsPubSubStorage().NewSubscriber(ctx, sl); err != nil {
+			logger.Of(ctx).WarnError(fmt.Sprintf("Failed to auto-create (recover) subscriber %v on storage '%s': %%w", sl, id), err)
+		}
 	}
 
 	// Note that this merge logic honors message ordering as possible.
