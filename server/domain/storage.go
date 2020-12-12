@@ -24,6 +24,8 @@ func IsStorageNonFatalError(err error) bool {
 	return errors.Is(err, ErrInvalidChannel) || errors.Is(err, ErrSubscriptionNotFound) || errors.Is(err, ErrMalformedAckHandle)
 }
 
+//go:generate mockgen -source=${GOFILE} -package=mock -destination=./mock/${GOFILE}
+
 // Storage interface is an abstraction layer of storage implementations
 type Storage interface {
 	String() string // Stringer

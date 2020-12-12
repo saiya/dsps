@@ -2,73 +2,210 @@ package multiplex_test
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
+	"errors"
 	"testing"
+	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
+	. "github.com/saiya/dsps/server/domain/mock"
 	. "github.com/saiya/dsps/server/storage/multiplex"
 	"github.com/saiya/dsps/server/storage/onmemory"
 	. "github.com/saiya/dsps/server/storage/testing"
+	. "github.com/saiya/dsps/server/testing"
 )
 
-var onmemoryMultiplexCtor = func(onmemConfigs ...config.OnmemoryStorageConfig) StorageCtor {
-	return func(ctx context.Context, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
-		storages := map[domain.StorageID]domain.Storage{}
-		for i := range onmemConfigs {
-			storage, err := onmemory.NewOnmemoryStorage(context.Background(), &(onmemConfigs[i]), systemClock, channelProvider)
-			if err != nil {
-				return nil, err
-			}
-			storages[domain.StorageID(fmt.Sprintf("storage%d", i+1))] = storage
-		}
-		return NewStorageMultiplexer(storages)
+func TestLongPollingEarlyReturn(t *testing.T) {
+	ctx := context.Background()
+	clock := domain.RealSystemClock
+	cp := StubChannelProvider
+
+	s1, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp)
+	assert.NoError(t, err)
+	s2, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp)
+	assert.NoError(t, err)
+	s, err := NewStorageMultiplexer(map[domain.StorageID]domain.Storage{"s1": s1, "s2": s2})
+	assert.NoError(t, err)
+
+	// Start subscription
+	ch := domain.ChannelID("ch-1")
+	sl := domain.SubscriberLocator{ChannelID: ch, SubscriberID: "sbsc-1"}
+	assert.NoError(t, s.AsPubSubStorage().NewSubscriber(ctx, sl))
+
+	// Publish only to s1.
+	msgs := []domain.Message{
+		{
+			MessageLocator: domain.MessageLocator{ChannelID: ch, MessageID: "msg-1"},
+			Content:        json.RawMessage(`{}`),
+		},
+		{
+			MessageLocator: domain.MessageLocator{ChannelID: ch, MessageID: "msg-2"},
+			Content:        json.RawMessage(`{}`),
+		},
 	}
+	assert.NoError(t, s1.AsPubSubStorage().PublishMessages(ctx, msgs))
+
+	// Fetch from both.
+	// Multiplexer should return immediately because s1 returns messages instantly.
+	ctxD, cancel := context.WithDeadline(ctx, time.Now().Add((300+200)*time.Millisecond))
+	defer cancel()
+	fetched, _, _, err := s.AsPubSubStorage().FetchMessages(ctxD, sl, 10, MakeDuration("30s"))
+	assert.NoError(t, err)
+	assert.NoError(t, ctxD.Err()) // FetchMessages must return immediately in this case.
+	MessagesEqual(t, msgs, fetched)
 }
 
-func TestCoreFunction(t *testing.T) {
-	CoreFunctionTest(t, onmemoryMultiplexCtor(
-		config.OnmemoryStorageConfig{
-			DisablePubSub: true,
-			DisableJwt:    true,
+func TestAckHandleDurability(t *testing.T) {
+	ctx := context.Background()
+	clock := domain.RealSystemClock
+	cp := StubChannelProvider
+
+	s1, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp)
+	assert.NoError(t, err)
+	s2, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp)
+	assert.NoError(t, err)
+	s3, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp)
+	assert.NoError(t, err)
+
+	// Generate AckHandle of s1 + s2
+	sBefore, err := NewStorageMultiplexer(map[domain.StorageID]domain.Storage{"s1": s1, "s2": s2})
+	assert.NoError(t, err)
+	ch := domain.ChannelID("ch-1")
+	sl := domain.SubscriberLocator{ChannelID: ch, SubscriberID: "sbsc-1"}
+	assert.NoError(t, sBefore.AsPubSubStorage().NewSubscriber(ctx, sl))
+	msgs := []domain.Message{
+		{
+			MessageLocator: domain.MessageLocator{ChannelID: ch, MessageID: "msg-1"},
+			Content:        json.RawMessage(`{}`),
 		},
-		config.OnmemoryStorageConfig{
-			DisablePubSub: true,
-			DisableJwt:    true,
+		{
+			MessageLocator: domain.MessageLocator{ChannelID: ch, MessageID: "msg-2"},
+			Content:        json.RawMessage(`{}`),
 		},
-	))
+	}
+	assert.NoError(t, sBefore.AsPubSubStorage().PublishMessages(ctx, msgs))
+	fetched, _, ackHandle, err := sBefore.AsPubSubStorage().FetchMessages(ctx, sl, 10, MakeDuration("30s"))
+	assert.NoError(t, err)
+	MessagesEqual(t, msgs, fetched)
+
+	// Consume AckHandle with s2 + s3
+	// Multiplexer must successfully consume handle
+	sAfter, err := NewStorageMultiplexer(map[domain.StorageID]domain.Storage{"s2": s2, "s3": s3})
+	assert.NoError(t, err)
+	assert.NoError(t, sAfter.AsPubSubStorage().AcknowledgeMessages(ctx, ackHandle))
+	fetched, _, _, err = sAfter.AsPubSubStorage().FetchMessages(ctx, sl, 10, MakeDuration("10ms"))
+	assert.NoError(t, err)
+	MessagesEqual(t, []domain.Message{}, fetched)
+
+	// Fetch message from s1 + s2 again.
+	// After acknowledgement, old messages should not be return even if one (or more) storages left behind.
+	fetched, _, _, err = sBefore.AsPubSubStorage().FetchMessages(ctx, sl, 10, MakeDuration("10ms"))
+	assert.NoError(t, err)
+	MessagesEqual(t, []domain.Message{}, fetched)
 }
 
-func TestPubSub(t *testing.T) {
-	PubSubTest(t, onmemoryMultiplexCtor(
-		config.OnmemoryStorageConfig{
-			DisableJwt: true,
+func TestSubscriptionDurability(t *testing.T) {
+	ctx := context.Background()
+	clock := domain.RealSystemClock
+	cp := StubChannelProvider
+
+	s1, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp)
+	assert.NoError(t, err)
+	s2, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp)
+	assert.NoError(t, err)
+	s, err := NewStorageMultiplexer(map[domain.StorageID]domain.Storage{"s1": s1, "s2": s2})
+	assert.NoError(t, err)
+
+	// Start subscription only on s1
+	ch := domain.ChannelID("ch-1")
+	sl := domain.SubscriberLocator{ChannelID: ch, SubscriberID: "sbsc-1"}
+	assert.NoError(t, s1.AsPubSubStorage().NewSubscriber(ctx, sl))
+
+	// Publish messages (both s1 and s2)
+	msgs := []domain.Message{
+		{
+			MessageLocator: domain.MessageLocator{ChannelID: ch, MessageID: "msg-1"},
+			Content:        json.RawMessage(`{}`),
 		},
-		config.OnmemoryStorageConfig{
-			DisablePubSub: true, // Storage without feature support
-			DisableJwt:    true,
+		{
+			MessageLocator: domain.MessageLocator{ChannelID: ch, MessageID: "msg-2"},
+			Content:        json.RawMessage(`{}`),
 		},
-		config.OnmemoryStorageConfig{
-			DisableJwt: true,
+	}
+	assert.NoError(t, s.AsPubSubStorage().PublishMessages(ctx, msgs))
+
+	// Fetch & Ack from both s1 and s2.
+	// Multiplexer should automatically create subscription on s2.
+	fetched, _, ackHandle, err := s.AsPubSubStorage().FetchMessages(ctx, sl, 10, MakeDuration("300ms"))
+	assert.NoError(t, err)
+	MessagesEqual(t, msgs, fetched)
+	assert.NoError(t, s.AsPubSubStorage().AcknowledgeMessages(ctx, ackHandle))
+
+	// Publish messages (both s1 and s2)
+	msgs = []domain.Message{
+		{
+			MessageLocator: domain.MessageLocator{ChannelID: ch, MessageID: "msg-3"},
+			Content:        json.RawMessage(`{}`),
 		},
-	))
+		{
+			MessageLocator: domain.MessageLocator{ChannelID: ch, MessageID: "msg-4"},
+			Content:        json.RawMessage(`{}`),
+		},
+	}
+	assert.NoError(t, s.AsPubSubStorage().PublishMessages(ctx, msgs))
+
+	// Delete subscription on s1.
+	// Subscription on s2 (automatically created) should still alive.
+	assert.NoError(t, s1.AsPubSubStorage().RemoveSubscriber(ctx, sl))
+
+	// Fetch from both s1 and s2.
+	// It should work because subscription on s2 alive.
+	fetched, _, _, err = s.AsPubSubStorage().FetchMessages(ctx, sl, 10, MakeDuration("300ms"))
+	assert.NoError(t, err)
+	MessagesEqual(t, msgs, fetched)
+
+	// Delete subscription from both.
+	assert.NoError(t, s.AsPubSubStorage().RemoveSubscriber(ctx, sl))
+
+	// Fetch from both s1 and s2.
+	// Should fail because no subscription alive on any storages.
+	_, _, _, err = s.AsPubSubStorage().FetchMessages(ctx, sl, 10, MakeDuration("300ms"))
+	IsError(t, domain.ErrSubscriptionNotFound, err)
 }
 
-func TestJwt(t *testing.T) {
-	JwtTest(t, onmemoryMultiplexCtor(
-		config.OnmemoryStorageConfig{
-			DisablePubSub: true,
-		},
-		config.OnmemoryStorageConfig{
-			DisablePubSub: true,
-			DisableJwt:    true, // Storage without feature support
-		},
-		config.OnmemoryStorageConfig{
-			DisablePubSub: true,
-		},
-	))
+func TestOldMessageDurability(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ch := domain.ChannelID("ch-1")
+	sl := domain.SubscriberLocator{ChannelID: ch, SubscriberID: "sbsc-1"}
+	msgs := []domain.MessageLocator{
+		{ChannelID: ch, MessageID: "msg-1"},
+		{ChannelID: ch, MessageID: "msg-2"},
+	}
+
+	s1 := NewMockStorage(ctrl)
+	s2 := NewMockStorage(ctrl)
+	s1.EXPECT().AsJwtStorage().AnyTimes().Return(nil)
+	s2.EXPECT().AsJwtStorage().AnyTimes().Return(nil)
+	pubsub := NewMockPubSubStorage(ctrl)
+	s1.EXPECT().AsPubSubStorage().AnyTimes().Return(pubsub)
+	s2.EXPECT().AsPubSubStorage().AnyTimes().Return(pubsub)
+	s, err := NewStorageMultiplexer(map[domain.StorageID]domain.Storage{"s1": s1, "s2": s2})
+	assert.NoError(t, err)
+
+	// Multiplexed IsOldMessage() should not fail even if all storages failed.
+	pubsub.EXPECT().IsOldMessages(gomock.Any(), sl, msgs).AnyTimes().Return(nil, errors.New("Mock storage error"))
+	result, err := s.AsPubSubStorage().IsOldMessages(context.Background(), sl, msgs)
+	assert.NoError(t, err)
+	assert.Equal(t, map[domain.MessageLocator]bool{
+		msgs[0]: false,
+		msgs[1]: false,
+	}, result)
 }
 
 func TestInsufficientStorages(t *testing.T) {
@@ -106,9 +243,3 @@ func TestInsufficientStorages(t *testing.T) {
 	assert.NotNil(t, multiWithoutJwt.AsPubSubStorage())
 	assert.Nil(t, multiWithoutJwt.AsJwtStorage())
 }
-
-// TODO: AckHandle 発行後に storage が増える・減るケースのテスト
-// TODO: IsOldMessages は全 storage がエラーでも成功することのテスト
-
-// TODO: 複数の storage が全て ErrSubscriptionNotFound を返したときだけ ErrSubscriptionNotFound になり、片方に存在すれば成功することの確認
-// TODO: 一部の storage だけで ErrSubscriptionNotFound が発生した場合、自動で subscription を再作成して復旧され、後に subscription が合った方の storage がエラーになっても subscription を利用継続できることの確認
