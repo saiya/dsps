@@ -36,9 +36,9 @@ func (s *onmemoryStorage) PublishMessages(ctx context.Context, msgs []domain.Mes
 	defer unlock()
 
 	for _, msg := range msgs {
-		ch := s.getChannel(msg.ChannelID)
-		if ch == nil {
-			return xerrors.Errorf("%w", domain.ErrInvalidChannel)
+		ch, err := s.getChannel(msg.ChannelID)
+		if err != nil {
+			return err
 		}
 		if ch.log[msg.MessageLocator] != nil {
 			continue // Duplicated message
@@ -156,9 +156,9 @@ func (s *onmemoryStorage) AcknowledgeMessages(ctx context.Context, handle domain
 	}
 	defer unlock()
 
-	ch := s.getChannel(handle.ChannelID)
-	if ch == nil {
-		return xerrors.Errorf("%w", domain.ErrInvalidChannel)
+	ch, err := s.getChannel(handle.ChannelID)
+	if err != nil {
+		return err
 	}
 
 	sbsc := ch.subscribers[handle.SubscriberID]
@@ -194,9 +194,9 @@ func (s *onmemoryStorage) IsOldMessages(ctx context.Context, sl domain.Subscribe
 	}
 	defer unlock()
 
-	ch := s.getChannel(sl.ChannelID)
-	if ch == nil {
-		return nil, xerrors.Errorf("%w", domain.ErrInvalidChannel)
+	ch, err := s.getChannel(sl.ChannelID)
+	if err != nil {
+		return nil, err
 	}
 
 	sbsc := ch.subscribers[sl.SubscriberID]

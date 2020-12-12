@@ -2,6 +2,7 @@ package onmemory
 
 import (
 	"context"
+	"errors"
 
 	"golang.org/x/xerrors"
 
@@ -29,9 +30,9 @@ func (s *onmemoryStorage) NewSubscriber(ctx context.Context, sl domain.Subscribe
 	}
 	defer unlock()
 
-	ch := s.getChannel(sl.ChannelID)
-	if ch == nil {
-		return xerrors.Errorf("%w", domain.ErrInvalidChannel)
+	ch, err := s.getChannel(sl.ChannelID)
+	if err != nil {
+		return err
 	}
 
 	if ch.subscribers[sl.SubscriberID] != nil {
@@ -54,34 +55,38 @@ func (s *onmemoryStorage) RemoveSubscriber(ctx context.Context, sl domain.Subscr
 	}
 	defer unlock()
 
-	ch := s.getChannel(sl.ChannelID)
-	if ch == nil {
+	ch, err := s.getChannel(sl.ChannelID)
+	if ch == nil && errors.Is(err, domain.ErrInvalidChannel) {
 		// Because channel does not exist, subscriber also does not exist.
 		// This method returns nil (success) if subscriber does not exist.
 		return nil
 	}
-
+	if err != nil {
+		return err
+	}
 	delete(ch.subscribers, sl.SubscriberID)
 	return nil
 }
 
-func (s *onmemoryStorage) getChannel(id domain.ChannelID) *onmemoryChannel {
-	chPtr := s.channels[id]
-	if chPtr == nil {
-		rawCh := s.channelProvider(id)
+func (s *onmemoryStorage) getChannel(id domain.ChannelID) (*onmemoryChannel, error) {
+	ch := s.channels[id]
+	if ch == nil {
+		rawCh, err := s.channelProvider(id)
+		if err != nil {
+			return nil, err
+		}
 		if rawCh != nil {
-			ch := onmemoryChannel{
+			ch = &onmemoryChannel{
 				Channel:      rawCh,
 				channelClock: 0,
 
 				subscribers: map[domain.SubscriberID]*onmemorySubscriber{},
 				log:         map[domain.MessageLocator]*onmemoryMessage{},
 			}
-			chPtr = &ch
-			s.channels[id] = chPtr
+			s.channels[id] = ch
 		}
 	}
-	return chPtr
+	return ch, nil
 }
 
 // Note: this method holds lock of the storage!!
@@ -95,9 +100,9 @@ func (s *onmemoryStorage) findSubscriberForFetchMessages(ctx context.Context, sl
 	}
 	defer unlock()
 
-	ch := s.getChannel(sl.ChannelID)
-	if ch == nil {
-		return nil, xerrors.Errorf("%w", domain.ErrInvalidChannel)
+	ch, err := s.getChannel(sl.ChannelID)
+	if err != nil {
+		return nil, err
 	}
 
 	sbsc := ch.subscribers[sl.SubscriberID]

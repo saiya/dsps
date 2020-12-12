@@ -16,7 +16,7 @@ type channelAtom struct {
 	// ChannelConfig that this object corresponds to.
 	config *config.ChannelConfig
 
-	JwtValidator jwtv.Validator
+	JwtValidatorTemplate jwtv.Template
 }
 
 func newChannelAtom(ctx context.Context, config *config.ChannelConfig, clock domain.SystemClock, validate bool) (*channelAtom, error) {
@@ -29,11 +29,13 @@ func newChannelAtom(ctx context.Context, config *config.ChannelConfig, clock dom
 		}
 	}
 
-	jwtValidator, err := jwtv.NewValidator(ctx, config.Jwt, clock)
-	if err != nil {
-		return nil, err
+	if config.Jwt != nil {
+		jvt, err := jwtv.NewTemplate(ctx, config.Jwt, clock)
+		if err != nil {
+			return nil, err
+		}
+		atom.JwtValidatorTemplate = jvt
 	}
-	atom.JwtValidator = jwtValidator
 
 	return atom, nil
 }

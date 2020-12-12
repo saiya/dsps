@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/Songmu/gocredits v0.2.0
+	github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-playground/validator/v10 v10.4.1
 	github.com/go-redis/redis/v8 v8.4.0

@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -14,9 +15,18 @@ import (
 
 func TestCacheExpiry(t *testing.T) {
 	clock := dspstesting.NewStubClock(t)
-	p := newCachedChannelProvider(func(id domain.ChannelID) domain.Channel {
-		return NewChannelByAtomYamls(t, id, []string{`{ regex: ".+", expire: "1s" }`})
+	cp := newCachedChannelProvider(func(id domain.ChannelID) (domain.Channel, error) {
+		return NewChannelByAtomYamls(t, id, []string{`{ regex: ".+", expire: "1s" }`}), nil
 	}, clock)
+	p := func(id domain.ChannelID) domain.Channel {
+		c, err := cp(id)
+		if c == nil {
+			dspstesting.IsError(t, domain.ErrInvalidChannel, err)
+		} else {
+			assert.NoError(t, err)
+		}
+		return c
+	}
 
 	test1 := p("test1")
 	assert.NotNil(t, test1)
@@ -44,13 +54,22 @@ func TestCacheExpiry(t *testing.T) {
 func TestNegativeCache(t *testing.T) {
 	clock := dspstesting.NewStubClock(t)
 	notFoundCount := 0
-	p := newCachedChannelProvider(func(id domain.ChannelID) domain.Channel {
+	cp := newCachedChannelProvider(func(id domain.ChannelID) (domain.Channel, error) {
 		if strings.HasPrefix(string(id), "not-found-") {
 			notFoundCount++
-			return nil
+			return nil, domain.ErrInvalidChannel
 		}
-		return NewChannelByAtomYamls(t, id, []string{`{ regex: ".+", expire: "1s" }`})
+		return NewChannelByAtomYamls(t, id, []string{`{ regex: ".+", expire: "1s" }`}), nil
 	}, clock)
+	p := func(id domain.ChannelID) domain.Channel {
+		c, err := cp(id)
+		if c == nil {
+			dspstesting.IsError(t, domain.ErrInvalidChannel, err)
+		} else {
+			assert.NoError(t, err)
+		}
+		return c
+	}
 
 	assert.Nil(t, p("not-found-zero"))
 	assert.Equal(t, 1, notFoundCount)
@@ -64,4 +83,22 @@ func TestNegativeCache(t *testing.T) {
 
 	assert.Nil(t, p("not-found-zero"))
 	assert.Equal(t, 2, notFoundCount) // Cache evicted
+}
+
+func TestChannelError(t *testing.T) {
+	clock := dspstesting.NewStubClock(t)
+	called := 0
+	errToReturn := errors.New("stub error")
+	cp := newCachedChannelProvider(func(id domain.ChannelID) (domain.Channel, error) {
+		called++
+		return nil, errToReturn
+	}, clock)
+
+	_, err := cp("ch-1")
+	assert.Equal(t, 1, called)
+	dspstesting.IsError(t, errToReturn, err)
+
+	_, err = cp("ch-1")
+	assert.Equal(t, 2, called) // Should not be cached
+	dspstesting.IsError(t, errToReturn, err)
 }

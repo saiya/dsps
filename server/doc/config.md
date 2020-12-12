@@ -150,16 +150,16 @@ To protect endpoints, can validate signed [JSON Web Tokens (JWT, RFC 7519)](http
 channels:
   - regex: 'chat-room-(?P<id>\d+)'
     jwt:
-      alg: RS256
-      clockSkewLeeway: 5m
       iss:
         - https://issuer.example.com/issuer-url
       aud:
         - https://my-service.example.com/
       keys:
-        - path/to/public-key-file.pem
+        RS256:
+          - path/to/public-key-file.pem
       claims:
         chatroom: '{{.regex.id}}'
+      clockSkewLeeway: 5m
 ```
 
 If this configuration present on the channel, clients must present valid JWT with `Authorization: Bearer <jwt>` request header for every API call.
@@ -168,18 +168,18 @@ In addition, you can revoke JWT with [revocation API](./interface/admin/revoke_j
 
 Configuration item under `channels[n].jwt`:
 
-- `alg` (string, required): Desired JWT signing algorithm such as `RS256`
-  - `none` alg is easy way for testing purpose, but **do NOT use `none` on production**.
-- `clockSkewLeeway` (Duration string, default `5m`): When validate time-based claims such as `exp`, `nbf`, allow clock skew with this tolerance.
 - `iss` (list of string, required): List of JWT issuers. `iss` claim of the JWT must exactly match with one of this list.
 - `aud` (list of string, optional): List of JWT recipients. One or more value of the `aud` claim of the JWT must exactly match with one of this list.
-- `keys` (list of string, required): path to file that contains public key for signature verification
-  - For `none` alg, this configuration does not have meaning (can be omitted)
-  - For HMAC alg such as `HS256`, content of the file should be Base64 encoded key
-  - For RSA alg such as `RS256` or ECDSA alg such as `ES256`, the file should be PEM encoded x509 certificate that contains public key
+- `keys` (map of string to string list, required): Key is JWT signing algorithm name such as `RS512`, value is list of file paths of signing key.
+  - For RSA alg or ECDSA alg (such as `RS512`, `ES512`), the file should be PEM encoded x509 certificate that contains public key
+  - For HMAC alg such as `HS512`, content of the file should be Base64 encoded key
+  - For `none` alg, empty list is allowed (`none: []`)
+    - `none` alg is easy way for testing purpose, but **do NOT use `none` on production**.
 - `claims` (string to Template string map, optional): Validation rule of custom claims
   - For example, `foo: 'bar'` means JWT must have custom claim named `foo` with a value `bar`
   - You can use template string to validate value (e.g. `chatroom: '{{.regex.id}}'` means custom claim `chatroom` must match with `id` of `channels.regex`).
+  - If value of JWT claim is boolean or number, validator convert them to string (e.g. `"true"`, `"3.14"`)
+- `clockSkewLeeway` (Duration string, default `5m`): When validate time-based claims such as `exp`, `nbf`, allow clock skew with this tolerance.
 
 ### <a name="admin"></a> `admin` configuration block
 

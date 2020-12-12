@@ -17,11 +17,11 @@ channels:
 -
 	regex: 'chat-room-(?P<id>\d+)'
 	jwt:
-		alg: RS256
 		iss:
 			- https://issuer.example.com/issuer-url
 		keys:
-			- "../testing/testdata/RS256-sample-public-key.pem"
+			RS256:
+				- "../jwt/testdata/RS256-2048bit-public.pem"
 `, "\t", "  ")
 	config, err := ParseConfig(Overrides{}, configYaml)
 	if err != nil {
@@ -44,11 +44,12 @@ channels:
 -
 	regex: 'chat-room-(?P<id>\d+)'
 	jwt:
-		alg: RS256
 		iss:
 			- https://issuer.example.com/issuer-url
 		keys:
-			- "../testing/testdata/RS256-sample-public-key.pem"
+			none: []
+			RS256:
+				- "../jwt/testdata/RS256-2048bit-public.pem"
 		claims:
 			chatroom: '{{.regex.id}}'
 `, "\t", "  ")
@@ -62,8 +63,8 @@ channels:
 	assert.Equal(t, "chat-room-(?P<id>\\d+)", cfg.Regex.String())
 
 	jwt := cfg.Jwt
-	assert.Equal(t, domain.JwtAlg("RS256"), jwt.Alg)
 	assert.Equal(t, []domain.JwtIss{domain.JwtIss("https://issuer.example.com/issuer-url")}, jwt.Iss)
-	assert.Equal(t, "../testing/testdata/RS256-sample-public-key.pem", jwt.Keys[0])
+	assert.Equal(t, []string{}, jwt.Keys["none"])
+	assert.Equal(t, []string{"../jwt/testdata/RS256-2048bit-public.pem"}, jwt.Keys["RS256"])
 	assert.Equal(t, "{{.regex.id}}", jwt.Claims["chatroom"].String())
 }

@@ -20,7 +20,7 @@ func NewChannelProvider(ctx context.Context, config *config.ServerConfig, clock 
 		atoms = append(atoms, atom)
 	}
 
-	return newCachedChannelProvider(func(id domain.ChannelID) domain.Channel {
+	return newCachedChannelProvider(func(id domain.ChannelID) (domain.Channel, error) {
 		found := make([]*channelAtom, 0, 4)
 		for _, atom := range atoms {
 			if atom.IsMatch(id) {
@@ -28,7 +28,7 @@ func NewChannelProvider(ctx context.Context, config *config.ServerConfig, clock 
 			}
 		}
 		if len(found) == 0 {
-			return nil
+			return nil, domain.ErrInvalidChannel
 		}
 		return newChannelImpl(id, found)
 	}, clock), nil

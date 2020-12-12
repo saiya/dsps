@@ -1,10 +1,12 @@
 package channel
 
 import (
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/saiya/dsps/server/domain"
+	"golang.org/x/xerrors"
 )
 
 const cachedChannelCleanupFactor = 2
@@ -17,22 +19,32 @@ func newCachedChannelProvider(inner domain.ChannelProvider, clock domain.SystemC
 		m:     make(map[domain.ChannelID]*cachedChannelEntry, 1024),
 		age:   0,
 	}
-	return func(id domain.ChannelID) domain.Channel {
+	return func(id domain.ChannelID) (domain.Channel, error) {
 		cache.lock.Lock()
 		defer cache.lock.Unlock()
 
 		if ent, ok := cache.m[id]; ok {
 			ent.extend(clock)
-			return ent.channel
+			if ent.channel == nil {
+				return nil, domain.ErrInvalidChannel
+			}
+			return ent.channel, nil
 		}
 
 		cache.cleanup()
 		cache.age++
 
-		ent := &cachedChannelEntry{channel: inner(id)}
+		c, err := inner(id)
+		if err != nil && !errors.Is(err, domain.ErrInvalidChannel) {
+			return nil, xerrors.Errorf(`channel configuration error on "%s": %w`, id, err)
+		}
+		ent := &cachedChannelEntry{channel: c}
 		ent.extend(clock)
 		cache.m[id] = ent
-		return ent.channel
+		if c == nil {
+			return nil, domain.ErrInvalidChannel
+		}
+		return c, nil
 	}
 }
 

@@ -9,14 +9,13 @@ import (
 
 // JwtValidationConfig is JWT configuration of a channel
 type JwtValidationConfig struct {
-	Alg             domain.JwtAlg    `json:"alg"`
-	ClockSkewLeeway *domain.Duration `json:"clockSkewLeeway"`
-
-	Iss  []domain.JwtIss `json:"iss"`
-	Aud  []domain.JwtAud `json:"aud"`
-	Keys []string        `json:"keys"`
+	Iss  []domain.JwtIss            `json:"iss"`
+	Aud  []domain.JwtAud            `json:"aud"`
+	Keys map[domain.JwtAlg][]string `json:"keys"`
 
 	Claims map[string]domain.TemplateString `json:"claims"`
+
+	ClockSkewLeeway *domain.Duration `json:"clockSkewLeeway"`
 }
 
 func postprocessJwtConfig(jwt *JwtValidationConfig) error {
@@ -27,19 +26,25 @@ func postprocessJwtConfig(jwt *JwtValidationConfig) error {
 		jwt.ClockSkewLeeway = makeDurationPtr("5m")
 	}
 
-	if err := jwtpkg.ValidateAlg(jwt.Alg); err != nil {
-		return fmt.Errorf("invalid \"alg\": %w", err)
-	}
 	if len(jwt.Iss) == 0 {
-		return fmt.Errorf("must supply one or more \"iss\" (issuer claim) list")
+		return fmt.Errorf(`must supply one or more "iss" (issuer claim) list`)
 	}
-	if jwt.Alg != "none" {
-		if len(jwt.Keys) == 0 {
-			return fmt.Errorf("must supply one or more \"keys\" to validate JWT signature")
+
+	if len(jwt.Keys) == 0 {
+		return fmt.Errorf(`must supply one or more "keys" (signing algorithm and keys) setting`)
+	}
+	for alg, keyFiles := range jwt.Keys {
+		if err := jwtpkg.ValidateAlg(alg); err != nil {
+			return fmt.Errorf(`invalid signing algorithm name given "%s": %w`, alg, err)
 		}
-		for i, key := range jwt.Keys {
-			if err := jwtpkg.ValidateKey(jwt.Alg, key); err != nil {
-				return fmt.Errorf("failed to load keys[%d]: %w", i, err)
+		if !alg.IsNone() {
+			if len(keyFiles) == 0 {
+				return fmt.Errorf("must supply one or more key file(s) to validate JWT signature for alg=%s", alg)
+			}
+			for i, keyFile := range keyFiles {
+				if err := jwtpkg.ValidateVerificationKey(alg, keyFile); err != nil {
+					return fmt.Errorf("failed to load keys[%s][%d]: %w", alg, i, err)
+				}
 			}
 		}
 	}

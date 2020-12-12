@@ -18,8 +18,8 @@ type TemplateString struct {
 type TemplateStringEnv interface{}
 
 // NewTemplateString initialize template
-func NewTemplateString(value string) (*TemplateString, error) {
-	result := &TemplateString{}
+func NewTemplateString(value string) (TemplateString, error) {
+	result := TemplateString{}
 	return result, result.init(value)
 }
 

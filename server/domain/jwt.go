@@ -31,6 +31,11 @@ func (exp JwtExp) Time() time.Time {
 // JwtAlg is "alg" claim, signing algorithm of a JWT
 type JwtAlg string
 
+// IsNone returns true only for "none" alg.
+func (alg JwtAlg) IsNone() bool {
+	return alg == "none"
+}
+
 // JwtJti is "jti" claim, ID of a JWT
 type JwtJti string
 

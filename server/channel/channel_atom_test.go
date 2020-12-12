@@ -26,9 +26,8 @@ webhooks:
 		headers:
 			User-Agent: "{{.regex.id}}"
 jwt:
-	alg: RS256
 	iss: [ "http://example.com" ]
-	keys: [ "../testing/testdata/RS256-sample-public-key.pem" ]
+	keys: RS256: [ "../jwt/testdata/RS256-2048bit-public.pem" ]
 	claims:
 		chatroom: '{{.regex.id}}'`,
 		},
@@ -55,9 +54,8 @@ webhooks:
 			`
 regex: 'chat-room-(?P<id>\d+)'
 jwt:
-	alg: RS256
 	iss: [ "http://example.com" ]
-	keys: [ "../testing/testdata/RS256-sample-public-key.pem" ]
+	keys: RS256: [ "../jwt/testdata/RS256-2048bit-public.pem" ]
 	claims:
 		chatroom: '{{.regex.idX}}'`,
 		},
