@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"golang.org/x/xerrors"
@@ -49,7 +50,7 @@ func (impl *redisCmdImpl) Publish(ctx context.Context, channel string, message i
 	return impl.raw.Publish(ctx, channel, message).Err()
 }
 
-func (impl *redisCmdImpl) Subscribe(ctx context.Context, channel string) (c chan string, close func() error, err error) {
+func (impl *redisCmdImpl) Subscribe(ctx context.Context, channel string) (c chan string, closer func() error, err error) {
 	redisPubSub := impl.subscribeFunc(ctx, channel)
 	subscribeResult, err := redisPubSub.Receive(ctx)
 	if err != nil {
@@ -63,8 +64,9 @@ func (impl *redisCmdImpl) Subscribe(ctx context.Context, channel string) (c chan
 
 	c = make(chan string, 16)
 	closeCh := make(chan interface{}, 1)
-	close = func() error {
-		closeCh <- struct{}{}
+	closeChOnce := sync.Once{}
+	closer = func() error {
+		closeChOnce.Do(func() { close(closeCh) })
 		if err := redisPubSub.Close(); err != nil {
 			logger.Of(ctx).WarnError("Failed to stop Redis Pub/Sub subscription", err)
 		}
