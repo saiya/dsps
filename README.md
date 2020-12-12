@@ -4,7 +4,7 @@
 [![Server Test](https://github.com/saiya/dsps/workflows/Server%20Test/badge.svg?1)](https://github.com/saiya/dsps/actions?query=workflow%3A%22Server+Test%22)
 [![Codecov](https://codecov.io/gh/saiya/dsps/branch/main/graph/badge.svg?token=DSSOWMB60X)](https://codecov.io/gh/saiya/dsps)
 [![Go Report Card](https://goreportcard.com/badge/github.com/saiya/dsps?1)](https://goreportcard.com/report/github.com/saiya/dsps)
-[![DockerHub saiya/dsps](https://img.shields.io/badge/dockerhub-saiya%2Fdsps-blue)](https://hub.docker.com/r/saiya/dsps/tags)
+[![DockerHub saiya/dsps](https://img.shields.io/badge/dockerhub-saiya%2Fdsps-blue)](https://hub.docker.com/r/saiya/dsps/tags?page=1&ordering=last_updated)
 [![npm version](https://badge.fury.io/js/%40dsps%2Fclient.svg)](https://badge.fury.io/js/%40dsps%2Fclient)
 
 DSPS is a PubSub system that provides following advantages:
