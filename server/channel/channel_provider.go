@@ -1,6 +1,8 @@
 package channel
 
 import (
+	"context"
+
 	"golang.org/x/xerrors"
 
 	"github.com/saiya/dsps/server/config"
@@ -8,10 +10,10 @@ import (
 )
 
 // NewChannelProvider initializes ChannelProvider
-func NewChannelProvider(config *config.ServerConfig, clock domain.SystemClock) (domain.ChannelProvider, error) {
+func NewChannelProvider(ctx context.Context, config *config.ServerConfig, clock domain.SystemClock) (domain.ChannelProvider, error) {
 	atoms := make([]*channelAtom, 0, len(config.Channels))
 	for i := range config.Channels {
-		atom, err := newChannelAtom(&config.Channels[i], true)
+		atom, err := newChannelAtom(ctx, &config.Channels[i], clock, true)
 		if err != nil {
 			return nil, xerrors.Errorf("channels[%d] configuration error: %w", i, err)
 		}

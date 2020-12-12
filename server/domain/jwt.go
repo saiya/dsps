@@ -28,11 +28,17 @@ func (exp JwtExp) Time() time.Time {
 	return time.Time(exp)
 }
 
+// JwtAlg is "alg" claim, signing algorithm of a JWT
+type JwtAlg string
+
 // JwtJti is "jti" claim, ID of a JWT
 type JwtJti string
 
 // JwtIss is "iss" claim, issuer of a JWT
 type JwtIss string
+
+// JwtAud is "aud" claim, recipient of a JWT
+type JwtAud string
 
 // JwtDenialError is error object represents JWT denial
 type JwtDenialError interface {

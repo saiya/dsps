@@ -151,8 +151,11 @@ channels:
   - regex: 'chat-room-(?P<id>\d+)'
     jwt:
       alg: RS256
+      clockSkewLeeway: 5m
       iss:
         - https://issuer.example.com/issuer-url
+      aud:
+        - https://my-service.example.com/
       keys:
         - path/to/public-key-file.pem
       claims:
@@ -165,9 +168,11 @@ In addition, you can revoke JWT with [revocation API](./interface/admin/revoke_j
 
 Configuration item under `channels[n].jwt`:
 
-- `alg` (string, required): Acceptable JWT signing algorithm such as `RS256`
-  - `none` alg is easy way for testing purpose, but do not accept it on production.
-- `iss` (list of string, required): Acceptable JWT issuers
+- `alg` (string, required): Desired JWT signing algorithm such as `RS256`
+  - `none` alg is easy way for testing purpose, but **do NOT use `none` on production**.
+- `clockSkewLeeway` (Duration string, default `5m`): When validate time-based claims such as `exp`, `nbf`, allow clock skew with this tolerance.
+- `iss` (list of string, required): List of JWT issuers. `iss` claim of the JWT must exactly match with one of this list.
+- `aud` (list of string, optional): List of JWT recipients. One or more value of the `aud` claim of the JWT must exactly match with one of this list.
 - `keys` (list of string, required): path to file that contains public key for signature verification
   - For `none` alg, this configuration does not have meaning (can be omitted)
   - For HMAC alg such as `HS256`, content of the file should be Base64 encoded key

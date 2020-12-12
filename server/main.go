@@ -54,7 +54,7 @@ func main() {
 		fmt.Println(string(data))
 	}
 
-	channelProvider, err := channel.NewChannelProvider(&config, clock)
+	channelProvider, err := channel.NewChannelProvider(ctx, &config, clock)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
