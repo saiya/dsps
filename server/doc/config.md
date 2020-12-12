@@ -14,10 +14,11 @@ storages:  # see ./storage/README.md for more info
 http:
   port: 3099
   sourceIpHeader: 'X-Forwarded-For'
-  showForbiddenDetail: false
+  discloseAuthRejectionDetail: false
 
 logging:
   debug: false
+  authRejectionLog: true
   attributes:
     machineID: my-machine-id
 
@@ -26,13 +27,18 @@ channels:
     expire: 15m
     webhooks:
       - url: 'http://localhost:3001/you-got-message/room/{{.regex.id}}'
+
+admin:
+  auth:
+    bearer:
+      - 'my-api-key'
 ```
 
 ## Words & definitions used in this document
 
-- `Regex string` means YAML string that constructs [golang compatible regular expression](https://golang.org/pkg/regexp/) (e.g. `'chat-room-(?P<id>\d+)'`)
-- `Template string` means YAML string that follows [golang Template](https://golang.org/pkg/text/template) syntax (e.g. `'http://localhost:3001/room/{{.regex.id}}'`)
-- `Duration string` means YAML string that follows [golang ParseDuration](https://golang.org/pkg/time/#ParseDuration) syntax (e.g. `'1h30m'`)
+- `regex string` means YAML string that constructs [golang compatible regular expression](https://golang.org/pkg/regexp/) (e.g. `'chat-room-(?P<id>\d+)'`)
+- `template string` means YAML string that follows [golang Template](https://golang.org/pkg/text/template) syntax (e.g. `'http://localhost:3001/room/{{.regex.id}}'`)
+- `duration string` means YAML string that follows [golang ParseDuration](https://golang.org/pkg/time/#ParseDuration) syntax (e.g. `'1h30m'`)
 
 ## storages configuration block
 
@@ -57,24 +63,25 @@ Configuration detail depends on type of the storage, see [storage document](./st
 
 Configuration items under `http`:
 
-- `port` (number, optional, default `3000`): TCP port to listen for HTTP requests
+- `port` (number, default `3000`): TCP port to listen for HTTP requests
   - You can override this value with `--port` command line option
 - `listen` (string, optional): Listen string (e.g. ":3000"), this option overrides `port`
   - With [some security software](https://forum.eset.com/topic/22080-mac-firewall-issue-after-update-to-684000/), you may need to specify local IP as such as `127.0.0.1:3000` due to MTIM proxy problem.
 - `pathPrefix` (string, optional): Prefix to add all endpoints
   - e.g. If `pathPrefix` is `/foo/bar`, endpoint `/probe/readiness` is served as `/foobar/probe/readiness`
-- <a name="ipheader"></a> `sourceIpHeader` (string, optional, default null): HTTP header name contains reliable IP address of the client
+- <a name="ipheader"></a> `sourceIpHeader` (string, optional): HTTP header name contains reliable IP address of the client
   - Note that `admin.auth.networks` rely on this configuration.
-- `showForbiddenDetail` (boolean, default `false`): Show detail reason of 403 to clients
-- `longPollingMaxTimeout` (Duration string, optional, default `30s`): Max duration of the [long-polling requests](./interface/subscribe/polling.md#polling-get).
-- `gracefulShutdownTimeout` (Duration string, optional, default `5s`): Timeout to await end of running requests.
+- `discloseAuthRejectionDetail` (boolean, default `false`): Show detail reason of 403 to clients, **do not enable on production**
+- `longPollingMaxTimeout` (duration string, default `30s`): Max duration of the [long-polling requests](./interface/subscribe/polling.md#polling-get).
+- `gracefulShutdownTimeout` (duration string, default `5s`): Timeout to await end of running requests.
 
 ## logging configuration block
 
 Configuration items under `logging`:
 
-- `debug` (boolean, optional, default `false`): Output DEBUG level logs
+- `debug` (boolean, default `false`): Output DEBUG level logs
   - `--debug` command line option also enables DEBUG log
+- `authRejectionLog` (boolean, default `true`) Output detailed INFO logs for each auth rejection event
 - `attributes` (string to string map, optional): Attributes set to every log records
   - Useful to set machine ID etcetera.
 
@@ -90,10 +97,10 @@ If `channels` configuration is empty, DSPS server automatically define `.+` chan
 
 Configuration items under `channels[n]`:
 
-- `regex` (Regex string, required): Regex string to match with name of a channel
+- `regex` (regex string, required): regex string to match with name of a channel
   - Must match with *entire string* of the channel name (no need to write `^` nor `$`).
   - You can use named group/subexp (e.g. `(?P<id>\d+)`). In the channel configuration, captured value of the group is visible to template strings under `.regex` (e.g. `{{.regex.id}}`).
-- `expire` (Duration string, default `30m`): DSPS server may discard inactive subscribers & messages after this duration
+- `expire` (duration string, default `30m`): DSPS server may discard inactive subscribers & messages after this duration
   - Duration counts from last access of the subscriber or sent time of the message.
   - DSPS may not resend after this expiration duration, so that this value must be larger than client's polling period if you polling.
   - If multiple channel configuration matches to a channel, largest value wins.
@@ -130,16 +137,16 @@ If there are multiple webhooks, DSPS server calls them concurrently. Configurati
 
 Configuration item under `channels[n].webhooks`:
 
-- `url` (Template string, required): Full URL to send message
-- `timeout` (Duration string, default: `30s`): Timeout of the webhook call
+- `url` (template string, required): Full URL to send message
+- `timeout` (duration string, default: `30s`): Timeout of the webhook call
 - `connection.max` (integer, default: `1024`): Max connections between DSPS server and webhook target
   - This configuration also controls of `Transport.MaxIdleConnsPerHost`
-- `connection.maxIdleTime` (Duration string, default: `3m`): Max idle time to keep-alive connections
+- `connection.maxIdleTime` (duration string, default: `3m`): Max idle time to keep-alive connections
 - `retry.force` (boolean, default: `false`): true to retry any errors (such as `404 Not Found`)
 - `retry.count` (integer, default: `3`): 0 to disable retry, 1 to retry only once, ...
-- `retry.interval` (Duration string, default: `3s`): Retry base interval
+- `retry.interval` (duration string, default: `3s`): Retry base interval
 - `retry.intervalMultiplier` (float, default: `1.5`): Exponential backoff factor, multiply to the previous interval
-- `retry.intervalJitter` (Duration string, default: `1s500ms`): Max range of the retry interval randomization, plus or minus to the resulted interval
+- `retry.intervalJitter` (duration string, default: `1s500ms`): Max range of the retry interval randomization, plus or minus to the resulted interval
 - `headers` (string to template string map, optional): HTTP headers to set for each outgoing requests
 
 ### <a name="jwt"></a> channels.jwt configuration block
@@ -175,11 +182,11 @@ Configuration item under `channels[n].jwt`:
   - For HMAC alg such as `HS512`, content of the file should be Base64 encoded key
   - For `none` alg, empty list is allowed (`none: []`)
     - `none` alg is easy way for testing purpose, but **do NOT use `none` on production**.
-- `claims` (string to Template string map, optional): Validation rule of custom claims
+- `claims` (string to template string map, optional): Validation rule of custom claims
   - For example, `foo: 'bar'` means JWT must have custom claim named `foo` with a value `bar`
   - You can use template string to validate value (e.g. `chatroom: '{{.regex.id}}'` means custom claim `chatroom` must match with `id` of `channels.regex`).
   - If value of JWT claim is boolean or number, validator convert them to string (e.g. `"true"`, `"3.14"`)
-- `clockSkewLeeway` (Duration string, default `5m`): When validate time-based claims such as `exp`, `nbf`, allow clock skew with this tolerance.
+- `clockSkewLeeway` (duration string, default `5m`): When validate time-based claims such as `exp`, `nbf`, allow clock skew with this tolerance.
 
 ### <a name="admin"></a> `admin` configuration block
 
@@ -197,5 +204,5 @@ Configuration item under `admin`:
 - `auth.networks` (list of CIDR string, optional): List of CIDR IP ranges to accept admin API calls
   - By default or if empyt list given, allow [RFC 1918](https://tools.ietf.org/html/rfc1918) ranges `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and [RFC 4193](https://tools.ietf.org/html/rfc4193) range `fc00::/7`.
 - `auth.bearer` (list of string, optional): List of `Authorization: Bearer` request header value
-  - By default or if empyt list given, server automatically generate random string on start.
-  - Client must send one of specified value.
+  - Client must send one of specified value in the list.
+  - By default or if empty list given, server automatically generate random string on start.

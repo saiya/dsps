@@ -96,16 +96,16 @@ storage:
 
 Configuration items:
 
-- `username` (string, optional, default `""`): Username of Redis authentication
-- `password` (string, optional, default `""`): Password of Redis authentication
+- `username` (string, default `""`): Username of Redis authentication
+- `password` (string, default `""`): Password of Redis authentication
 - `db` (number, optional, default `0`): Database number of the Redis
   - Note: ignored if using redis cluster because it does not support database number
-- `timeout.connect` (duration, optional, default `5s`): Timeout to connect to the Redis
-- `timeout.read` (duration, optional, default `5s`): Timeout to wait response from the Redis
-- `timeout.write` (duration, optional, default `5s`): Timeout of request write operation to the Redis
+- `timeout.connect` (duration, default `5s`): Timeout to connect to the Redis
+- `timeout.read` (duration, default `5s`): Timeout to wait response from the Redis
+- `timeout.write` (duration, default `5s`): Timeout of request write operation to the Redis
 - `retry.count` (integer, default: `3`): 0 to disable retry, 1 to retry only once, ...
-- `retry.interval` (Duration string, default: `500ms`): Retry base interval
-- `retry.intervalJitter` (Duration string, default: `200ms`): Max range of the retry interval randomization, plus or minus to the interval
+- `retry.interval` (duration string, default: `500ms`): Retry base interval
+- `retry.intervalJitter` (duration string, default: `200ms`): Max range of the retry interval randomization, plus or minus to the interval
 - `connection.max` (integer, default: `max(1024, NumCPU * 64)`): Max connections between DSPS server and the Redis
 - `connection.min` (integer, default: `NumCPU * 16`): Minimum connections to keep-alive to reduce connect round-trip overhead
-- `connection.maxIdleTime` (Duration string, default: `5m`): Max idle time to keep-alive connections
+- `connection.maxIdleTime` (duration string, default: `5m`): Max idle time to keep-alive connections
