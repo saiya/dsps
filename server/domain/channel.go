@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 )
@@ -9,12 +10,15 @@ import (
 type ChannelID string
 
 // ChannelProvider provides configured Channel object.
-// If given ChannelID is not valid for this server process, returns nil.
-type ChannelProvider func(id ChannelID) Channel
+// If given ChannelID is not valid for this server process, returns (nil, domain.ErrInvalidChannel).
+type ChannelProvider func(id ChannelID) (Channel, error)
 
 // Channel struct holds all objects/information of a channel
 type Channel interface {
 	Expire() Duration
+
+	// Note that this method does not check revocation list.
+	ValidateJwt(ctx context.Context, jwt string) error
 }
 
 // see: doc/interface/validation_rule.md

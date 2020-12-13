@@ -23,7 +23,7 @@ func (s *redisStorage) PublishMessages(ctx context.Context, msgs []domain.Messag
 	defer func() {
 		if sentMsgs > 0 {
 			if err := s.redisCmd.Publish(ctx, s.redisPubSubKeyOf(msgs[0].ChannelID), "new message"); err != nil {
-				logger.Of(ctx).WarnError("Redis Pub/Sub publish failed. Subscribers could not receive messages immediately.", err)
+				logger.Of(ctx).WarnError(logger.CatStorage, "Redis Pub/Sub publish failed. Subscribers could not receive messages immediately.", err)
 			}
 		}
 	}()

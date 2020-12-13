@@ -46,7 +46,7 @@ func runCreateSubscriberScript(ctx context.Context, redisCmd redisCmd, channelID
 	)
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			logger.Of(ctx).Debugf("Subscriber already exists: %s on %s", sbscID, keys.channelID)
+			logger.Of(ctx).Debugf(logger.CatStorage, "Subscriber already exists: %s on %s", sbscID, keys.channelID)
 		} else {
 			return xerrors.Errorf("Failed to execute createSubscriberScript: %w", err)
 		}

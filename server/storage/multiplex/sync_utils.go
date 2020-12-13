@@ -69,7 +69,7 @@ func (s *storageMultiplexer) parallelAtLeastOneSuccess(ctx context.Context, oper
 			firstErr = err
 		}
 		if (!domain.IsStorageNonFatalError(err)) && (!errors.Is(err, context.Canceled)) && (!errors.Is(err, context.DeadlineExceeded)) {
-			logger.Of(ctx).WarnError("Error returned from multiplexed storage", err)
+			logger.Of(ctx).WarnError(logger.CatStorage, "Error returned from multiplexed storage", err)
 		}
 	}
 	if len(result) == 0 && firstErr != nil {

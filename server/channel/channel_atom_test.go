@@ -6,6 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestChannelAtomStringer(t *testing.T) {
+	assert.Equal(t, `chat-room-(?P<id>\d+)`, newChannelAtomByYaml(t, `{ regex: 'chat-room-(?P<id>\d+)' }`, true).String())
+}
+
 func TestChannelAtomMatching(t *testing.T) {
 	assert.True(t, newChannelAtomByYaml(t, `{ regex: 'chat-room-(?P<id>\d+)' }`, true).IsMatch("chat-room-123"))
 	assert.False(t, newChannelAtomByYaml(t, `{ regex: 'chat-room-(?P<id>\d+)' }`, true).IsMatch("Xchat-room-123"))
@@ -26,9 +30,8 @@ webhooks:
 		headers:
 			User-Agent: "{{.regex.id}}"
 jwt:
-	alg: RS256
 	iss: [ "http://example.com" ]
-	keys: [ "../testing/testdata/RS256-sample-public-key.pem" ]
+	keys: RS256: [ "../jwt/testdata/RS256-2048bit-public.pem" ]
 	claims:
 		chatroom: '{{.regex.id}}'`,
 		},
@@ -55,9 +58,8 @@ webhooks:
 			`
 regex: 'chat-room-(?P<id>\d+)'
 jwt:
-	alg: RS256
 	iss: [ "http://example.com" ]
-	keys: [ "../testing/testdata/RS256-sample-public-key.pem" ]
+	keys: RS256: [ "../jwt/testdata/RS256-2048bit-public.pem" ]
 	claims:
 		chatroom: '{{.regex.idX}}'`,
 		},

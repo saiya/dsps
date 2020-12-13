@@ -23,7 +23,7 @@ func (s *onmemoryStorage) startGC() {
 
 					err := s.GC(ctx)
 					if err != nil {
-						logger.Of(ctx).WarnError("Onmemory storage GC failed", err)
+						logger.Of(ctx).WarnError(logger.CatStorage, "Onmemory storage GC failed", err)
 					}
 				}()
 			}

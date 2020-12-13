@@ -4,8 +4,6 @@ import (
 	"math"
 	"strconv"
 
-	"golang.org/x/xerrors"
-
 	"github.com/saiya/dsps/server/domain"
 )
 
@@ -17,9 +15,9 @@ func (c channelTTLSec) MarshalBinary() (data []byte, err error) {
 }
 
 func (s *redisStorage) channelRedisTTLSec(channelID domain.ChannelID) (channelTTLSec, error) {
-	ch := s.channelProvider(channelID)
-	if ch == nil {
-		return 0, xerrors.Errorf("%w", domain.ErrInvalidChannel)
+	ch, err := s.channelProvider(channelID)
+	if err != nil {
+		return 0, err
 	}
 	return channelTTLSec(math.Ceil((ch.Expire().Duration + ttlMargin).Seconds())), nil
 }

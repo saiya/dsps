@@ -1,4 +1,4 @@
-package logger
+package middleware
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/saiya/dsps/server/logger"
 )
 
 // LoggingMiddleware is middleware for logging
@@ -13,12 +15,12 @@ func LoggingMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				Of(ctx).Error("Panic in HTTP endpoint", panicAsError(err))
+				logger.Of(ctx).Error("Panic in HTTP endpoint", panicAsError(err))
 				ctx.AbortWithStatus(http.StatusInternalServerError)
 			}
 		}()
 
-		ModifyGinContext(ctx).
+		logger.ModifyGinContext(ctx).
 			WithStr("method", ctx.Request.Method).
 			WithStr("path", ctx.Request.URL.Path).
 			WithStr("ip", ctx.ClientIP()).
@@ -31,12 +33,12 @@ func LoggingMiddleware() gin.HandlerFunc {
 		ctx.Next()
 		elapsed := time.Since(startAt)
 
-		ModifyGinContext(ctx).
+		logger.ModifyGinContext(ctx).
 			WithInt("status", ctx.Writer.Status()).
 			WithInt64("elapsedMs", elapsed.Milliseconds()).
 			WithInt("resLength", ctx.Writer.Size()).
 			Build()
-		Of(ctx).Infof("HTTP endpoint ended")
+		logger.Of(ctx).Infof(logger.CatHTTP, "HTTP endpoint served")
 	}
 }
 

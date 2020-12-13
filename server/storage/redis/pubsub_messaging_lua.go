@@ -62,10 +62,10 @@ func runPublishMessageScript(ctx context.Context, redisCmd redisCmd, ttl channel
 		[]string{keys.Clock(), keys.MessageBodyPrefix(), keys.MessageDedup(msg.MessageID)},
 		ttl, wrapped, clockMin, clockMax,
 	)
-	logger.Of(ctx).Debugf("runPublishMessageScript(ttl = %d, msg = %v) resulted in %v (%v)", ttl, msg, result, err)
+	logger.Of(ctx).Debugf(logger.CatStorage, "runPublishMessageScript(ttl = %d, msg = %v) resulted in %v (%v)", ttl, msg, result, err)
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			logger.Of(ctx).Debugf("Duplicated message %s / %s", msg.ChannelID, msg.MessageID)
+			logger.Of(ctx).Debugf(logger.CatStorage, "Duplicated message %s / %s", msg.ChannelID, msg.MessageID)
 		} else {
 			return xerrors.Errorf("Failed to execute publishMessageScript: %w", err)
 		}
@@ -116,7 +116,7 @@ func runAckScript(ctx context.Context, redisCmd redisCmd, channelID domain.Chann
 		},
 		ttl, int64(acknowledgedClock),
 	)
-	logger.Of(ctx).Debugf(`runAckScript(channelID = %s, ttl = %d, sbscID = %s, acknowledgedClock = %s) resulted in %v (%v)`, channelID, ttl, sbscID, acknowledgedClock, result, err)
+	logger.Of(ctx).Debugf(logger.CatStorage, `runAckScript(channelID = %s, ttl = %d, sbscID = %s, acknowledgedClock = %s) resulted in %v (%v)`, channelID, ttl, sbscID, acknowledgedClock, result, err)
 	if err != nil {
 		return "", xerrors.Errorf("Failed to execute ackScript: %w", err)
 	}

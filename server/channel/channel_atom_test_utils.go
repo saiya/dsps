@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/saiya/dsps/server/config"
+	"github.com/saiya/dsps/server/domain"
 )
 
 func newChannelAtomByYaml(t *testing.T, yaml string, validate bool) *channelAtom { //nolint:golint
@@ -16,7 +18,7 @@ func newChannelAtomByYaml(t *testing.T, yaml string, validate bool) *channelAtom
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(cfg.Channels))
 
-	atom, err := newChannelAtom(&cfg.Channels[0], validate)
+	atom, err := newChannelAtom(context.Background(), &cfg.Channels[0], domain.RealSystemClock, validate)
 	assert.NoError(t, err)
 	return atom
 }

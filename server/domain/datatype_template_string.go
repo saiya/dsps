@@ -14,9 +14,12 @@ type TemplateString struct {
 	templateString string
 }
 
+// TemplateStringEnv is an parameters for template evaluation
+type TemplateStringEnv interface{}
+
 // NewTemplateString initialize template
-func NewTemplateString(value string) (*TemplateString, error) {
-	result := &TemplateString{}
+func NewTemplateString(value string) (TemplateString, error) {
+	result := TemplateString{}
 	return result, result.init(value)
 }
 
@@ -36,7 +39,7 @@ func (tpl TemplateString) String() string {
 }
 
 // Execute evaluates template
-func (tpl TemplateString) Execute(data interface{}) (string, error) {
+func (tpl TemplateString) Execute(data TemplateStringEnv) (string, error) {
 	output := strings.Builder{}
 	if err := tpl.template.Execute(&output, data); err != nil {
 		return "", err

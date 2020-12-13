@@ -13,12 +13,12 @@ ldflags = "-X main.buildVersion=$(DSPS_VERSION_ID) -X main.buildAt=$(shell date 
 build: $(release_dir).zip
 
 test: generate
-	go test -v -race -timeout 30m -coverprofile=coverage.txt -covermode=atomic ./...
+	GIN_MODE=release go test -v -race -timeout 30m -coverprofile=coverage.txt -covermode=atomic ./...
 	go tool cover -html=coverage.txt -o coverage.html
 
 test.profile: generate
 	mkdir -p pprof
-	go test -v -timeout 30m -bench -benchmem -o pprof/test.bin -cpuprofile pprof/cpu.out ./...
+	GIN_MODE=release go test -v -timeout 30m -bench -benchmem -o pprof/test.bin -cpuprofile pprof/cpu.out ./...
 	go tool pprof --svg pprof/test.bin pprof/cpu.out > pprof/test.svg
 
 lint: generate

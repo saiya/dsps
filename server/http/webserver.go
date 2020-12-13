@@ -13,28 +13,30 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/saiya/dsps/server/config"
-	httputil "github.com/saiya/dsps/server/http/util"
+	httplifecycle "github.com/saiya/dsps/server/http/lifecycle"
+	"github.com/saiya/dsps/server/http/middleware"
 	"github.com/saiya/dsps/server/logger"
 )
 
 // StartServer starts HTTP web server
-func StartServer(mainContext context.Context, config *config.ServerConfig, deps *ServerDependencies) {
-	engine := createServer(mainContext, config, deps)
-	runServer(mainContext, config, engine, deps.GetServerClose())
+func StartServer(mainContext context.Context, deps *ServerDependencies) {
+	engine := CreateServer(mainContext, deps)
+	runServer(mainContext, deps.Config, engine, deps.GetServerClose())
 }
 
-func createServer(mainContext context.Context, config *config.ServerConfig, deps *ServerDependencies) *gin.Engine {
+// CreateServer creates server (http.Handler) instance.
+func CreateServer(mainContext context.Context, deps *ServerDependencies) http.Handler {
 	if os.Getenv("GIN_MODE") == "" { // Use release mode by default
 		gin.SetMode(gin.ReleaseMode)
 	}
 	engine := gin.New()
-	engine.Use(logger.LoggingMiddleware())
+	engine.Use(middleware.LoggingMiddleware())
 
 	var router gin.IRouter
-	if config.HTTPServer.PathPrefix == "/" {
+	if deps.Config.HTTPServer.PathPrefix == "/" {
 		router = engine
 	} else {
-		router = engine.Group(config.HTTPServer.PathPrefix)
+		router = engine.Group(deps.Config.HTTPServer.PathPrefix)
 	}
 
 	InitEndpoints(mainContext, router, deps)
@@ -43,7 +45,7 @@ func createServer(mainContext context.Context, config *config.ServerConfig, deps
 }
 
 // see: https://github.com/gin-gonic/gin#manually
-func runServer(mainContext context.Context, config *config.ServerConfig, engine *gin.Engine, serverClose httputil.ServerClose) {
+func runServer(mainContext context.Context, config *config.ServerConfig, engine http.Handler, serverClose httplifecycle.ServerClose) {
 	addr := config.HTTPServer.Listen
 	srv := &http.Server{
 		Addr:           addr,
@@ -55,9 +57,9 @@ func runServer(mainContext context.Context, config *config.ServerConfig, engine 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			if err != http.ErrServerClosed {
-				logger.Of(mainContext).Fatal(fmt.Sprintf("HTTP server listen failed on %s", addr), err)
+				logger.Of(mainContext).FatalExitProcess(fmt.Sprintf("HTTP server listen failed on %s", addr), err)
 			} else {
-				logger.Of(mainContext).Infof("HTTP server listener closed")
+				logger.Of(mainContext).Infof(logger.CatServer, "HTTP server listener closed")
 			}
 		}
 	}()
@@ -69,17 +71,17 @@ func runServer(mainContext context.Context, config *config.ServerConfig, engine 
 	// kill -9 is syscall.SIGKILL but can't be catch, so don't need add it
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	signal := <-quit // Wait until signal...
-	logger.Of(mainContext).Infof("Shutting down server (%v)...", signal)
+	logger.Of(mainContext).Infof(logger.CatServer, "Shutting down server (%v)...", signal)
 	serverClose.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), config.HTTPServer.GracefulShutdownTimeout.Duration)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			logger.Of(mainContext).Infof("Stopping long-running requests (e.g. long pollings)")
+			logger.Of(mainContext).Infof(logger.CatServer, "Stopping long-running requests (e.g. long pollings)")
 		} else {
-			logger.Of(mainContext).Warnf("Server forced to shutdown: %v", err)
+			logger.Of(mainContext).Warnf(logger.CatServer, "Server forced to shutdown: %v", err)
 		}
 	}
-	logger.Of(mainContext).Infof("Server exiting...")
+	logger.Of(mainContext).Infof(logger.CatServer, "Server exiting...")
 }

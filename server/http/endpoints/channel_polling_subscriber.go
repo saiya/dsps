@@ -10,45 +10,50 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/saiya/dsps/server/domain"
-	"github.com/saiya/dsps/server/http/util"
+	"github.com/saiya/dsps/server/http/lifecycle"
+	"github.com/saiya/dsps/server/http/utils"
 	"github.com/saiya/dsps/server/logger"
 )
 
 // PollingEndpointDependency is to inject required objects to the endpoint
 type PollingEndpointDependency interface {
-	GetServerClose() util.ServerClose
+	GetServerClose() lifecycle.ServerClose
 	GetStorage() domain.Storage
 
 	GetLongPollingMaxTimeout() domain.Duration
 }
 
-// InitPollingEndpoints registers endpoints
-func InitPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
-	pubsub := deps.GetStorage().AsPubSubStorage()
-	serverClose := deps.GetServerClose()
-	longPollingMaxTimeout := deps.GetLongPollingMaxTimeout().Duration
-
+// InitSubscriptionPollingEndpoints registers endpoints
+func InitSubscriptionPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
 	group := router.Group("/subscription/polling/:subscriberID")
 	group.Use(func(ctx *gin.Context) {
 		logger.ModifyGinContext(ctx).WithStr("subscriberID", ctx.Param("subscriberID")).Build()
 		ctx.Next()
 	})
 
-	group.PUT("", func(ctx *gin.Context) {
+	group.PUT("", subscriberPutEndpoint(deps))
+	group.DELETE("", subscriberDeleteEndpoint(deps))
+	group.GET("", subscriberGetEndpoint(deps))
+	group.DELETE("/message", subscriberMessageDeleteEndpoint(deps))
+}
+
+func subscriberPutEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
+	pubsub := deps.GetStorage().AsPubSubStorage()
+	return func(ctx *gin.Context) {
 		if pubsub == nil {
-			sendPubSubUnsupportedError(ctx)
+			utils.SendPubSubUnsupportedError(ctx)
 			return
 		}
 
 		channelID, err := domain.ParseChannelID(ctx.Param("channelID"))
 		if err != nil {
-			sendInvalidParameter(ctx, "channelID", err)
+			utils.SendInvalidParameter(ctx, "channelID", err)
 			return
 		}
 
 		subscriberID, err := domain.ParseSubscriberID(ctx.Param("subscriberID"))
 		if err != nil {
-			sendInvalidParameter(ctx, "subscriberID", err)
+			utils.SendInvalidParameter(ctx, "subscriberID", err)
 			return
 		}
 
@@ -59,9 +64,9 @@ func InitPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
 		if err != nil {
 			if errors.Is(err, domain.ErrInvalidChannel) {
 				// Could not create/access to the channel because not permitted by configuration
-				sendError(ctx, http.StatusForbidden, err.Error(), err)
+				utils.SendError(ctx, http.StatusForbidden, err.Error(), err)
 			} else {
-				sentInternalServerError(ctx, err)
+				utils.SentInternalServerError(ctx, err)
 			}
 			return
 		}
@@ -70,23 +75,26 @@ func InitPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
 			"channelID":    channelID,
 			"subscriberID": subscriberID,
 		})
-	})
+	}
+}
 
-	group.DELETE("", func(ctx *gin.Context) {
+func subscriberDeleteEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
+	pubsub := deps.GetStorage().AsPubSubStorage()
+	return func(ctx *gin.Context) {
 		if pubsub == nil {
-			sendPubSubUnsupportedError(ctx)
+			utils.SendPubSubUnsupportedError(ctx)
 			return
 		}
 
 		channelID, err := domain.ParseChannelID(ctx.Param("channelID"))
 		if err != nil {
-			sendInvalidParameter(ctx, "channelID", err)
+			utils.SendInvalidParameter(ctx, "channelID", err)
 			return
 		}
 
 		subscriberID, err := domain.ParseSubscriberID(ctx.Param("subscriberID"))
 		if err != nil {
-			sendInvalidParameter(ctx, "subscriberID", err)
+			utils.SendInvalidParameter(ctx, "subscriberID", err)
 			return
 		}
 
@@ -97,9 +105,9 @@ func InitPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
 		if err != nil {
 			if errors.Is(err, domain.ErrInvalidChannel) {
 				// Belonging channel might be deleted / expired or not permitted in configuration.
-				sendError(ctx, http.StatusForbidden, err.Error(), err)
+				utils.SendError(ctx, http.StatusForbidden, err.Error(), err)
 			} else {
-				sentInternalServerError(ctx, err)
+				utils.SentInternalServerError(ctx, err)
 			}
 			return
 		}
@@ -108,39 +116,44 @@ func InitPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
 			"channelID":    channelID,
 			"subscriberID": subscriberID,
 		})
-	})
+	}
+}
 
-	group.GET("", func(ctx *gin.Context) {
+func subscriberGetEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
+	pubsub := deps.GetStorage().AsPubSubStorage()
+	serverClose := deps.GetServerClose()
+	longPollingMaxTimeout := deps.GetLongPollingMaxTimeout().Duration
+	return func(ctx *gin.Context) {
 		if pubsub == nil {
-			sendPubSubUnsupportedError(ctx)
+			utils.SendPubSubUnsupportedError(ctx)
 			return
 		}
 
 		channelID, err := domain.ParseChannelID(ctx.Param("channelID"))
 		if err != nil {
-			sendInvalidParameter(ctx, "channelID", err)
+			utils.SendInvalidParameter(ctx, "channelID", err)
 			return
 		}
 
 		subscriberID, err := domain.ParseSubscriberID(ctx.Param("subscriberID"))
 		if err != nil {
-			sendInvalidParameter(ctx, "subscriberID", err)
+			utils.SendInvalidParameter(ctx, "subscriberID", err)
 			return
 		}
 
 		timeout, err := time.ParseDuration(ctx.DefaultQuery("timeout", "0ms"))
 		if err != nil {
-			sendInvalidParameter(ctx, "timeout", err)
+			utils.SendInvalidParameter(ctx, "timeout", err)
 			return
 		}
 		if timeout > longPollingMaxTimeout {
-			logger.Of(ctx).Infof("Client requested long-polling timeout %v is too long, rounded to longPollingMaxTimeout (%v)", timeout, longPollingMaxTimeout)
+			logger.Of(ctx).Infof(logger.CatHTTP, "Client requested long-polling timeout %v is too long, rounded to longPollingMaxTimeout (%v)", timeout, longPollingMaxTimeout)
 			timeout = longPollingMaxTimeout
 		}
 
 		max, err := strconv.ParseInt(ctx.DefaultQuery("max", "64"), 10, 0)
 		if err != nil {
-			sendInvalidParameter(ctx, "max", err)
+			utils.SendInvalidParameter(ctx, "max", err)
 			return
 		}
 
@@ -156,19 +169,19 @@ func InitPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
 			)
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
-					logger.Of(ctx).Infof("Polling canceled due to context cancel, returned empty messages to client.")
+					logger.Of(ctx).Infof(logger.CatHTTP, "Polling canceled due to context cancel, returned empty messages to client.")
 					msgs = []domain.Message{}
 					moreMsg = false
 					ackHandle = domain.AckHandle{}
 					// Continue to normal flow
 				} else {
 					if errors.Is(err, domain.ErrInvalidChannel) {
-						sendError(ctx, http.StatusForbidden, err.Error(), err)
+						utils.SendError(ctx, http.StatusForbidden, err.Error(), err)
 					} else if errors.Is(err, domain.ErrSubscriptionNotFound) {
 						// Channel / subscriber might be expired or intentionally deleted.
-						sendError(ctx, http.StatusNotFound, err.Error(), err)
+						utils.SendError(ctx, http.StatusNotFound, err.Error(), err)
 					} else {
-						sentInternalServerError(ctx, err)
+						utils.SentInternalServerError(ctx, err)
 					}
 					return
 				}
@@ -191,29 +204,32 @@ func InitPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
 			}
 			ctx.JSON(http.StatusOK, result)
 		})
-	})
+	}
+}
 
-	group.DELETE("/message", func(ctx *gin.Context) {
+func subscriberMessageDeleteEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
+	pubsub := deps.GetStorage().AsPubSubStorage()
+	return func(ctx *gin.Context) {
 		if pubsub == nil {
-			sendPubSubUnsupportedError(ctx)
+			utils.SendPubSubUnsupportedError(ctx)
 			return
 		}
 
 		channelID, err := domain.ParseChannelID(ctx.Param("channelID"))
 		if err != nil {
-			sendInvalidParameter(ctx, "channelID", err)
+			utils.SendInvalidParameter(ctx, "channelID", err)
 			return
 		}
 
 		subscriberID, err := domain.ParseSubscriberID(ctx.Param("subscriberID"))
 		if err != nil {
-			sendInvalidParameter(ctx, "subscriberID", err)
+			utils.SendInvalidParameter(ctx, "subscriberID", err)
 			return
 		}
 
 		ackHandle := ctx.Query("ackHandle")
 		if ackHandle == "" {
-			sendMissingParameter(ctx, "ackHandle")
+			utils.SendMissingParameter(ctx, "ackHandle")
 			return
 		}
 
@@ -226,18 +242,18 @@ func InitPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
 		})
 		if err != nil {
 			if errors.Is(err, domain.ErrInvalidChannel) {
-				sendError(ctx, http.StatusForbidden, err.Error(), err)
+				utils.SendError(ctx, http.StatusForbidden, err.Error(), err)
 			} else if errors.Is(err, domain.ErrMalformedAckHandle) {
-				sendError(ctx, http.StatusBadRequest, err.Error(), err)
+				utils.SendError(ctx, http.StatusBadRequest, err.Error(), err)
 			} else if errors.Is(err, domain.ErrSubscriptionNotFound) {
 				// Belonging channel/subscriber could be expired/deleted.
-				sendError(ctx, http.StatusNotFound, err.Error(), err)
+				utils.SendError(ctx, http.StatusNotFound, err.Error(), err)
 			} else {
-				sentInternalServerError(ctx, err)
+				utils.SentInternalServerError(ctx, err)
 			}
 			return
 		}
 
 		ctx.Status(http.StatusNoContent)
-	})
+	}
 }

@@ -1,7 +1,8 @@
-package util
+package lifecycle
 
 import (
 	"context"
+	"sync"
 )
 
 // ServerClose provides way to terminate handler when server shutdown.
@@ -14,26 +15,32 @@ type ServerClose interface {
 
 // NewServerClose creates ServerClose instance.
 func NewServerClose() ServerClose {
-	return &serverClose{ch: make(chan bool)}
+	return &serverClose{ch: make(chan interface{})}
 }
 
 type serverClose struct {
-	ch chan bool
+	ch        chan interface{}
+	closeOnce sync.Once
 }
 
 func (sc *serverClose) Close() {
-	go func() {
-		for { // Notify to everyone
-			sc.ch <- true
-		}
-	}()
+	sc.closeOnce.Do(func() {
+		close(sc.ch)
+	})
 }
 
 func (sc *serverClose) WithCancel(ctxToWrap context.Context, action func(ctx context.Context)) {
 	ctx, cancel := context.WithCancel(ctxToWrap)
+	select {
+	case <-sc.ch: // Already closed
+		cancel()
+		action(ctx)
+		return
+	default:
+	}
 
-	closeWatching := make(chan bool, 1)
-	defer func() { closeWatching <- true }()
+	closeWatching := make(chan interface{})
+	defer close(closeWatching)
 	go func() {
 		select {
 		case <-closeWatching:

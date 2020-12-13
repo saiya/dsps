@@ -58,9 +58,9 @@ func (s *storageMultiplexer) FetchMessages(ctx context.Context, sl domain.Subscr
 		// Subscriber missing on this storage.
 		// This situation could occur if the storage had been temporary unavailable when subscriber created.
 		// So that automatically create subscriber to receive future messages.
-		logger.Of(ctx).Debugf(`Auto-creating (recovering) subscriber %v on storage '%s' because fetch succeeded in the multiplexer but this storage reported the subscriber does not exist.`, sl, id)
+		logger.Of(ctx).Debugf(logger.CatStorage, `Auto-creating (recovering) subscriber %v on storage '%s' because fetch succeeded in the multiplexer but this storage reported the subscriber does not exist.`, sl, id)
 		if err := s.children[id].AsPubSubStorage().NewSubscriber(ctx, sl); err != nil {
-			logger.Of(ctx).WarnError(fmt.Sprintf("Failed to auto-create (recover) subscriber %v on storage '%s': %%w", sl, id), err)
+			logger.Of(ctx).WarnError(logger.CatStorage, fmt.Sprintf("Failed to auto-create (recover) subscriber %v on storage '%s': %%w", sl, id), err)
 		}
 	}
 
@@ -145,7 +145,7 @@ func (s *storageMultiplexer) IsOldMessages(ctx context.Context, sl domain.Subscr
 				staleMap, err := child.IsOldMessages(ctx, sl, msgs)
 				if err != nil {
 					if !domain.IsStorageNonFatalError(err) {
-						logger.Of(ctx).WarnError(fmt.Sprintf("IsOldMessages of \"%s\" failed", id), err)
+						logger.Of(ctx).WarnError(logger.CatStorage, fmt.Sprintf("IsOldMessages of \"%s\" failed", id), err)
 					}
 					return
 				}
