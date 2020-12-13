@@ -21,6 +21,8 @@ type JwtProps struct {
 	Alg domain.JwtAlg
 	// Issuer
 	Iss domain.JwtIss
+	// ID
+	Jti domain.JwtJti
 	// Issue at
 	Iat time.Time
 	// Expire at
@@ -37,6 +39,9 @@ func GenerateJwt(t *testing.T, props JwtProps) string {
 	claims := jwtgo.MapClaims{"alg": string(props.Alg)}
 	if props.Iss != "" {
 		claims["iss"] = props.Iss
+	}
+	if props.Jti != "" {
+		claims["jti"] = props.Jti
 	}
 	if props.Iat != (time.Time{}) {
 		claims["iat"] = props.Iat.Unix()
@@ -71,7 +76,11 @@ func GenerateJwt(t *testing.T, props JwtProps) string {
 	if props.JwtDir == "" {
 		props.JwtDir = ".."
 	}
-	key, err := jwt.LoadKey(props.Alg, props.JwtDir+"/testdata/"+props.Keyname+"-private.pem", true)
+	keyFileSuffix := "-private.pem"
+	if jwt.IsHMAC(props.Alg) {
+		keyFileSuffix = ".rand"
+	}
+	key, err := jwt.LoadKey(props.Alg, props.JwtDir+"/testdata/"+props.Keyname+keyFileSuffix, true)
 	assert.NoError(t, err)
 	jwt, err := token.SignedString(key)
 	assert.NoError(t, err)

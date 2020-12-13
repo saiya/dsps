@@ -13,7 +13,7 @@ import (
 // AssertRecordedCode assert DSPS standard HTTP error response
 func AssertRecordedCode(t *testing.T, rec *httptest.ResponseRecorder, httpStatusCode int, dspsCode domain.ErrorWithCode) {
 	assert.Equal(t, httpStatusCode, rec.Code)
-	assert.Equal(t, dspsCode.Code(), BodyJSONMapOfRec(t, rec)["code"], `expected DSPS code %v but response BODY is %s`, dspsCode, string(rec.Body.Bytes()))
+	assert.Equal(t, dspsCode.Code(), BodyJSONMapOfRec(t, rec)["code"], `expected DSPS code %v but response BODY is %s`, dspsCode, rec.Body.String())
 }
 
 // BodyJSONMapOfRec extract JSON from response body

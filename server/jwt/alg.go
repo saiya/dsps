@@ -15,7 +15,7 @@ func ValidateAlg(alg domain.JwtAlg) error {
 	return fmt.Errorf(`Unsupported JWT alg "%s"`, alg)
 }
 
-var algRSA = regexp.MustCompile(`^RS[0-9]+$`)
+var algRSA = regexp.MustCompile(`^(RS|PS)[0-9]+$`) // RS: RSASSA-PKCS1, PS: RSASSA-PSS
 var algECDSA = regexp.MustCompile(`^ES[0-9]+$`)
 var algHMAC = regexp.MustCompile(`^HS[0-9]+$`)
 

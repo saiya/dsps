@@ -44,28 +44,3 @@ type JwtIss string
 
 // JwtAud is "aud" claim, recipient of a JWT
 type JwtAud string
-
-// JwtDenialError is error object represents JWT denial
-type JwtDenialError interface {
-	Error() string // This method does not returns detail for security.
-	Detail() string
-}
-
-// NewJwtDenialError creates error object
-func NewJwtDenialError(jti JwtJti, iss JwtIss, msg string) error {
-	return &jwtDenialError{
-		detail: fmt.Sprintf("JWT (iss: %s, jti: %s) rejected: %s", iss, jti, msg),
-	}
-}
-
-type jwtDenialError struct {
-	detail string
-}
-
-func (err *jwtDenialError) Error() string {
-	return "Accedd Denied"
-}
-
-func (err *jwtDenialError) Detail() string {
-	return err.detail
-}

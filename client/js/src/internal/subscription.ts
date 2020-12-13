@@ -277,7 +277,7 @@ export class SubscriptionImpl implements Subscription {
 class Dedup {
   private ids: string[] = [];
 
-  constructor(private windowSize: number) { }
+  constructor(private windowSize: number) {}
 
   filter(messages: Message<any>[]): Message<any>[] {
     const result: Message<any>[] = [];

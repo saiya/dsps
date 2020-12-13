@@ -39,14 +39,14 @@ func makeRegex(str string) *domain.Regex {
 
 func intMustBeLargerThanZero(name string, value int) error {
 	if value <= 0 {
-		return xerrors.Errorf("%s must not be negative", name)
+		return xerrors.Errorf("%s must not be negative nor zero", name)
 	}
 	return nil
 }
 
 func durationMustBeLargerThanZero(name string, d domain.Duration) error {
 	if d.Duration <= 0 {
-		return xerrors.Errorf("%s must not be negative", name)
+		return xerrors.Errorf("%s must not be negative nor zero", name)
 	}
 	return nil
 }

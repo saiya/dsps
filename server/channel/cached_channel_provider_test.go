@@ -13,7 +13,7 @@ import (
 	dspstesting "github.com/saiya/dsps/server/testing"
 )
 
-func TestCacheExpiry(t *testing.T) {
+func TestPositiveCache(t *testing.T) {
 	clock := dspstesting.NewStubClock(t)
 	cp := newCachedChannelProvider(func(id domain.ChannelID) (domain.Channel, error) {
 		return NewChannelByAtomYamls(t, id, []string{`{ regex: ".+", expire: "1s" }`}), nil
@@ -85,7 +85,7 @@ func TestNegativeCache(t *testing.T) {
 	assert.Equal(t, 2, notFoundCount) // Cache evicted
 }
 
-func TestChannelError(t *testing.T) {
+func TestCacheChannelError(t *testing.T) {
 	clock := dspstesting.NewStubClock(t)
 	called := 0
 	errToReturn := errors.New("stub error")

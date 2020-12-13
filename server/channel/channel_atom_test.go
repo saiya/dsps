@@ -6,6 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestChannelAtomStringer(t *testing.T) {
+	assert.Equal(t, `chat-room-(?P<id>\d+)`, newChannelAtomByYaml(t, `{ regex: 'chat-room-(?P<id>\d+)' }`, true).String())
+}
+
 func TestChannelAtomMatching(t *testing.T) {
 	assert.True(t, newChannelAtomByYaml(t, `{ regex: 'chat-room-(?P<id>\d+)' }`, true).IsMatch("chat-room-123"))
 	assert.False(t, newChannelAtomByYaml(t, `{ regex: 'chat-room-(?P<id>\d+)' }`, true).IsMatch("Xchat-room-123"))

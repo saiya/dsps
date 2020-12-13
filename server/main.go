@@ -49,7 +49,7 @@ func main() {
 
 	channelProvider, err := channel.NewChannelProvider(ctx, &config, clock)
 	exitIfError(2, err)
-	exitIfError(2, logger.InitLogger(&config))
+	exitIfError(2, logger.InitLogger(config.Logging))
 	storage, err := storage.NewStorage(ctx, &config.Storages, clock, channelProvider)
 	exitIfError(2, err)
 

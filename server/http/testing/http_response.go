@@ -25,11 +25,14 @@ func AssertErrorResponse(t *testing.T, res *http.Response, httpStatus int, dspsE
 }
 
 // AssertResponseJSON ensure response body JSON content
-func AssertResponseJSON(t *testing.T, res *http.Response, httpStatus int, expected map[string]interface{}) {
+func AssertResponseJSON(t *testing.T, res *http.Response, httpStatus int, expected map[string]interface{}) map[string]interface{} {
 	assert.Equal(t, httpStatus, res.StatusCode)
 
 	body := BodyJSONMapOfRes(t, res)
-	assert.Equal(t, expected, body)
+	for key, value := range expected {
+		assert.Equal(t, value, body[key])
+	}
+	return body
 }
 
 // BodyJSONMapOfRes extract JSON from response body

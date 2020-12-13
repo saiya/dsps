@@ -31,6 +31,13 @@ func (sc *serverClose) Close() {
 
 func (sc *serverClose) WithCancel(ctxToWrap context.Context, action func(ctx context.Context)) {
 	ctx, cancel := context.WithCancel(ctxToWrap)
+	select {
+	case <-sc.ch: // Already closed
+		cancel()
+		action(ctx)
+		return
+	default:
+	}
 
 	closeWatching := make(chan interface{})
 	defer close(closeWatching)

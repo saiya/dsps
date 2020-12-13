@@ -7,7 +7,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	. "github.com/saiya/dsps/server/domain/mock"
 	. "github.com/saiya/dsps/server/http"
 	. "github.com/saiya/dsps/server/http/testing"
 )
@@ -25,9 +24,7 @@ func TestProbeSuccess(t *testing.T) {
 func TestProbeFailure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	storage := NewMockStorage(ctrl)
-	storage.EXPECT().AsPubSubStorage().Return(nil).AnyTimes()
-	storage.EXPECT().AsJwtStorage().Return(nil).AnyTimes()
+	storage, _, _ := NewMockStorages(ctrl)
 
 	WithServer(t, `logging: category: "*": FATAL`, func(deps *ServerDependencies) {
 		deps.Storage = storage

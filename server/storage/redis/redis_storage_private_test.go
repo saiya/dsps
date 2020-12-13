@@ -37,8 +37,8 @@ func newMockedRedisStorage(ctrl *gomock.Controller) (*redisStorage, *mock.Mockre
 		clock:           domain.RealSystemClock,
 		channelProvider: storagetesting.StubChannelProvider,
 
-		pubsubEnabled: false,
-		jwtEnabled:    false,
+		pubsubEnabled: true,
+		jwtEnabled:    true,
 
 		redisConnection: redisConnection{
 			redisCmd:       redisCmd,
@@ -48,4 +48,31 @@ func newMockedRedisStorage(ctrl *gomock.Controller) (*redisStorage, *mock.Mockre
 			maxConnections: 1024,
 		},
 	}, redisCmd
+}
+
+func TestRedisStorageFeatureFlag(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	s, _ := newMockedRedisStorage(ctrl)
+
+	s.pubsubEnabled = true
+	assert.Same(t, s, s.AsPubSubStorage())
+	s.pubsubEnabled = false
+	assert.Nil(t, s.AsPubSubStorage())
+
+	s.jwtEnabled = true
+	assert.Same(t, s, s.AsJwtStorage())
+	s.jwtEnabled = false
+	assert.Nil(t, s.AsJwtStorage())
+}
+
+func TestGetNoFilePressure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	s, _ := newMockedRedisStorage(ctrl)
+
+	s.maxConnections = 1234
+	assert.Equal(t, 1234, s.GetNoFilePressure())
 }

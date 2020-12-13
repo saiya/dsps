@@ -8,7 +8,9 @@ import (
 
 // Logger represents implementation independent logger, also easy to inject mock.
 type Logger interface {
-	Fatal(msg string, err error)
+	// output fatal log then exit this process immediately
+	FatalExitProcess(msg string, err error)
+
 	Error(msg string, err error)
 	WarnError(cat Category, msg string, err error)
 	InfoError(cat Category, msg string, err error)
@@ -37,11 +39,14 @@ func (logger *loggerImpl) WithFilter(filter *Filter) *loggerImpl {
 	}
 }
 
-func (logger *loggerImpl) Fatal(msg string, err error) {
+func (logger *loggerImpl) FatalExitProcess(msg string, err error) {
 	logger.zap.Fatal(msg, zap.Error(err), zap.String("category", "FATAL"))
 }
 
 func (logger *loggerImpl) Error(msg string, err error) {
+	if !(logger.filter.Filter(ERROR, "ERROR")) {
+		return
+	}
 	logger.zap.Error(msg, zap.Error(err), zap.String("category", "ERROR"))
 }
 

@@ -81,11 +81,10 @@ Configuration items under `http`:
 
 Configuration items under `logging`:
 
-- `debug` (boolean, default `false`): Output DEBUG level logs
-  - `--debug` command line option also enables DEBUG log
 - `category` (string to string map, optional) Log level threshold for each `category` attribute of the log entries.
   - Available thresholds are `DEBUG`, `INFO`, `WARN`
   - `"*"` category controls default threshold and it's default is `INFO`
+  - `--debug` command line option overrides this config completely
 - `attributes` (string to string map, optional): Attributes set to every log records
   - Useful to set machine ID etcetera.
 

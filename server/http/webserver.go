@@ -57,7 +57,7 @@ func runServer(mainContext context.Context, config *config.ServerConfig, engine 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			if err != http.ErrServerClosed {
-				logger.Of(mainContext).Fatal(fmt.Sprintf("HTTP server listen failed on %s", addr), err)
+				logger.Of(mainContext).FatalExitProcess(fmt.Sprintf("HTTP server listen failed on %s", addr), err)
 			} else {
 				logger.Of(mainContext).Infof(logger.CatServer, "HTTP server listener closed")
 			}

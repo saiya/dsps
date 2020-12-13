@@ -24,7 +24,7 @@ func WithServerDeps(t *testing.T, configYaml string, f func(*http.ServerDependen
 		return
 	}
 
-	assert.NoError(t, logger.InitLogger(&cfg))
+	assert.NoError(t, logger.InitLogger(cfg.Logging))
 
 	ctx := context.Background()
 	clock := domain.RealSystemClock

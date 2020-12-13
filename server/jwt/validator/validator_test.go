@@ -19,9 +19,16 @@ var pregeneratedPublicKeys = map[domain.JwtAlg][]string{
 		"../testdata/RS256-2048bit-public.pem",
 		"../testdata/RS256-4096bit-public.pem",
 	},
+	"PS256": {
+		"../testdata/RS256-2048bit-public.pem",
+		"../testdata/RS256-4096bit-public.pem",
+	},
 	"ES512": {
 		"../testdata/ES512-test1-public.pem",
 		"../testdata/ES512-test2-public.pem",
+	},
+	"HS256": {
+		"../testdata/HS256.rand",
 	},
 }
 
@@ -41,6 +48,25 @@ func TestPregeneratedJwt(t *testing.T) {
 	err = v.Validate(ctx, string(jwt))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "JWT validation failed: token is expired")
+}
+
+func TestAlgorithms(t *testing.T) {
+	ctx := context.Background()
+	v := createDefaultValidator(t)
+	for supported, keyfile := range map[string]string{
+		// ref: https://tools.ietf.org/html/rfc7518#section-3.1
+		"HS256": "HS256",         // HMAC
+		"RS256": "RS256-2048bit", // RSASSA-PKCS1
+		"ES512": "ES512-test1",   // ECDSA
+		"PS256": "RS256-2048bit", // RSASSA-PSS
+	} {
+		assert.NoError(t, v.Validate(ctx, GenerateJwt(t, JwtProps{
+			Alg:     domain.JwtAlg(supported),
+			Keyname: keyfile,
+			Iss:     "https://example.com/issuer",
+			Aud:     []domain.JwtAud{"https://example.com/audience"},
+		})), "alg=%s", supported)
+	}
 }
 
 func TestMinimalValidation(t *testing.T) {

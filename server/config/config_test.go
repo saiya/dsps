@@ -15,7 +15,7 @@ func TestTabInYaml(t *testing.T) {
 	configYaml := `
 logging:
 	# Here is hard TAB
-	debug: true
+	category: "*": INFO
 `
 	_, err := ParseConfig(Overrides{}, configYaml)
 	assert.EqualError(t, err, "Configuration file could not contain tab character (0x09) because YAML spec forbit it, use space to indent")
@@ -24,19 +24,19 @@ logging:
 func TestLoadConfigFile(t *testing.T) {
 	configYaml := strings.ReplaceAll(`
 logging:
-	debug: true
+	category: "*": DEBUG
 `, "\t", "  ")
 
 	// Default config
 	cfg, err := LoadConfigFile("", Overrides{})
 	assert.NoError(t, err)
-	assert.Equal(t, false, cfg.Logging.Debug)
+	assert.Equal(t, "", cfg.Logging.Category["*"])
 
 	// Read from file
 	WithTextFile(t, configYaml, func(filename string) {
 		cfg, err := LoadConfigFile(filename, Overrides{})
 		assert.NoError(t, err)
-		assert.Equal(t, true, cfg.Logging.Debug)
+		assert.Equal(t, "DEBUG", cfg.Logging.Category["*"])
 	})
 
 	// Read from stdin
@@ -49,7 +49,7 @@ logging:
 
 		cfg, err := LoadConfigFile("-", Overrides{})
 		assert.NoError(t, err)
-		assert.Equal(t, true, cfg.Logging.Debug)
+		assert.Equal(t, "DEBUG", cfg.Logging.Category["*"])
 	})
 
 	// Invalid config
@@ -76,8 +76,8 @@ func TestDumpConfig(t *testing.T) {
 
 	rountTripTest(strings.ReplaceAll(`
 	logging:
-		debug: true
+		category: "*": "DEBUG"
 	`, "\t", "  "), func(cfg *ServerConfig) {
-		assert.Equal(t, true, cfg.Logging.Debug)
+		assert.Equal(t, "DEBUG", cfg.Logging.Category["*"])
 	})
 }

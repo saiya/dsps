@@ -9,15 +9,18 @@ import (
 )
 
 var rootLogger *loggerImpl
-var globalLogLevel zap.AtomicLevel
 
 func init() {
+	initImpl()
+}
+
+func initImpl() {
 	cfg := zap.NewProductionConfig()
 	cfg.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	cfg.Sampling = nil // Disable sampling
+	cfg.Sampling = nil                 // Disable sampling
+	cfg.Level.SetLevel(zap.DebugLevel) // DSPS has own level filtering system
 
-	globalLogLevel = cfg.Level
 	zap, err := cfg.Build(zap.AddCallerSkip(1))
 	if err != nil {
 		panic(xerrors.Errorf("Failed to initialize zap logger: %w", err))
@@ -29,24 +32,15 @@ func init() {
 	}
 }
 
-// EnableDebugLog enables debug log (process wide)
-func EnableDebugLog() {
-	globalLogLevel.SetLevel(zap.DebugLevel)
-}
-
 // InitLogger initializes Logger
-func InitLogger(config *config.ServerConfig) error {
-	if config.Logging.Debug {
-		EnableDebugLog()
-	}
-
-	filter, err := NewFilter(config.Logging.Category)
+func InitLogger(config *config.LoggingConfig) error {
+	filter, err := NewFilter(config.Category)
 	if err != nil {
 		return err
 	}
 
 	fields := []zap.Field{}
-	for key, value := range config.Logging.Attributes {
+	for key, value := range config.Attributes {
 		fields = append(fields, zap.String(key, value))
 	}
 

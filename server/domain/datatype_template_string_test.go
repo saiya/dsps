@@ -35,3 +35,26 @@ func TestTemplateStringJsonMapping(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, jsonStr, string(generated))
 }
+
+func TestInvalidTemplateString(t *testing.T) {
+	_, err := NewTemplateString("chat-room-{{.regex.id}")
+	assert.Regexp(t, `Unable to parse Template`, err.Error())
+
+	var tpl TemplateString
+	assert.Regexp(t, `Unable to parse Template`, json.Unmarshal([]byte(`"chat-room-{{.regex.id}"`), &tpl).Error())
+	assert.Regexp(t, `invalid template`, json.Unmarshal([]byte(`1234`), &tpl).Error())
+}
+
+func TestTemplateStringStringer(t *testing.T) {
+	tpl, err := NewTemplateString("chat-room-{{.regex.id}}")
+	assert.NoError(t, err)
+	assert.Equal(t, `chat-room-{{.regex.id}}`, tpl.String())
+}
+
+func TestTemplateStringExecuteError(t *testing.T) {
+	tpl, err := NewTemplateString("chat-room-{{.regex.id}}")
+	assert.NoError(t, err)
+
+	_, err = tpl.Execute(map[string]string{"regex": "not-map"})
+	assert.Regexp(t, `executing "template-string" at <.regex.id>: can't evaluate field id in type string`, err.Error())
+}

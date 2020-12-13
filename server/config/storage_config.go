@@ -43,7 +43,7 @@ func PostprocessStorageConfig(config *StoragesConfig) error {
 			return fmt.Errorf("there is a configuration error on storage[%s]: no storage type under the item", id)
 		case 1: // Correct
 		default:
-			return fmt.Errorf("There is a configuration error on storage[%s]: found multiple storage type under single item. To configure multiple storages, write separate storage definitions", id)
+			return fmt.Errorf("there is a configuration error on storage[%s]: found multiple storage type under single item. To configure multiple storages, write separate storage definitions", id)
 		}
 	}
 	return nil

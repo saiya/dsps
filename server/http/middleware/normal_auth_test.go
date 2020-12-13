@@ -7,11 +7,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/saiya/dsps/server/domain"
 	. "github.com/saiya/dsps/server/domain"
 	. "github.com/saiya/dsps/server/http"
 	. "github.com/saiya/dsps/server/http/middleware"
@@ -21,10 +21,7 @@ import (
 
 const jwtDir = "../../jwt"
 const configRequiresJWT = `
-logging:
-	debug: false
-	category: "*": ERROR
-
+logging: category: "*": ERROR
 channels:
 	-
 		regex: 'auth-test-channel'
@@ -35,7 +32,7 @@ channels:
 				RS256: [ "../../jwt/testdata/RS256-2048bit-public.pem" ]
 `
 
-func TestAuthPassing(t *testing.T) {
+func TestNormalAuthFilter(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(ctx *gin.Context) (Channel, error) {
 			return deps.ChannelProvider("auth-test-channel")
@@ -50,7 +47,7 @@ func TestAuthPassing(t *testing.T) {
 			Keyname: "RS256-2048bit",
 			JwtDir:  jwtDir,
 			Iss:     "https://issuer.example.com/issuer-url",
-			Aud:     []domain.JwtAud{"https://my-service.example.com/"},
+			Aud:     []JwtAud{"https://my-service.example.com/"},
 		}))
 		ctx.Request = req
 
@@ -62,12 +59,13 @@ func TestAuthPassing(t *testing.T) {
 
 	WithServer(t, configRequiresJWT, func(deps *ServerDependencies) {}, func(deps *ServerDependencies, baseURL string) {
 		putURL := fmt.Sprintf("%s/channel/%s/message/%s", baseURL, "auth-test-channel", "msg-1")
+		assert.NoError(t, deps.Storage.AsJwtStorage().RevokeJwt(context.Background(), JwtExp(time.Now().Add(3*time.Hour)), "revoked-92BFB148-43D0-43B7-9DBE-C7006B4DFB13"))
 
 		// Without JWT
 		res := DoHTTPRequest(t, "PUT", putURL, `{}`)
 		assert.Equal(t, 403, res.StatusCode)
 
-		// With JWT
+		// With JWT (without "jti" claim)
 		req, err := http.NewRequestWithContext(context.Background(), "PUT", putURL, strings.NewReader(`{}`))
 		assert.NoError(t, err)
 		req.Header.Add("Authorization", "Bearer "+GenerateJwt(t, JwtProps{
@@ -75,15 +73,56 @@ func TestAuthPassing(t *testing.T) {
 			Keyname: "RS256-2048bit",
 			JwtDir:  jwtDir,
 			Iss:     "https://issuer.example.com/issuer-url",
-			Aud:     []domain.JwtAud{"https://my-service.example.com/"},
+			Aud:     []JwtAud{"https://my-service.example.com/"},
 		}))
 		res, err = http.DefaultClient.Do(req)
 		assert.NoError(t, err)
 		assert.Equal(t, 200, res.StatusCode)
+
+		// With JWT (with "jti" claim)
+		req, err = http.NewRequestWithContext(context.Background(), "PUT", putURL, strings.NewReader(`{}`))
+		assert.NoError(t, err)
+		req.Header.Add("Authorization", "Bearer "+GenerateJwt(t, JwtProps{
+			Alg:     "RS256",
+			Keyname: "RS256-2048bit",
+			JwtDir:  jwtDir,
+			Jti:     "FBA4742B-252A-4F28-9834-C181F503D314",
+			Iss:     "https://issuer.example.com/issuer-url",
+			Aud:     []JwtAud{"https://my-service.example.com/"},
+		}))
+		res, err = http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, 200, res.StatusCode)
+
+		// With JWT (with revoked "jti")
+		req, err = http.NewRequestWithContext(context.Background(), "PUT", putURL, strings.NewReader(`{}`))
+		assert.NoError(t, err)
+		req.Header.Add("Authorization", "Bearer "+GenerateJwt(t, JwtProps{
+			Alg:     "RS256",
+			Keyname: "RS256-2048bit",
+			JwtDir:  jwtDir,
+			Jti:     "revoked-92BFB148-43D0-43B7-9DBE-C7006B4DFB13",
+			Iss:     "https://issuer.example.com/issuer-url",
+			Aud:     []JwtAud{"https://my-service.example.com/"},
+		}))
+		res, err = http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, 403, res.StatusCode)
 	})
 }
 
-func TestInvalidChannel(t *testing.T) {
+func TestNormalAuthFilterPassThrough(t *testing.T) {
+	// Without JWT validation configuration, must pass any request
+	WithServer(t, ``, func(deps *ServerDependencies) {}, func(deps *ServerDependencies, baseURL string) {
+		putURL := fmt.Sprintf("%s/channel/%s/message/%s", baseURL, "auth-test-channel", "msg-1")
+
+		// Without Authorization header
+		res := DoHTTPRequest(t, "PUT", putURL, `{}`)
+		assert.Equal(t, 200, res.StatusCode)
+	})
+}
+
+func TestNormalAuthInvalidChannel(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(ctx *gin.Context) (Channel, error) {
 			return deps.ChannelProvider("INVALID-channel") // Invalid channel ID
@@ -99,11 +138,11 @@ func TestInvalidChannel(t *testing.T) {
 		auth(ctx)
 
 		assert.True(t, ctx.IsAborted())
-		AssertRecordedCode(t, rec, http.StatusBadRequest, domain.ErrInvalidChannel)
+		AssertRecordedCode(t, rec, http.StatusBadRequest, ErrInvalidChannel)
 	})
 }
 
-func TestAuthMissingHeader(t *testing.T) {
+func TestNormalAuthMissingHeader(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT+`http: discloseAuthRejectionDetail: true`, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(ctx *gin.Context) (Channel, error) {
 			return deps.ChannelProvider("auth-test-channel")
@@ -124,7 +163,7 @@ func TestAuthMissingHeader(t *testing.T) {
 	})
 }
 
-func TestAuthRejection(t *testing.T) {
+func TestNormalAuthRejection(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(ctx *gin.Context) (Channel, error) {
 			return deps.ChannelProvider("auth-test-channel")
@@ -145,7 +184,7 @@ func TestAuthRejection(t *testing.T) {
 	})
 }
 
-func TestDetailedAuthRejection(t *testing.T) {
+func TestNormalAuthRejectionWithDetail(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT+`http: discloseAuthRejectionDetail: true`, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(ctx *gin.Context) (Channel, error) {
 			return deps.ChannelProvider("auth-test-channel")

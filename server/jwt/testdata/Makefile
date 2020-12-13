@@ -1,7 +1,10 @@
 .PHONY: all pubkeys jwts
 all: pubkeys jwts
 
-pubkeys: RS256-2048bit-public.pem RS256-4096bit-public.pem ES512-test1-public.pem ES512-test2-public.pem
+pubkeys: HS256.rand RS256-2048bit-public.pem RS256-4096bit-public.pem ES512-test1-public.pem ES512-test2-public.pem
+HS256.rand:
+	openssl rand 64 > $@
+
 RS256-2048bit-private.pem:
 	openssl genrsa 2048 -outform PEM > $@
 RS256-2048bit-public.pem: RS256-2048bit-private.pem

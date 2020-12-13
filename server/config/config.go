@@ -82,7 +82,7 @@ func ParseConfig(overrides Overrides, yaml string) (ServerConfig, error) {
 	}
 
 	if overrides.Debug {
-		config.Logging.Debug = true
+		config.Logging.Category = map[string]string{"*": "DEBUG"}
 	}
 	if err := PostprocessStorageConfig(&config.Storages); err != nil {
 		return config, fmt.Errorf("Storage configration problem: %w", err)

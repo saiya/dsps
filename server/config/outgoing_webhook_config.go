@@ -64,24 +64,6 @@ func postprocessWebhookConfig(webhook *OutgoingWebhookConfig) error {
 	return nil
 }
 
-func postprocessWebhookConnectionConfig(webhook *OutgoingWebhookConfig) error {
-	if webhook.Connection.Max == nil {
-		webhook.Connection.Max = outgoingWebhookConfigDefaults.Connection.Max
-	}
-	if webhook.Connection.MaxIdleTime == nil {
-		webhook.Connection.MaxIdleTime = outgoingWebhookConfigDefaults.Connection.MaxIdleTime
-	}
-
-	if err := intMustBeLargerThanZero("connection.max", *webhook.Connection.Max); err != nil {
-		return err
-	}
-	if err := durationMustBeLargerThanZero("connection.maxIdleTime", *webhook.Connection.MaxIdleTime); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func postprocessWebhookRetryConfig(webhook *OutgoingWebhookConfig) error {
 	if webhook.Retry.Count == nil {
 		webhook.Retry.Count = outgoingWebhookConfigDefaults.Retry.Count
@@ -108,5 +90,23 @@ func postprocessWebhookRetryConfig(webhook *OutgoingWebhookConfig) error {
 	if err := durationMustBeLargerThanZero("retry.intervalJitter", *webhook.Retry.IntervalJitter); err != nil {
 		return err
 	}
+	return nil
+}
+
+func postprocessWebhookConnectionConfig(webhook *OutgoingWebhookConfig) error {
+	if webhook.Connection.Max == nil {
+		webhook.Connection.Max = outgoingWebhookConfigDefaults.Connection.Max
+	}
+	if webhook.Connection.MaxIdleTime == nil {
+		webhook.Connection.MaxIdleTime = outgoingWebhookConfigDefaults.Connection.MaxIdleTime
+	}
+
+	if err := intMustBeLargerThanZero("connection.max", *webhook.Connection.Max); err != nil {
+		return err
+	}
+	if err := durationMustBeLargerThanZero("connection.maxIdleTime", *webhook.Connection.MaxIdleTime); err != nil {
+		return err
+	}
+
 	return nil
 }

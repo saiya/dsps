@@ -13,6 +13,24 @@ import (
 	. "github.com/saiya/dsps/server/http/testing"
 )
 
+func TestPublishEndpointsWithoutPubSubSupport(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	storage := NewMockStorage(ctrl)
+	storage.EXPECT().AsPubSubStorage().Return(nil).AnyTimes()
+	storage.EXPECT().AsJwtStorage().Return(nil).AnyTimes()
+
+	chID := "my-channel"
+	msgID := "msg-1"
+	content := `{"hi":"hello!"}`
+	WithServer(t, `logging: category: "*": FATAL`, func(deps *ServerDependencies) {
+		deps.Storage = storage
+	}, func(deps *ServerDependencies, baseURL string) {
+		res := DoHTTPRequest(t, "PUT", fmt.Sprintf("%s/channel/%s/message/%s", baseURL, chID, msgID), content)
+		AssertErrorResponse(t, res, 501, nil, `No PubSub compatible storage available`)
+	})
+}
+
 func TestChannelPublishSuccess(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -26,15 +44,20 @@ func TestChannelPublishSuccess(t *testing.T) {
 			"channelID": chID,
 			"messageID": msgID,
 		})
+
+		// Should be idempotent
+		res = DoHTTPRequest(t, "PUT", fmt.Sprintf("%s/channel/%s/message/%s", baseURL, chID, msgID), content)
+		AssertResponseJSON(t, res, 200, map[string]interface{}{
+			"channelID": chID,
+			"messageID": msgID,
+		})
 	})
 }
 
 func TestChannelPublishFailure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	storage := NewMockStorage(ctrl)
-	pubsub := NewMockPubSubStorage(ctrl)
-	storage.EXPECT().AsPubSubStorage().Return(pubsub).AnyTimes()
+	storage, pubsub, _ := NewMockStorages(ctrl)
 
 	chID := "my-channel"
 	msgID := "msg-1"

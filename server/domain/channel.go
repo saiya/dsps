@@ -16,6 +16,8 @@ type ChannelProvider func(id ChannelID) (Channel, error)
 // Channel struct holds all objects/information of a channel
 type Channel interface {
 	Expire() Duration
+
+	// Note that this method does not check revocation list.
 	ValidateJwt(ctx context.Context, jwt string) error
 }
 
