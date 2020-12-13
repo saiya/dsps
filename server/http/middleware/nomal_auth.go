@@ -26,7 +26,7 @@ func NewNormalAuth(mainCtx context.Context, deps NormalAuthDependency, channelOf
 
 		bearerToken := utils.GetBearerToken(ctx)
 		if err := channel.ValidateJwt(ctx, bearerToken); err != nil {
-			logger.Of(ctx).InfoError(logger.CatAuth, `JWT verification failure: %v`, err)
+			logger.Of(ctx).Infof(logger.CatAuth, `JWT verification failure: %v`, err)
 
 			body := gin.H{
 				"code":  ErrAuthRejection.Code(),

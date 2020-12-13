@@ -2,8 +2,10 @@ package middleware_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -25,7 +27,7 @@ logging:
 
 channels:
 	-
-		regex: 'test-channel'
+		regex: 'auth-test-channel'
 		jwt:
 			iss: [ "https://issuer.example.com/issuer-url" ]
 			aud: [ "https://my-service.example.com/" ]
@@ -36,7 +38,7 @@ channels:
 func TestAuthPassing(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(ctx *gin.Context) (Channel, error) {
-			return deps.ChannelProvider("test-channel")
+			return deps.ChannelProvider("auth-test-channel")
 		})
 
 		rec := httptest.NewRecorder()
@@ -56,6 +58,28 @@ func TestAuthPassing(t *testing.T) {
 
 		assert.False(t, ctx.IsAborted()) // Should not be aborted
 		assert.Equal(t, 200, rec.Code)
+	})
+
+	WithServer(t, configRequiresJWT, func(deps *ServerDependencies) {}, func(deps *ServerDependencies, baseURL string) {
+		putURL := fmt.Sprintf("%s/channel/%s/message/%s", baseURL, "auth-test-channel", "msg-1")
+
+		// Without JWT
+		res := DoHTTPRequest(t, "PUT", putURL, `{}`)
+		assert.Equal(t, 403, res.StatusCode)
+
+		// With JWT
+		req, err := http.NewRequestWithContext(context.Background(), "PUT", putURL, strings.NewReader(`{}`))
+		assert.NoError(t, err)
+		req.Header.Add("Authorization", "Bearer "+GenerateJwt(t, JwtProps{
+			Alg:     "RS256",
+			Keyname: "RS256-2048bit",
+			JwtDir:  jwtDir,
+			Iss:     "https://issuer.example.com/issuer-url",
+			Aud:     []domain.JwtAud{"https://my-service.example.com/"},
+		}))
+		res, err = http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, 200, res.StatusCode)
 	})
 }
 
@@ -82,7 +106,7 @@ func TestInvalidChannel(t *testing.T) {
 func TestAuthMissingHeader(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT+`http: discloseAuthRejectionDetail: true`, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(ctx *gin.Context) (Channel, error) {
-			return deps.ChannelProvider("test-channel")
+			return deps.ChannelProvider("auth-test-channel")
 		})
 
 		rec := httptest.NewRecorder()
@@ -96,14 +120,14 @@ func TestAuthMissingHeader(t *testing.T) {
 
 		assert.True(t, ctx.IsAborted())
 		AssertRecordedCode(t, rec, http.StatusForbidden, ErrAuthRejection)
-		assert.Equal(t, `JWT verification failure: no JWT presented`, GetBodyJSONMap(t, rec)["reason"])
+		assert.Equal(t, `JWT verification failure: no JWT presented`, BodyJSONMapOfRec(t, rec)["reason"])
 	})
 }
 
 func TestAuthRejection(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(ctx *gin.Context) (Channel, error) {
-			return deps.ChannelProvider("test-channel")
+			return deps.ChannelProvider("auth-test-channel")
 		})
 
 		rec := httptest.NewRecorder()
@@ -117,14 +141,14 @@ func TestAuthRejection(t *testing.T) {
 
 		assert.True(t, ctx.IsAborted())
 		AssertRecordedCode(t, rec, http.StatusForbidden, ErrAuthRejection)
-		assert.Nil(t, GetBodyJSONMap(t, rec)["reason"]) // Should not contain detailed message by default
+		assert.Nil(t, BodyJSONMapOfRec(t, rec)["reason"]) // Should not contain detailed message by default
 	})
 }
 
 func TestDetailedAuthRejection(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT+`http: discloseAuthRejectionDetail: true`, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(ctx *gin.Context) (Channel, error) {
-			return deps.ChannelProvider("test-channel")
+			return deps.ChannelProvider("auth-test-channel")
 		})
 
 		rec := httptest.NewRecorder()
@@ -138,6 +162,6 @@ func TestDetailedAuthRejection(t *testing.T) {
 
 		assert.True(t, ctx.IsAborted())
 		AssertRecordedCode(t, rec, http.StatusForbidden, ErrAuthRejection)
-		assert.Regexp(t, `JWT verification failure.+token is malformed`, GetBodyJSONMap(t, rec)["reason"])
+		assert.Regexp(t, `JWT verification failure.+token is malformed`, BodyJSONMapOfRec(t, rec)["reason"])
 	})
 }

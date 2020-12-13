@@ -19,8 +19,8 @@ http:
 logging:
   debug: false
   category:
-    Auth: INFO
-    "*": WARN
+    auth: WARN  # Set to INFO if you want auth rejection logs
+    "*": INFO
   attributes:
     machineID: my-machine-id
 

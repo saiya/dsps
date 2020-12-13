@@ -23,19 +23,23 @@ type PollingEndpointDependency interface {
 	GetLongPollingMaxTimeout() domain.Duration
 }
 
-// InitPollingEndpoints registers endpoints
-func InitPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
-	pubsub := deps.GetStorage().AsPubSubStorage()
-	serverClose := deps.GetServerClose()
-	longPollingMaxTimeout := deps.GetLongPollingMaxTimeout().Duration
-
+// InitSubscriptionPollingEndpoints registers endpoints
+func InitSubscriptionPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
 	group := router.Group("/subscription/polling/:subscriberID")
 	group.Use(func(ctx *gin.Context) {
 		logger.ModifyGinContext(ctx).WithStr("subscriberID", ctx.Param("subscriberID")).Build()
 		ctx.Next()
 	})
 
-	group.PUT("", func(ctx *gin.Context) {
+	group.PUT("", subscriberPutEndpoint(deps))
+	group.DELETE("", subscriberDeleteEndpoint(deps))
+	group.GET("", subscriberGetEndpoint(deps))
+	group.DELETE("/message", subscriberMessageDeleteEndpoint(deps))
+}
+
+func subscriberPutEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
+	pubsub := deps.GetStorage().AsPubSubStorage()
+	return func(ctx *gin.Context) {
 		if pubsub == nil {
 			utils.SendPubSubUnsupportedError(ctx)
 			return
@@ -71,9 +75,12 @@ func InitPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
 			"channelID":    channelID,
 			"subscriberID": subscriberID,
 		})
-	})
+	}
+}
 
-	group.DELETE("", func(ctx *gin.Context) {
+func subscriberDeleteEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
+	pubsub := deps.GetStorage().AsPubSubStorage()
+	return func(ctx *gin.Context) {
 		if pubsub == nil {
 			utils.SendPubSubUnsupportedError(ctx)
 			return
@@ -109,9 +116,14 @@ func InitPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
 			"channelID":    channelID,
 			"subscriberID": subscriberID,
 		})
-	})
+	}
+}
 
-	group.GET("", func(ctx *gin.Context) {
+func subscriberGetEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
+	pubsub := deps.GetStorage().AsPubSubStorage()
+	serverClose := deps.GetServerClose()
+	longPollingMaxTimeout := deps.GetLongPollingMaxTimeout().Duration
+	return func(ctx *gin.Context) {
 		if pubsub == nil {
 			utils.SendPubSubUnsupportedError(ctx)
 			return
@@ -192,9 +204,12 @@ func InitPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
 			}
 			ctx.JSON(http.StatusOK, result)
 		})
-	})
+	}
+}
 
-	group.DELETE("/message", func(ctx *gin.Context) {
+func subscriberMessageDeleteEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
+	pubsub := deps.GetStorage().AsPubSubStorage()
+	return func(ctx *gin.Context) {
 		if pubsub == nil {
 			utils.SendPubSubUnsupportedError(ctx)
 			return
@@ -240,5 +255,5 @@ func InitPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
 		}
 
 		ctx.Status(http.StatusNoContent)
-	})
+	}
 }

@@ -44,13 +44,15 @@ func WithServerDeps(t *testing.T, configYaml string, f func(*http.ServerDependen
 }
 
 // WithServer runs given test function with HTTP server
-func WithServer(t *testing.T, configYaml string, f func(baseURL string)) {
+func WithServer(t *testing.T, configYaml string, setup func(deps *http.ServerDependencies), f func(deps *http.ServerDependencies, baseURL string)) {
 	WithServerDeps(t, configYaml, func(deps *http.ServerDependencies) {
+		setup(deps)
+
 		server := http.CreateServer(context.Background(), deps)
 		ts := httptest.NewServer(server)
 		defer ts.Close()
 		defer deps.ServerClose.Close() // Close requests first
 
-		f(ts.URL + deps.Config.HTTPServer.PathPrefix)
+		f(deps, strings.TrimSuffix(ts.URL, "/")+strings.TrimSuffix(deps.Config.HTTPServer.PathPrefix, "/"))
 	})
 }

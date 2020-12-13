@@ -30,5 +30,5 @@ func InitEndpoints(mainCtx context.Context, router gin.IRouter, deps *ServerDepe
 		}),
 	)
 	endpoints.InitPublishEndpoints(channel, deps)
-	endpoints.InitPollingEndpoints(channel, deps)
+	endpoints.InitSubscriptionPollingEndpoints(channel, deps)
 }

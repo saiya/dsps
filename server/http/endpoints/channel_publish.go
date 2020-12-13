@@ -45,7 +45,7 @@ func InitPublishEndpoints(router gin.IRoutes, deps PublishEndpointDependency) {
 			err = xerrors.New("Is not valid JSON")
 		}
 		if err != nil {
-			utils.SendError(ctx, http.StatusBadRequest, "Could not get request body", err)
+			utils.SendError(ctx, http.StatusBadRequest, "Request body is not JSON", err)
 			return
 		}
 

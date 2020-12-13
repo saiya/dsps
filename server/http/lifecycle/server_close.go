@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"context"
+	"sync"
 )
 
 // ServerClose provides way to terminate handler when server shutdown.
@@ -18,11 +19,14 @@ func NewServerClose() ServerClose {
 }
 
 type serverClose struct {
-	ch chan interface{}
+	ch        chan interface{}
+	closeOnce sync.Once
 }
 
 func (sc *serverClose) Close() {
-	close(sc.ch)
+	sc.closeOnce.Do(func() {
+		close(sc.ch)
+	})
 }
 
 func (sc *serverClose) WithCancel(ctxToWrap context.Context, action func(ctx context.Context)) {
