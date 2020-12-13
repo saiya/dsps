@@ -68,7 +68,7 @@ func (impl *redisCmdImpl) Subscribe(ctx context.Context, channel string) (c chan
 	closer = func() error {
 		closeChOnce.Do(func() { close(closeCh) })
 		if err := redisPubSub.Close(); err != nil {
-			logger.Of(ctx).WarnError("Failed to stop Redis Pub/Sub subscription", err)
+			logger.Of(ctx).WarnError(logger.CatStorage, "Failed to stop Redis Pub/Sub subscription", err)
 		}
 		return nil
 	}

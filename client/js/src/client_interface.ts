@@ -120,7 +120,7 @@ export type SubscriptionCallbackErrorInfo = {
 };
 
 /** Content of this list possibly change in future version. */
-export const subscriptionUnrecoverableErrorCodes = ["dsps.auth.invalid-credentials", "dsps.auth.channel-forbidden", "dsps.storage.subscription-not-found", "dsps.storage.invalid-channel"] as const;
+export const subscriptionUnrecoverableErrorCodes = ["dsps.auth.rejected", "dsps.storage.subscription-not-found", "dsps.storage.invalid-channel"] as const;
 
 export class SubscriptionUnrecoverableError extends Error {
   readonly isSubscriptionUnrecoverableError = true;

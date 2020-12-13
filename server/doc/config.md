@@ -18,7 +18,9 @@ http:
 
 logging:
   debug: false
-  authRejectionLog: true
+  category:
+    Auth: INFO
+    "*": WARN
   attributes:
     machineID: my-machine-id
 
@@ -81,7 +83,9 @@ Configuration items under `logging`:
 
 - `debug` (boolean, default `false`): Output DEBUG level logs
   - `--debug` command line option also enables DEBUG log
-- `authRejectionLog` (boolean, default `true`) Output detailed INFO logs for each auth rejection event
+- `category` (string to string map, optional) Log level threshold for each `category` attribute of the log entries.
+  - Available thresholds are `DEBUG`, `INFO`, `WARN`
+  - `"*"` category controls default threshold and it's default is `INFO`
 - `attributes` (string to string map, optional): Attributes set to every log records
   - Useful to set machine ID etcetera.
 

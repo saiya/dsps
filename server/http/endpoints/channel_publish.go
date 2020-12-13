@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/http/utils"
 )
 
 // PublishEndpointDependency is to inject required objects to the endpoint
@@ -23,19 +24,19 @@ func InitPublishEndpoints(router gin.IRoutes, deps PublishEndpointDependency) {
 
 	router.PUT("/message/:messageID", func(ctx *gin.Context) {
 		if pubsub == nil {
-			sendPubSubUnsupportedError(ctx)
+			utils.SendPubSubUnsupportedError(ctx)
 			return
 		}
 
 		channelID, err := domain.ParseChannelID(ctx.Param("channelID"))
 		if err != nil {
-			sendInvalidParameter(ctx, "channelID", err)
+			utils.SendInvalidParameter(ctx, "channelID", err)
 			return
 		}
 
 		messageID, err := domain.ParseMessageID(ctx.Param("messageID"))
 		if err != nil {
-			sendInvalidParameter(ctx, "messageID", err)
+			utils.SendInvalidParameter(ctx, "messageID", err)
 			return
 		}
 
@@ -44,7 +45,7 @@ func InitPublishEndpoints(router gin.IRoutes, deps PublishEndpointDependency) {
 			err = xerrors.New("Is not valid JSON")
 		}
 		if err != nil {
-			sendError(ctx, http.StatusBadRequest, "Could not get request body", err)
+			utils.SendError(ctx, http.StatusBadRequest, "Could not get request body", err)
 			return
 		}
 
@@ -60,9 +61,9 @@ func InitPublishEndpoints(router gin.IRoutes, deps PublishEndpointDependency) {
 		if err != nil {
 			if errors.Is(err, domain.ErrInvalidChannel) {
 				// Could not create/access to the channel because not permitted by configuration
-				sendError(ctx, http.StatusForbidden, err.Error(), err)
+				utils.SendError(ctx, http.StatusForbidden, err.Error(), err)
 			} else {
-				sentInternalServerError(ctx, err)
+				utils.SentInternalServerError(ctx, err)
 			}
 			return
 		}

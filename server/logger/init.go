@@ -23,7 +23,10 @@ func init() {
 		panic(xerrors.Errorf("Failed to initialize zap logger: %w", err))
 	}
 
-	rootLogger = &loggerImpl{zap: zap}
+	rootLogger = &loggerImpl{
+		zap:    zap,
+		filter: newDefaultFilter(),
+	}
 }
 
 // EnableDebugLog enables debug log (process wide)
@@ -37,10 +40,16 @@ func InitLogger(config *config.ServerConfig) error {
 		EnableDebugLog()
 	}
 
+	filter, err := NewFilter(config.Logging.Category)
+	if err != nil {
+		return err
+	}
+
 	fields := []zap.Field{}
 	for key, value := range config.Logging.Attributes {
 		fields = append(fields, zap.String(key, value))
 	}
-	rootLogger = rootLogger.WithAttributes(fields)
+
+	rootLogger = rootLogger.WithFilter(filter).WithAttributes(fields)
 	return nil
 }

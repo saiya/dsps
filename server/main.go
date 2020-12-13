@@ -2,18 +2,15 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"os"
 
 	"github.com/saiya/dsps/server/channel"
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/http"
-	httputil "github.com/saiya/dsps/server/http/util"
+	httplifecycle "github.com/saiya/dsps/server/http/lifecycle"
 	"github.com/saiya/dsps/server/logger"
 	"github.com/saiya/dsps/server/storage"
 	"github.com/saiya/dsps/server/unix"
@@ -44,60 +41,33 @@ func main() {
 
 	ctx := context.Background()
 	clock := domain.RealSystemClock
-	config := loadConfig(configFile, configOverrides)
+	config, err := config.LoadConfigFile(configFile, configOverrides)
+	exitIfError(2, err)
 	if *dumpConfig {
-		data, err := json.MarshalIndent(config, "", "  ")
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(2)
-		}
-		fmt.Println(string(data))
+		exitIfError(2, config.DumpConfig(os.Stderr))
 	}
 
 	channelProvider, err := channel.NewChannelProvider(ctx, &config, clock)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	if err := logger.InitLogger(&config); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
+	exitIfError(2, err)
+	exitIfError(2, logger.InitLogger(&config))
 	storage, err := storage.NewStorage(ctx, &config.Storages, clock, channelProvider)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
+	exitIfError(2, err)
 
 	unix.NotifyUlimit(ctx, unix.UlimitRequirement{
 		NoFiles: storage.GetNoFilePressure(),
 	})
 
-	http.StartServer(ctx, &config, &http.ServerDependencies{
-		ServerClose:           httputil.NewServerClose(),
-		Storage:               storage,
-		LongPollingMaxTimeout: config.HTTPServer.LongPollingMaxTimeout,
+	http.StartServer(ctx, &http.ServerDependencies{
+		Config:          &config,
+		ChannelProvider: channelProvider,
+		Storage:         storage,
+		ServerClose:     httplifecycle.NewServerClose(),
 	})
 }
 
-func loadConfig(configFile string, configOverrides config.Overrides) config.ServerConfig {
-	configYaml := ""
-	if configFile != "" {
-		configYaml = loadConfigFile(configFile)
-	}
-
-	config, err := config.ParseConfig(configOverrides, configYaml)
+func exitIfError(code int, err error) {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
+		os.Exit(code)
 	}
-	return config
-}
-
-func loadConfigFile(configFile string) string {
-	yamlBytes, err := ioutil.ReadFile(configFile) //nolint:gosec // Disables G304: Potential file inclusion via variable
-	if err != nil {
-		log.Fatal(err) // FIXME: Improve error handling
-	}
-	return string(yamlBytes)
 }

@@ -199,6 +199,7 @@ export class SubscriptionImpl implements Subscription {
     switch (res.status) {
       case 200:
         break;
+      case 400: // Bad Request (may caused by channel ID pattern change)
       case 401: // Unauthorized (may caused by auth rejection)
       case 403: // Forbidden (may caused by forbidden channelID or auth rejection)
       case 404: {
@@ -276,7 +277,7 @@ export class SubscriptionImpl implements Subscription {
 class Dedup {
   private ids: string[] = [];
 
-  constructor(private windowSize: number) {}
+  constructor(private windowSize: number) { }
 
   filter(messages: Message<any>[]): Message<any>[] {
     const result: Message<any>[] = [];

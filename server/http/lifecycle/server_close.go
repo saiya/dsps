@@ -1,4 +1,4 @@
-package util
+package lifecycle
 
 import (
 	"context"
@@ -14,26 +14,22 @@ type ServerClose interface {
 
 // NewServerClose creates ServerClose instance.
 func NewServerClose() ServerClose {
-	return &serverClose{ch: make(chan bool)}
+	return &serverClose{ch: make(chan interface{})}
 }
 
 type serverClose struct {
-	ch chan bool
+	ch chan interface{}
 }
 
 func (sc *serverClose) Close() {
-	go func() {
-		for { // Notify to everyone
-			sc.ch <- true
-		}
-	}()
+	close(sc.ch)
 }
 
 func (sc *serverClose) WithCancel(ctxToWrap context.Context, action func(ctx context.Context)) {
 	ctx, cancel := context.WithCancel(ctxToWrap)
 
-	closeWatching := make(chan bool, 1)
-	defer func() { closeWatching <- true }()
+	closeWatching := make(chan interface{})
+	defer close(closeWatching)
 	go func() {
 		select {
 		case <-closeWatching:

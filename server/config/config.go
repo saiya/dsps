@@ -1,7 +1,11 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -25,7 +29,7 @@ type Overrides struct {
 
 // ServerConfig represents parsed/post-processed configuration.
 type ServerConfig struct {
-	BuildInfo  *BuildInfo
+	BuildInfo  *BuildInfo        `json:"__buildInfo"`
 	Storages   StoragesConfig    `json:"storages"`
 	HTTPServer *HTTPServerConfig `json:"http"`
 	Logging    *LoggingConfig    `json:"logging"`
@@ -34,8 +38,28 @@ type ServerConfig struct {
 
 // BuildInfo represents compile time metadata.
 type BuildInfo struct {
-	BuildVersion string
-	BuildAt      *domain.Time
+	BuildVersion string       `json:"buildVersion"`
+	BuildAt      *domain.Time `json:"buildAt"`
+}
+
+// LoadConfigFile load file.
+// If configFile == "", generate default config.
+// If configFile == "-", load from stdin.
+func LoadConfigFile(configFile string, configOverrides Overrides) (ServerConfig, error) {
+	var yamlBytes []byte
+	var err error
+	switch configFile {
+	case "":
+		yamlBytes = []byte("")
+	case "-":
+		yamlBytes, err = ioutil.ReadAll(os.Stdin)
+	default:
+		yamlBytes, err = ioutil.ReadFile(configFile) //nolint:gosec // Disables G304: Potential file inclusion via variable
+	}
+	if err != nil {
+		return ServerConfig{}, err
+	}
+	return ParseConfig(configOverrides, string(yamlBytes))
 }
 
 // ParseConfig constructs post-processed configuration object.
@@ -83,4 +107,18 @@ func parseBuildInfo(overrides Overrides) *BuildInfo {
 		buildInfo.BuildAt = &wrapped
 	}
 	return &buildInfo
+}
+
+// DumpConfig output config content
+func (config *ServerConfig) DumpConfig(w io.Writer) error {
+	json, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	data, err := goyaml.JSONToYAML(json)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(w, string(data))
+	return nil
 }

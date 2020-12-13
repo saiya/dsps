@@ -28,7 +28,7 @@ func connect(ctx context.Context, config *config.RedisStorageConfig) (redisConne
 	}
 	if err := conn.redisCmd.Ping(ctx); err != nil {
 		if err := conn.close(); err != nil {
-			logger.Of(ctx).InfoError("Failed to close Redis connection after initial ping failure", err)
+			logger.Of(ctx).InfoError(logger.CatStorage, "Failed to close Redis connection after initial ping failure", err)
 		}
 		return redisConnection{}, err
 	}

@@ -39,11 +39,11 @@ func NewStorage(ctx context.Context, config *config.StoragesConfig, systemClock 
 
 func newSubStorage(ctx context.Context, id domain.StorageID, config *config.StorageConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
 	if config.Onmemory != nil {
-		logger.Of(ctx).Warnf("Starting onmemory storage \"%s\", ** DO NOT USE onmemory storage on production environment **", id)
+		logger.Of(ctx).Warnf(logger.CatStorage, "Starting onmemory storage \"%s\", ** DO NOT USE onmemory storage on production environment **", id)
 		return onmemory.NewOnmemoryStorage(ctx, config.Onmemory, systemClock, channelProvider)
 	}
 	if config.Redis != nil {
-		logger.Of(ctx).Debugf("Starting Redis storage \"%s\"", id)
+		logger.Of(ctx).Debugf(logger.CatStorage, "Starting Redis storage \"%s\"", id)
 		return redis.NewRedisStorage(ctx, config.Redis, systemClock, channelProvider)
 	}
 	return nil, xerrors.New("Empty storage configuration given")

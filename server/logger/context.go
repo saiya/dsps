@@ -32,7 +32,7 @@ func WithAttributes(ctx context.Context) ContextLoggerBuilder {
 	}
 }
 
-// ModifyGinContext updated logger of the given gin.Context (not to create new Context)
+// ModifyGinContext updates logger of the given gin.Context (not create new Context)
 func ModifyGinContext(ctx *gin.Context) ContextLoggerBuilder {
 	return &contextLoggerBuilder{
 		ctx:        ctx,
