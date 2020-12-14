@@ -33,10 +33,10 @@ func initImpl() {
 }
 
 // InitLogger initializes Logger
-func InitLogger(config *config.LoggingConfig) error {
+func InitLogger(config *config.LoggingConfig) (*Filter, error) {
 	filter, err := NewFilter(config.Category)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	fields := []zap.Field{}
@@ -44,6 +44,6 @@ func InitLogger(config *config.LoggingConfig) error {
 		fields = append(fields, zap.String(key, value))
 	}
 
-	rootLogger = rootLogger.WithFilter(filter).WithAttributes(fields)
-	return nil
+	rootLogger = rootLogger.withFilter(filter).WithAttributes(fields)
+	return filter, nil
 }

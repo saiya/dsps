@@ -6,6 +6,8 @@ type Category string
 const (
 	// CatServer is server lifecycle log
 	CatServer Category = "server"
+	// CatLogger is logging system events
+	CatLogger = "logger"
 	// CatAuth is auth related events
 	CatAuth = "auth"
 	// CatHTTP is HTTP layer log

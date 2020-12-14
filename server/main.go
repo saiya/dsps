@@ -49,7 +49,8 @@ func main() {
 
 	channelProvider, err := channel.NewChannelProvider(ctx, &config, clock)
 	exitIfError(2, err)
-	exitIfError(2, logger.InitLogger(config.Logging))
+	logFilter, err := logger.InitLogger(config.Logging)
+	exitIfError(2, err)
 	storage, err := storage.NewStorage(ctx, &config.Storages, clock, channelProvider)
 	exitIfError(2, err)
 
@@ -61,7 +62,9 @@ func main() {
 		Config:          &config,
 		ChannelProvider: channelProvider,
 		Storage:         storage,
-		ServerClose:     httplifecycle.NewServerClose(),
+
+		LogFilter:   logFilter,
+		ServerClose: httplifecycle.NewServerClose(),
 	})
 }
 

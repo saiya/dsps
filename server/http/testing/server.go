@@ -24,7 +24,8 @@ func WithServerDeps(t *testing.T, configYaml string, f func(*http.ServerDependen
 		return
 	}
 
-	assert.NoError(t, logger.InitLogger(cfg.Logging))
+	logFilter, err := logger.InitLogger(cfg.Logging)
+	assert.NoError(t, err)
 
 	ctx := context.Background()
 	clock := domain.RealSystemClock
@@ -39,7 +40,9 @@ func WithServerDeps(t *testing.T, configYaml string, f func(*http.ServerDependen
 		Config:          &cfg,
 		ChannelProvider: channelProvider,
 		Storage:         storage,
-		ServerClose:     serverClose,
+
+		LogFilter:   logFilter,
+		ServerClose: serverClose,
 	})
 }
 

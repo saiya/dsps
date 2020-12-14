@@ -15,7 +15,10 @@ import (
 func InitEndpoints(mainCtx context.Context, router gin.IRouter, deps *ServerDependencies) {
 	endpoints.InitProbeEndpoints(router, deps)
 
-	channel := router.Group(
+	adminRouter := router.Group("/admin")
+	endpoints.InitAdminLoggingEndpoints(adminRouter, deps)
+
+	channelRouter := router.Group(
 		"/channel/:channelID",
 		func(ctx *gin.Context) {
 			logger.ModifyGinContext(ctx).WithStr("channelID", ctx.Param("channelID")).Build()
@@ -29,6 +32,6 @@ func InitEndpoints(mainCtx context.Context, router gin.IRouter, deps *ServerDepe
 			return deps.ChannelProvider(id)
 		}),
 	)
-	endpoints.InitPublishEndpoints(channel, deps)
-	endpoints.InitSubscriptionPollingEndpoints(channel, deps)
+	endpoints.InitPublishEndpoints(channelRouter, deps)
+	endpoints.InitSubscriptionPollingEndpoints(channelRouter, deps)
 }

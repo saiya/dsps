@@ -21,7 +21,9 @@ type Logger interface {
 }
 
 type loggerImpl struct {
-	zap    *zap.Logger
+	zap *zap.Logger
+
+	// Log filter, must point same instance across all logger instances belongs to same tree.
 	filter *Filter
 }
 
@@ -32,7 +34,7 @@ func (logger *loggerImpl) WithAttributes(fields []zap.Field) *loggerImpl {
 	}
 }
 
-func (logger *loggerImpl) WithFilter(filter *Filter) *loggerImpl {
+func (logger *loggerImpl) withFilter(filter *Filter) *loggerImpl {
 	return &loggerImpl{
 		zap:    logger.zap,
 		filter: filter,

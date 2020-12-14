@@ -77,7 +77,7 @@ Configuration items under `http`:
 - `longPollingMaxTimeout` (duration string, default `30s`): Max duration of the [long-polling requests](./interface/subscribe/polling.md#polling-get).
 - `gracefulShutdownTimeout` (duration string, default `5s`): Timeout to await end of running requests.
 
-## logging configuration block
+## <a name="logging"></a> logging configuration block
 
 Configuration items under `logging`:
 

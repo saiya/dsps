@@ -24,8 +24,8 @@ type PollingEndpointDependency interface {
 }
 
 // InitSubscriptionPollingEndpoints registers endpoints
-func InitSubscriptionPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
-	group := router.Group("/subscription/polling/:subscriberID")
+func InitSubscriptionPollingEndpoints(channelRouter gin.IRouter, deps PollingEndpointDependency) {
+	group := channelRouter.Group("/subscription/polling/:subscriberID")
 	group.Use(func(ctx *gin.Context) {
 		logger.ModifyGinContext(ctx).WithStr("subscriberID", ctx.Param("subscriberID")).Build()
 		ctx.Next()

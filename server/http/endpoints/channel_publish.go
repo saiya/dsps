@@ -19,10 +19,10 @@ type PublishEndpointDependency interface {
 }
 
 // InitPublishEndpoints registers endpoints
-func InitPublishEndpoints(router gin.IRoutes, deps PublishEndpointDependency) {
+func InitPublishEndpoints(channelRouter gin.IRoutes, deps PublishEndpointDependency) {
 	pubsub := deps.GetStorage().AsPubSubStorage()
 
-	router.PUT("/message/:messageID", func(ctx *gin.Context) {
+	channelRouter.PUT("/message/:messageID", func(ctx *gin.Context) {
 		if pubsub == nil {
 			utils.SendPubSubUnsupportedError(ctx)
 			return

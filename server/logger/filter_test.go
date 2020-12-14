@@ -24,6 +24,11 @@ func TestFilter(t *testing.T) {
 	assert.False(t, filter.Filter(DEBUG, "auth"))
 	assert.True(t, filter.Filter(ERROR, "http"))
 	assert.False(t, filter.Filter(WARN, "http"))
+
+	// Changing threshold
+	filter.SetThreshold("http", INFO)
+	assert.True(t, filter.Filter(INFO, "http"))
+	assert.False(t, filter.Filter(DEBUG, "http"))
 }
 
 func TestInvalidFilterDefinition(t *testing.T) {
