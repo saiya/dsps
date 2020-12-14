@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -22,6 +23,17 @@ var buildVersion string
 var buildAt string
 
 func main() {
+	err := mainImpl(context.Background(), os.Args[1:], domain.RealSystemClock)
+	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			os.Exit(1)
+		}
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+}
+
+func mainImpl(ctx context.Context, args []string, clock domain.SystemClock) error {
 	var (
 		port   = flag.Int("port", 0, "Override http.port configuration item")
 		listen = flag.String("listen", "", "Override http.listen configuration item")
@@ -29,7 +41,9 @@ func main() {
 		debug      = flag.Bool("debug", false, "Enable debug logs")
 		dumpConfig = flag.Bool("dump-config", false, "Dump loaded configuration to stdout (for debug only)")
 	)
-	flag.Parse()
+	if err := flag.CommandLine.Parse(args); err != nil {
+		return err
+	}
 	configFile := flag.Arg(0)
 	configOverrides := config.Overrides{
 		BuildVersion: buildVersion,
@@ -39,20 +53,28 @@ func main() {
 		Debug:        *debug,
 	}
 
-	ctx := context.Background()
-	clock := domain.RealSystemClock
-	config, err := config.LoadConfigFile(configFile, configOverrides)
-	exitIfError(2, err)
+	config, err := config.LoadConfigFile(ctx, configFile, configOverrides)
+	if err != nil {
+		return err
+	}
 	if *dumpConfig {
-		exitIfError(2, config.DumpConfig(os.Stderr))
+		if err := config.DumpConfig(os.Stderr); err != nil {
+			return err
+		}
 	}
 
 	channelProvider, err := channel.NewChannelProvider(ctx, &config, clock)
-	exitIfError(2, err)
+	if err != nil {
+		return err
+	}
 	logFilter, err := logger.InitLogger(config.Logging)
-	exitIfError(2, err)
+	if err != nil {
+		return err
+	}
 	storage, err := storage.NewStorage(ctx, &config.Storages, clock, channelProvider)
-	exitIfError(2, err)
+	if err != nil {
+		return err
+	}
 
 	unix.NotifyUlimit(ctx, unix.UlimitRequirement{
 		NoFiles: storage.GetNoFilePressure(),
@@ -66,11 +88,5 @@ func main() {
 		LogFilter:   logFilter,
 		ServerClose: httplifecycle.NewServerClose(),
 	})
-}
-
-func exitIfError(code int, err error) {
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(code)
-	}
+	return nil
 }

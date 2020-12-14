@@ -37,6 +37,21 @@ func (deps *ServerDependencies) DiscloseAuthRejectionDetail() bool {
 	return deps.Config.HTTPServer.DiscloseAuthRejectionDetail
 }
 
+// GetIPHeaderName returns configuration value
+func (deps *ServerDependencies) GetIPHeaderName() string {
+	return deps.Config.HTTPServer.RealIPHeader
+}
+
+// GetTrustedProxyRanges returns configuration value
+func (deps *ServerDependencies) GetTrustedProxyRanges() []domain.CIDR {
+	return deps.Config.HTTPServer.TrustedProxyRanges
+}
+
+// GetAdminAuthConfig returns configuration value
+func (deps *ServerDependencies) GetAdminAuthConfig() *config.AdminAuthConfig {
+	return &deps.Config.Admin.Auth
+}
+
 // GetLogFilter returns log filter instance
 func (deps *ServerDependencies) GetLogFilter() *logger.Filter {
 	return deps.LogFilter

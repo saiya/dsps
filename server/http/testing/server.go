@@ -19,7 +19,7 @@ import (
 
 // WithServerDeps runs given test function with ServerDependencies
 func WithServerDeps(t *testing.T, configYaml string, f func(*http.ServerDependencies)) {
-	cfg, err := config.ParseConfig(config.Overrides{}, strings.ReplaceAll(configYaml, "\t", "  "))
+	cfg, err := config.ParseConfig(context.Background(), config.Overrides{}, strings.ReplaceAll(configYaml, "\t", "  "))
 	if !assert.NoError(t, err) {
 		return
 	}

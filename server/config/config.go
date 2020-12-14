@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,6 +35,7 @@ type ServerConfig struct {
 	HTTPServer *HTTPServerConfig `json:"http"`
 	Logging    *LoggingConfig    `json:"logging"`
 	Channels   ChannelsConfig    `json:"channels"`
+	Admin      *AdminConfig      `json:"admin"`
 }
 
 // BuildInfo represents compile time metadata.
@@ -45,7 +47,7 @@ type BuildInfo struct {
 // LoadConfigFile load file.
 // If configFile == "", generate default config.
 // If configFile == "-", load from stdin.
-func LoadConfigFile(configFile string, configOverrides Overrides) (ServerConfig, error) {
+func LoadConfigFile(ctx context.Context, configFile string, configOverrides Overrides) (ServerConfig, error) {
 	var yamlBytes []byte
 	var err error
 	switch configFile {
@@ -59,16 +61,17 @@ func LoadConfigFile(configFile string, configOverrides Overrides) (ServerConfig,
 	if err != nil {
 		return ServerConfig{}, err
 	}
-	return ParseConfig(configOverrides, string(yamlBytes))
+	return ParseConfig(ctx, configOverrides, string(yamlBytes))
 }
 
 // ParseConfig constructs post-processed configuration object.
-func ParseConfig(overrides Overrides, yaml string) (ServerConfig, error) {
+func ParseConfig(ctx context.Context, overrides Overrides, yaml string) (ServerConfig, error) {
 	config := ServerConfig{
 		BuildInfo:  parseBuildInfo(overrides),
 		Storages:   DefaultStoragesConfig(),
-		Logging:    &loggingConfigDefault,
-		HTTPServer: &httpServerConfigDefault,
+		Logging:    loggingConfigDefault(),
+		HTTPServer: httpServerConfigDefault(),
+		Admin:      adminConfigDefault(),
 	}
 
 	if strings.Contains(yaml, "\t") {
@@ -92,6 +95,9 @@ func ParseConfig(overrides Overrides, yaml string) (ServerConfig, error) {
 	}
 	if err := PostprocessChannelsConfig(&config.Channels); err != nil {
 		return config, fmt.Errorf("Channel configration problem: %w", err)
+	}
+	if err := PostprocessAdminConfig(config.Admin); err != nil {
+		return config, fmt.Errorf("Admin configration problem: %w", err)
 	}
 
 	return config, nil

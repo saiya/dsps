@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -16,7 +17,7 @@ channels:
 -
 	regex: 'chat-room-(?P<id>\d+)'
 `, "\t", "  ")
-	config, err := ParseConfig(Overrides{}, configYaml)
+	config, err := ParseConfig(context.Background(), Overrides{}, configYaml)
 	if err != nil {
 		t.Error(err)
 		return
@@ -38,7 +39,7 @@ channels:
 	# Must be larger than final retry attempt time
 	expire: 15m
 `, "\t", "  ")
-	config, err := ParseConfig(Overrides{}, configYaml)
+	config, err := ParseConfig(context.Background(), Overrides{}, configYaml)
 	if err != nil {
 		t.Error(err)
 		return

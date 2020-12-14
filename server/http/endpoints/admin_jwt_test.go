@@ -25,7 +25,7 @@ func TestJwtRevokeWithoutPubSubSupport(t *testing.T) {
 	WithServer(t, `logging: category: "*": FATAL`, func(deps *ServerDependencies) {
 		deps.Storage = storage
 	}, func(deps *ServerDependencies, baseURL string) {
-		res := DoHTTPRequest(t, "PUT", baseURL+"/admin/jwt/revoke?jti=my-jwt&exp=4070912400", ``)
+		res := DoHTTPRequestWithHeaders(t, "PUT", baseURL+"/admin/jwt/revoke?jti=my-jwt&exp=4070912400", AdminAuthHeaders(t, deps), ``)
 		AssertErrorResponse(t, res, 501, nil, `No JWT compatible storage available`)
 	})
 }
@@ -43,7 +43,7 @@ func TestJwtRevokeSuccess(t *testing.T) {
 		assert.NoError(t, err)
 		assert.False(t, revoked)
 
-		res := DoHTTPRequest(t, "PUT", baseURL+fmt.Sprintf("/admin/jwt/revoke?jti=%s&exp=%s", jti, exp), ``)
+		res := DoHTTPRequestWithHeaders(t, "PUT", baseURL+fmt.Sprintf("/admin/jwt/revoke?jti=%s&exp=%s", jti, exp), AdminAuthHeaders(t, deps), ``)
 		AssertResponseJSON(t, res, 200, map[string]interface{}{
 			"jti": string(jti),
 			"exp": float64(exp.Int64()),
@@ -54,7 +54,7 @@ func TestJwtRevokeSuccess(t *testing.T) {
 		assert.True(t, revoked)
 
 		// Should be idempotent
-		res = DoHTTPRequest(t, "PUT", baseURL+fmt.Sprintf("/admin/jwt/revoke?jti=%s&exp=%s", jti, exp), ``)
+		res = DoHTTPRequestWithHeaders(t, "PUT", baseURL+fmt.Sprintf("/admin/jwt/revoke?jti=%s&exp=%s", jti, exp), AdminAuthHeaders(t, deps), ``)
 		AssertResponseJSON(t, res, 200, map[string]interface{}{
 			"jti": string(jti),
 			"exp": float64(exp.Int64()),
@@ -73,14 +73,14 @@ func TestJwtRevokeFailure(t *testing.T) {
 	WithServer(t, `logging: category: "*": FATAL`, func(deps *ServerDependencies) {
 		deps.Storage = storage
 	}, func(deps *ServerDependencies, baseURL string) {
-		res := DoHTTPRequest(t, "PUT", baseURL+fmt.Sprintf("/admin/jwt/revoke?jti=%s&exp=%s", "", exp), ``)
+		res := DoHTTPRequestWithHeaders(t, "PUT", baseURL+fmt.Sprintf("/admin/jwt/revoke?jti=%s&exp=%s", "", exp), AdminAuthHeaders(t, deps), ``)
 		AssertErrorResponse(t, res, 400, nil, `Missing "jti" parameter`)
 
-		res = DoHTTPRequest(t, "PUT", baseURL+fmt.Sprintf("/admin/jwt/revoke?jti=%s&exp=%s", jti, "INVALID-EXP"), ``)
+		res = DoHTTPRequestWithHeaders(t, "PUT", baseURL+fmt.Sprintf("/admin/jwt/revoke?jti=%s&exp=%s", jti, "INVALID-EXP"), AdminAuthHeaders(t, deps), ``)
 		AssertErrorResponse(t, res, 400, nil, `Invalid "exp" parameter`)
 
 		jwt.EXPECT().RevokeJwt(gomock.Any(), exp, jti).Return(errors.New("mock error"))
-		res = DoHTTPRequest(t, "PUT", baseURL+fmt.Sprintf("/admin/jwt/revoke?jti=%s&exp=%s", jti, exp), ``)
+		res = DoHTTPRequestWithHeaders(t, "PUT", baseURL+fmt.Sprintf("/admin/jwt/revoke?jti=%s&exp=%s", jti, exp), AdminAuthHeaders(t, deps), ``)
 		AssertInternalServerErrorResponse(t, res)
 	})
 }

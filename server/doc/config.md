@@ -13,7 +13,9 @@ storages:  # see ./storage/README.md for more info
 
 http:
   port: 3099
-  sourceIpHeader: 'X-Forwarded-For'
+  realIpHeader: 'X-Forwarded-For'
+  trustedProxyRanges:
+    - 192.168.0.0/16
   discloseAuthRejectionDetail: false
 
 logging:
@@ -71,8 +73,11 @@ Configuration items under `http`:
   - With [some security software](https://forum.eset.com/topic/22080-mac-firewall-issue-after-update-to-684000/), you may need to specify local IP as such as `127.0.0.1:3000` due to MTIM proxy problem.
 - `pathPrefix` (string, optional): Prefix to add all endpoints
   - e.g. If `pathPrefix` is `/foo/bar`, endpoint `/probe/readiness` is served as `/foobar/probe/readiness`
-- <a name="ipheader"></a> `sourceIpHeader` (string, optional): HTTP header name contains reliable IP address of the client
+- <a name="ipheader"></a> `realIpHeader` (string, optional): HTTP header name contains reliable IP address of the client
   - Note that `admin.auth.networks` rely on this configuration.
+- `trustedProxyRanges` (list of string, optional): List of CIDR notation that trusted proxy lives in
+  - `realIpHeader` only accepts header values from those ranges.
+  - By default or if empty list given, allow [RFC 1918](https://tools.ietf.org/html/rfc1918) ranges `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and [RFC 4193](https://tools.ietf.org/html/rfc4193) range `fc00::/7` and also `127.0.0.0/8` ((RFC 1122)[https://tools.ietf.org/html/rfc1122#section-3.2.1.3]), `169.254.0.0/16` ((RFC 3927)[https://tools.ietf.org/html/rfc3927]), `::1/128` and `fe80::/10` ((RFC 4291)[https://tools.ietf.org/html/rfc4291]).
 - `discloseAuthRejectionDetail` (boolean, default `false`): Show detail reason of 403 to clients, **do not enable on production**
 - `longPollingMaxTimeout` (duration string, default `30s`): Max duration of the [long-polling requests](./interface/subscribe/polling.md#polling-get).
 - `gracefulShutdownTimeout` (duration string, default `5s`): Timeout to await end of running requests.
@@ -207,7 +212,7 @@ admin:
 Configuration item under `admin`:
 
 - `auth.networks` (list of CIDR string, optional): List of CIDR IP ranges to accept admin API calls
-  - By default or if empyt list given, allow [RFC 1918](https://tools.ietf.org/html/rfc1918) ranges `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and [RFC 4193](https://tools.ietf.org/html/rfc4193) range `fc00::/7`.
-- `auth.bearer` (list of string, optional): List of `Authorization: Bearer` request header value
-  - Client must send one of specified value in the list.
+  - By default or if empty list given, allow [RFC 1918](https://tools.ietf.org/html/rfc1918) ranges `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and [RFC 4193](https://tools.ietf.org/html/rfc4193) range `fc00::/7` and also `127.0.0.0/8` ((RFC 1122)[https://tools.ietf.org/html/rfc1122#section-3.2.1.3]), `169.254.0.0/16` ((RFC 3927)[https://tools.ietf.org/html/rfc3927]), `::1/128` and `fe80::/10` ((RFC 4291)[https://tools.ietf.org/html/rfc4291]).
+- `auth.bearer` (list of string, optional): List of API keys required to call admin APIs
+  - To call admin APIs, client need to send token as `Authorization: Bearer {token}` header
   - By default or if empty list given, server automatically generate random string on start.

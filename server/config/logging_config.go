@@ -6,7 +6,9 @@ type LoggingConfig struct {
 	Attributes map[string]string `json:"attributes"`
 }
 
-var loggingConfigDefault = LoggingConfig{
-	Category:   map[string]string{},
-	Attributes: map[string]string{},
+func loggingConfigDefault() *LoggingConfig {
+	return &LoggingConfig{
+		Category:   map[string]string{},
+		Attributes: map[string]string{},
+	}
 }

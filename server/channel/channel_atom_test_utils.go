@@ -14,7 +14,7 @@ import (
 
 func newChannelAtomByYaml(t *testing.T, yaml string, validate bool) *channelAtom { //nolint:golint
 	yaml = fmt.Sprintf("channels:\n  - %s", strings.ReplaceAll(strings.ReplaceAll(yaml, "\t", "  "), "\n", "\n    "))
-	cfg, err := config.ParseConfig(config.Overrides{}, yaml)
+	cfg, err := config.ParseConfig(context.Background(), config.Overrides{}, yaml)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(cfg.Channels))
 

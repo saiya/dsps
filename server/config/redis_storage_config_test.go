@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"context"
 	"runtime"
 	"strings"
 	"testing"
@@ -18,7 +19,7 @@ storages:
 		redis:
 			username: "user"
 `, "\t", "  ")
-	_, err := ParseConfig(Overrides{}, configYaml)
+	_, err := ParseConfig(context.Background(), Overrides{}, configYaml)
 	assert.EqualError(t, err, "Storage configration problem: There is a configuration error on storage[myRedis].redis: Redis configration must have one of 'singleNode' and 'cluster' item")
 }
 
@@ -32,7 +33,7 @@ storages:
 				- 'a-node-of-cluster-1:6379'
 				- 'another-node-of-cluster-1:6379'
 `, "\t", "  ")
-	_, err := ParseConfig(Overrides{}, configYaml)
+	_, err := ParseConfig(context.Background(), Overrides{}, configYaml)
 	assert.EqualError(t, err, "Storage configration problem: There is a configuration error on storage[myRedis].redis: Redis configration can have ONLY ONE of 'singleNode' and 'cluster' item, cannot specify both")
 }
 
@@ -44,7 +45,7 @@ storages:
 			singleNode: 'localhost:6379'
 			db: -1
 `, "\t", "  ")
-	_, err := ParseConfig(Overrides{}, configYaml)
+	_, err := ParseConfig(context.Background(), Overrides{}, configYaml)
 	assert.Contains(t, err.Error(), "Field validation for 'DBNumber' failed")
 }
 
@@ -55,7 +56,7 @@ storages:
 		redis:
 			singleNode: 'localhost:6379'
 `, "\t", "  ")
-	config, err := ParseConfig(Overrides{}, configYaml)
+	config, err := ParseConfig(context.Background(), Overrides{}, configYaml)
 	if err != nil {
 		t.Error(err)
 		return
@@ -99,7 +100,7 @@ storages:
 				min: 256
 				maxIdleTime: 90m
 `, "\t", "  ")
-	config, err := ParseConfig(Overrides{}, configYaml)
+	config, err := ParseConfig(context.Background(), Overrides{}, configYaml)
 	if err != nil {
 		t.Error(err)
 		return
