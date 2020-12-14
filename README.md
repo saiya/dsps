@@ -40,17 +40,17 @@ CHANNEL="my-channel"
 SUBSCRIBER="my-subscriber"
 
 # Create a HTTP polling subscriber.
-curl -w "\n" -X PUT "http://localhost:3099/channel/${CHANNEL}/subscription/polling/${SUBSCRIBER}"
+curl -X PUT "http://localhost:3099/channel/${CHANNEL}/subscription/polling/${SUBSCRIBER}"
 
 # Publish message to the channel.
-curl -w "\n" -X PUT -H "Content-Type: application/json" \
+curl -X PUT -H "Content-Type: application/json" \
   -d '{ "hello": "Hi!" }' \
   "http://localhost:3099/channel/${CHANNEL}/message/my-first-message"
 
 # Receive messages with HTTP long-polling.
 # In this example, this API immediately returns
 # because the subscriber already have been received a message.
-curl -w "\n" -X GET "http://localhost:3099/channel/${CHANNEL}/subscription/polling/${SUBSCRIBER}?timeout=30s&max=64"
+curl -X GET "http://localhost:3099/channel/${CHANNEL}/subscription/polling/${SUBSCRIBER}?timeout=30s&max=64"
 
 ACK_HANDLE="<< set string returned in the above API response >>"
 

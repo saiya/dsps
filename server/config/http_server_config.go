@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/saiya/dsps/server/domain"
@@ -42,11 +41,7 @@ func PostprocessHTTPServerConfig(config *HTTPServerConfig, overrides Overrides) 
 		config.Listen = overrides.Listen
 	}
 
-	// Remove trailing "/", add "/" prefix
-	config.PathPrefix = regexp.MustCompile(`/$`).ReplaceAllString(config.PathPrefix, "")
-	if !strings.HasPrefix(config.PathPrefix, "/") {
-		config.PathPrefix = "/" + config.PathPrefix
-	}
-
+	// Remove "/" prefix and suffix
+	config.PathPrefix = strings.TrimPrefix(strings.TrimSuffix(config.PathPrefix, "/"), "/")
 	return nil
 }

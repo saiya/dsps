@@ -21,12 +21,12 @@ func TestHttpServerConfigOverride(t *testing.T) {
 
 func TestHttpServerConfigPathPrefix(t *testing.T) {
 	for _, testcase := range []struct{ source, expected string }{
-		{source: "", expected: "/"},
-		{source: "/", expected: "/"},
-		{source: "foo/bar", expected: "/foo/bar"},
-		{source: "foo/bar/", expected: "/foo/bar"},
-		{source: "/foo/bar", expected: "/foo/bar"},
-		{source: "/foo/bar/", expected: "/foo/bar"},
+		{source: "", expected: ""},
+		{source: "/", expected: ""},
+		{source: "foo/bar", expected: "foo/bar"},
+		{source: "foo/bar/", expected: "foo/bar"},
+		{source: "/foo/bar", expected: "foo/bar"},
+		{source: "/foo/bar/", expected: "foo/bar"},
 	} {
 		cfg := HTTPServerConfig{PathPrefix: testcase.source}
 		assert.NoError(t, PostprocessHTTPServerConfig(&cfg, Overrides{Port: 9876}))

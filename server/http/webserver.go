@@ -10,11 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/julienschmidt/httprouter"
 
 	"github.com/saiya/dsps/server/config"
 	httplifecycle "github.com/saiya/dsps/server/http/lifecycle"
 	"github.com/saiya/dsps/server/http/middleware"
+	"github.com/saiya/dsps/server/http/router"
 	"github.com/saiya/dsps/server/logger"
 )
 
@@ -26,25 +27,23 @@ func StartServer(mainContext context.Context, deps *ServerDependencies) {
 
 // CreateServer creates server (http.Handler) instance.
 func CreateServer(mainContext context.Context, deps *ServerDependencies) http.Handler {
-	if os.Getenv("GIN_MODE") == "" { // Use release mode by default
-		gin.SetMode(gin.ReleaseMode)
-	}
-	engine := gin.New()
-	engine.Use(middleware.LoggingMiddleware())
+	r := httprouter.New()
+	// TODO: Configure httprouter
+	r.RedirectTrailingSlash = false
 
-	var router gin.IRouter
-	if deps.Config.HTTPServer.PathPrefix == "/" {
-		router = engine
-	} else {
-		router = engine.Group(deps.Config.HTTPServer.PathPrefix)
-	}
-
-	InitEndpoints(mainContext, router, deps)
-
-	return engine
+	rt := router.NewRouter(
+		func(r *http.Request, f func(context.Context)) {
+			deps.ServerClose.WithCancel(context.Background(), f)
+		},
+		r,
+		deps.Config.HTTPServer.PathPrefix,
+		// TODO: Add middleware for more security headers (such as strict transport)
+		middleware.LoggingMiddleware(),
+	)
+	InitEndpoints(mainContext, rt, deps)
+	return r
 }
 
-// see: https://github.com/gin-gonic/gin#manually
 func runServer(mainContext context.Context, config *config.ServerConfig, engine http.Handler, serverClose httplifecycle.ServerClose) {
 	addr := config.HTTPServer.Listen
 	srv := &http.Server{

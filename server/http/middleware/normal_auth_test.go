@@ -9,12 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/saiya/dsps/server/domain"
 	. "github.com/saiya/dsps/server/http"
 	. "github.com/saiya/dsps/server/http/middleware"
+	"github.com/saiya/dsps/server/http/router"
 	. "github.com/saiya/dsps/server/http/testing"
 	. "github.com/saiya/dsps/server/jwt/testing"
 )
@@ -34,13 +35,11 @@ channels:
 
 func TestNormalAuthFilter(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT, func(deps *ServerDependencies) {
-		auth := NewNormalAuth(context.Background(), deps, func(ctx *gin.Context) (Channel, error) {
+		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
 			return deps.ChannelProvider("auth-test-channel")
 		})
 
 		rec := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rec)
-
 		req, _ := http.NewRequest("GET", "/", nil)
 		req.Header.Add("Authorization", "Bearer "+GenerateJwt(t, JwtProps{
 			Alg:     "RS256",
@@ -49,11 +48,11 @@ func TestNormalAuthFilter(t *testing.T) {
 			Iss:     "https://issuer.example.com/issuer-url",
 			Aud:     []JwtAud{"https://my-service.example.com/"},
 		}))
-		ctx.Request = req
-
-		auth(ctx)
-
-		assert.False(t, ctx.IsAborted()) // Should not be aborted
+		withNextFunc(t, true, func(next func(context.Context)) {
+			auth(context.Background(), router.MiddlewareArgs{
+				HandlerArgs: router.HandlerArgs{R: router.Request{Request: req}, W: router.NewResponseWriter(rec), PS: httprouter.Params{}},
+			}, next)
+		})
 		assert.Equal(t, 200, rec.Code)
 	})
 
@@ -63,6 +62,7 @@ func TestNormalAuthFilter(t *testing.T) {
 
 		// Without JWT
 		res := DoHTTPRequest(t, "PUT", putURL, `{}`)
+		assert.NoError(t, res.Body.Close())
 		assert.Equal(t, 403, res.StatusCode)
 
 		// With JWT (without "jti" claim)
@@ -118,46 +118,38 @@ func TestNormalAuthFilterPassThrough(t *testing.T) {
 
 		// Without Authorization header
 		res := DoHTTPRequest(t, "PUT", putURL, `{}`)
+		assert.NoError(t, res.Body.Close())
 		assert.Equal(t, 200, res.StatusCode)
 	})
 }
 
 func TestNormalAuthInvalidChannel(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT, func(deps *ServerDependencies) {
-		auth := NewNormalAuth(context.Background(), deps, func(ctx *gin.Context) (Channel, error) {
+		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
 			return deps.ChannelProvider("INVALID-channel") // Invalid channel ID
 		})
 
 		rec := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rec)
-
 		req, _ := http.NewRequest("GET", "/", nil)
 		req.Header.Add("Authorization", "Bearer NOT-JWT")
-		ctx.Request = req
-
-		auth(ctx)
-
-		assert.True(t, ctx.IsAborted())
+		withNextFunc(t, false, func(next func(context.Context)) {
+			auth(context.Background(), router.MiddlewareArgs{HandlerArgs: router.HandlerArgs{R: router.Request{Request: req}, W: router.NewResponseWriter(rec), PS: httprouter.Params{}}}, next)
+		})
 		AssertRecordedCode(t, rec, http.StatusBadRequest, ErrInvalidChannel)
 	})
 }
 
 func TestNormalAuthMissingHeader(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT+`http: discloseAuthRejectionDetail: true`, func(deps *ServerDependencies) {
-		auth := NewNormalAuth(context.Background(), deps, func(ctx *gin.Context) (Channel, error) {
+		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
 			return deps.ChannelProvider("auth-test-channel")
 		})
 
 		rec := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rec)
-
-		req, _ := http.NewRequest("GET", "/", nil)
-		// No Authorization header
-		ctx.Request = req
-
-		auth(ctx)
-
-		assert.True(t, ctx.IsAborted())
+		req, _ := http.NewRequest("GET", "/", nil) // No Authorization header
+		withNextFunc(t, false, func(next func(context.Context)) {
+			auth(context.Background(), router.MiddlewareArgs{HandlerArgs: router.HandlerArgs{R: router.Request{Request: req}, W: router.NewResponseWriter(rec), PS: httprouter.Params{}}}, next)
+		})
 		AssertRecordedCode(t, rec, http.StatusForbidden, ErrAuthRejection)
 		assert.Equal(t, `JWT verification failure: no JWT presented`, BodyJSONMapOfRec(t, rec)["reason"])
 	})
@@ -165,20 +157,16 @@ func TestNormalAuthMissingHeader(t *testing.T) {
 
 func TestNormalAuthRejection(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT, func(deps *ServerDependencies) {
-		auth := NewNormalAuth(context.Background(), deps, func(ctx *gin.Context) (Channel, error) {
+		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
 			return deps.ChannelProvider("auth-test-channel")
 		})
 
 		rec := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rec)
-
 		req, _ := http.NewRequest("GET", "/", nil)
 		req.Header.Add("Authorization", "Bearer NOT-JWT")
-		ctx.Request = req
-
-		auth(ctx)
-
-		assert.True(t, ctx.IsAborted())
+		withNextFunc(t, false, func(next func(context.Context)) {
+			auth(context.Background(), router.MiddlewareArgs{HandlerArgs: router.HandlerArgs{R: router.Request{Request: req}, W: router.NewResponseWriter(rec), PS: httprouter.Params{}}}, next)
+		})
 		AssertRecordedCode(t, rec, http.StatusForbidden, ErrAuthRejection)
 		assert.Nil(t, BodyJSONMapOfRec(t, rec)["reason"]) // Should not contain detailed message by default
 	})
@@ -186,20 +174,16 @@ func TestNormalAuthRejection(t *testing.T) {
 
 func TestNormalAuthRejectionWithDetail(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT+`http: discloseAuthRejectionDetail: true`, func(deps *ServerDependencies) {
-		auth := NewNormalAuth(context.Background(), deps, func(ctx *gin.Context) (Channel, error) {
+		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
 			return deps.ChannelProvider("auth-test-channel")
 		})
 
 		rec := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rec)
-
 		req, _ := http.NewRequest("GET", "/", nil)
 		req.Header.Add("Authorization", "Bearer NOT-JWT")
-		ctx.Request = req
-
-		auth(ctx)
-
-		assert.True(t, ctx.IsAborted())
+		withNextFunc(t, false, func(next func(context.Context)) {
+			auth(context.Background(), router.MiddlewareArgs{HandlerArgs: router.HandlerArgs{R: router.Request{Request: req}, W: router.NewResponseWriter(rec), PS: httprouter.Params{}}}, next)
+		})
 		AssertRecordedCode(t, rec, http.StatusForbidden, ErrAuthRejection)
 		assert.Regexp(t, `JWT verification failure.+token is malformed`, BodyJSONMapOfRec(t, rec)["reason"])
 	})

@@ -1,15 +1,15 @@
 package endpoints
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 
 	"golang.org/x/xerrors"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/http/router"
 	"github.com/saiya/dsps/server/http/utils"
 )
 
@@ -19,33 +19,33 @@ type PublishEndpointDependency interface {
 }
 
 // InitPublishEndpoints registers endpoints
-func InitPublishEndpoints(router gin.IRoutes, deps PublishEndpointDependency) {
+func InitPublishEndpoints(rt *router.Router, deps PublishEndpointDependency) {
 	pubsub := deps.GetStorage().AsPubSubStorage()
 
-	router.PUT("/message/:messageID", func(ctx *gin.Context) {
+	rt.PUT("/message/:messageID", func(ctx context.Context, args router.HandlerArgs) {
 		if pubsub == nil {
-			utils.SendPubSubUnsupportedError(ctx)
+			utils.SendPubSubUnsupportedError(ctx, args.W)
 			return
 		}
 
-		channelID, err := domain.ParseChannelID(ctx.Param("channelID"))
+		channelID, err := domain.ParseChannelID(args.PS.ByName("channelID"))
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "channelID", err)
+			utils.SendInvalidParameter(ctx, args.W, "channelID", err)
 			return
 		}
 
-		messageID, err := domain.ParseMessageID(ctx.Param("messageID"))
+		messageID, err := domain.ParseMessageID(args.PS.ByName("messageID"))
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "messageID", err)
+			utils.SendInvalidParameter(ctx, args.W, "messageID", err)
 			return
 		}
 
-		content, err := ctx.GetRawData()
+		content, err := args.R.ReadBody()
 		if err == nil && !json.Valid(content) {
 			err = xerrors.New("Is not valid JSON")
 		}
 		if err != nil {
-			utils.SendError(ctx, http.StatusBadRequest, "Request body is not JSON", err)
+			utils.SendError(ctx, args.W, http.StatusBadRequest, "Request body is not JSON", err)
 			return
 		}
 
@@ -61,14 +61,14 @@ func InitPublishEndpoints(router gin.IRoutes, deps PublishEndpointDependency) {
 		if err != nil {
 			if errors.Is(err, domain.ErrInvalidChannel) {
 				// Could not create/access to the channel because not permitted by configuration
-				utils.SendError(ctx, http.StatusForbidden, err.Error(), err)
+				utils.SendError(ctx, args.W, http.StatusForbidden, err.Error(), err)
 			} else {
-				utils.SentInternalServerError(ctx, err)
+				utils.SendInternalServerError(ctx, args.W, err)
 			}
 			return
 		}
 
-		ctx.JSON(http.StatusOK, gin.H{
+		utils.SendJSON(ctx, args.W, http.StatusOK, map[string]interface{}{
 			"channelID": channelID,
 			"messageID": messageID,
 		})
