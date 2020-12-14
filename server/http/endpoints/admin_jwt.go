@@ -1,9 +1,10 @@
 package endpoints
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
 
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/http/router"
 	"github.com/saiya/dsps/server/http/utils"
 )
 
@@ -13,32 +14,32 @@ type AdminJwtEndpointDependency interface {
 }
 
 // InitAdminJwtEndpoints registers endpoints
-func InitAdminJwtEndpoints(adminRouter gin.IRoutes, deps AdminJwtEndpointDependency) {
+func InitAdminJwtEndpoints(adminRouter *router.Router, deps AdminJwtEndpointDependency) {
 	storage := deps.GetStorage().AsJwtStorage()
-	adminRouter.PUT("/jwt/revoke", func(ctx *gin.Context) {
+	adminRouter.PUT("/jwt/revoke", func(ctx context.Context, args router.HandlerArgs) {
 		if storage == nil {
-			utils.SendJwtUnsupportedError(ctx)
+			utils.SendJwtUnsupportedError(ctx, args.W)
 			return
 		}
 
-		jti := ctx.Query("jti")
+		jti := args.R.GetQueryParam("jti")
 		if jti == "" {
-			utils.SendMissingParameter(ctx, "jti")
+			utils.SendMissingParameter(ctx, args.W, "jti")
 			return
 		}
 
-		exp, err := domain.ParseJwtExp(ctx.Query("exp"))
+		exp, err := domain.ParseJwtExp(args.R.GetQueryParam("exp"))
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "exp", err)
+			utils.SendInvalidParameter(ctx, args.W, "exp", err)
 			return
 		}
 
 		if err := storage.RevokeJwt(ctx, exp, domain.JwtJti(jti)); err != nil {
-			utils.SentInternalServerError(ctx, err)
+			utils.SendInternalServerError(ctx, args.W, err)
 			return
 		}
 
-		ctx.JSON(200, gin.H{
+		utils.SendJSON(ctx, args.W, 200, map[string]interface{}{
 			"jti": jti,
 			"exp": exp.Int64(),
 		})

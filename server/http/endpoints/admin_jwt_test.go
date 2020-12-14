@@ -81,6 +81,6 @@ func TestJwtRevokeFailure(t *testing.T) {
 
 		jwt.EXPECT().RevokeJwt(gomock.Any(), exp, jti).Return(errors.New("mock error"))
 		res = DoHTTPRequest(t, "PUT", baseURL+fmt.Sprintf("/admin/jwt/revoke?jti=%s&exp=%s", jti, exp), ``)
-		AssertErrorResponse(t, res, 500, nil, "")
+		AssertInternalServerErrorResponse(t, res)
 	})
 }

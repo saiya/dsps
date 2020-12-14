@@ -22,6 +22,11 @@ func (deps *ServerDependencies) GetStorage() domain.Storage {
 	return deps.Storage
 }
 
+// GetDefaultHeaders returns default response headers config
+func (deps *ServerDependencies) GetDefaultHeaders() map[string]string {
+	return deps.Config.HTTPServer.DefaultHeaders
+}
+
 // GetLongPollingMaxTimeout returns configuration value
 func (deps *ServerDependencies) GetLongPollingMaxTimeout() domain.Duration {
 	return deps.Config.HTTPServer.LongPollingMaxTimeout

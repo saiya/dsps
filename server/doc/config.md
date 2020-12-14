@@ -76,6 +76,8 @@ Configuration items under `http`:
 - `discloseAuthRejectionDetail` (boolean, default `false`): Show detail reason of 403 to clients, **do not enable on production**
 - `longPollingMaxTimeout` (duration string, default `30s`): Max duration of the [long-polling requests](./interface/subscribe/polling.md#polling-get).
 - `gracefulShutdownTimeout` (duration string, default `5s`): Timeout to await end of running requests.
+- <a name="defaultHeaders"></a> `defaultHeaders` (string to string map, optional): Always send those response headers
+  - Server send some headers by default, you can disable them by setting empty string as a value.
 
 ## <a name="logging"></a> logging configuration block
 

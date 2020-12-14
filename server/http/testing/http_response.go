@@ -24,6 +24,12 @@ func AssertErrorResponse(t *testing.T, res *http.Response, httpStatus int, dspsE
 	assert.Equal(t, expectedCode, body["code"], `expected code: %s but response body is: %v`, expectedCode, body)
 }
 
+// AssertInternalServerErrorResponse ensure 500 response
+func AssertInternalServerErrorResponse(t *testing.T, res *http.Response) {
+	assert.Equal(t, 500, res.StatusCode)
+	assert.NoError(t, res.Body.Close())
+}
+
 // AssertResponseJSON ensure response body JSON content
 func AssertResponseJSON(t *testing.T, res *http.Response, httpStatus int, expected map[string]interface{}) map[string]interface{} {
 	assert.Equal(t, httpStatus, res.StatusCode)
@@ -48,5 +54,6 @@ func BodyJSONOfRes(t *testing.T, res *http.Response, body interface{}) {
 
 	raw, err := ioutil.ReadAll(res.Body)
 	assert.NoError(t, err)
-	assert.NoError(t, json.Unmarshal(raw, body))
+	assert.NoError(t, res.Body.Close())
+	assert.NoError(t, json.Unmarshal(raw, body), "failed to parse response JSON: %s", string(raw))
 }

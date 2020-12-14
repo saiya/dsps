@@ -1,10 +1,9 @@
 package endpoints
 
 import (
-	"net/http"
+	"context"
 
-	"github.com/gin-gonic/gin"
-
+	"github.com/saiya/dsps/server/http/router"
 	"github.com/saiya/dsps/server/http/utils"
 	"github.com/saiya/dsps/server/logger"
 )
@@ -15,23 +14,23 @@ type AdminLoggingEndpointDependency interface {
 }
 
 // InitAdminLoggingEndpoints registers endpoints
-func InitAdminLoggingEndpoints(adminRouter gin.IRoutes, deps AdminLoggingEndpointDependency) {
-	adminRouter.PUT("/log/level", func(ctx *gin.Context) {
-		category := ctx.Query("category")
+func InitAdminLoggingEndpoints(adminRouter *router.Router, deps AdminLoggingEndpointDependency) {
+	adminRouter.PUT("/log/level", func(ctx context.Context, args router.HandlerArgs) {
+		category := args.R.GetQueryParam("category")
 		if category == "" {
-			utils.SendMissingParameter(ctx, "category")
+			utils.SendMissingParameter(ctx, args.W, "category")
 			return
 		}
 
-		level, err := logger.ParseLevel(ctx.Query("level"))
+		level, err := logger.ParseLevel(args.R.GetQueryParam("level"))
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "level", err)
+			utils.SendInvalidParameter(ctx, args.W, "level", err)
 			return
 		}
 
 		logger.Of(ctx).Infof(logger.CatLogger, `set logging threshold of "%s" category to %s`, category, level)
 		deps.GetLogFilter().SetThreshold(logger.ParseCategory(category), level)
 
-		ctx.Status(http.StatusNoContent)
+		utils.SendNoContent(ctx, args.W)
 	})
 }

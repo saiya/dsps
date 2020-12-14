@@ -3,7 +3,6 @@ package logger
 import (
 	"context"
 
-	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
@@ -26,17 +25,6 @@ func of(ctx context.Context) *loggerImpl {
 func WithAttributes(ctx context.Context) ContextLoggerBuilder {
 	return &contextLoggerBuilder{
 		ctx:        ctx,
-		modify:     false,
-		baseLogger: of(ctx),
-		fields:     make([]zap.Field, 0, 16),
-	}
-}
-
-// ModifyGinContext updates logger of the given gin.Context (not create new Context)
-func ModifyGinContext(ctx *gin.Context) ContextLoggerBuilder {
-	return &contextLoggerBuilder{
-		ctx:        ctx,
-		modify:     true,
 		baseLogger: of(ctx),
 		fields:     make([]zap.Field, 0, 16),
 	}
@@ -53,8 +41,7 @@ type ContextLoggerBuilder interface {
 }
 
 type contextLoggerBuilder struct {
-	ctx    context.Context
-	modify bool
+	ctx context.Context
 
 	baseLogger *loggerImpl
 	fields     []zap.Field
@@ -62,11 +49,6 @@ type contextLoggerBuilder struct {
 
 func (b *contextLoggerBuilder) Build() context.Context {
 	newLogger := b.baseLogger.WithAttributes(b.fields)
-	if gctx, ok := b.ctx.(*gin.Context); b.modify && ok {
-		// Special handling for gin
-		gctx.Set(loggerContextKey, newLogger)
-		return gctx
-	}
 	return context.WithValue(b.ctx, loggerContextKey, newLogger) //nolint:golint,staticcheck
 }
 

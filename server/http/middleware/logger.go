@@ -1,42 +1,41 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
+	"github.com/saiya/dsps/server/http/router"
+	"github.com/saiya/dsps/server/http/utils"
 	"github.com/saiya/dsps/server/logger"
 )
 
 // LoggingMiddleware is middleware for logging
-func LoggingMiddleware() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
+func LoggingMiddleware() router.Middleware {
+	return func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context)) {
 		defer func() {
 			if err := recover(); err != nil {
-				logger.Of(ctx).Error("Panic in HTTP endpoint", panicAsError(err))
-				ctx.AbortWithStatus(http.StatusInternalServerError)
+				utils.SendInternalServerError(ctx, args.W, panicAsError(err))
 			}
 		}()
 
-		logger.ModifyGinContext(ctx).
-			WithStr("method", ctx.Request.Method).
-			WithStr("path", ctx.Request.URL.Path).
-			WithStr("ip", ctx.ClientIP()).
-			WithStr("ua", ctx.Request.UserAgent()).
-			WithStr("referer", ctx.Request.Referer()).
-			WithInt64("reqLength", ctx.Request.ContentLength).
+		ctx = logger.WithAttributes(ctx).
+			WithStr("method", args.R.Method).
+			WithStr("path", args.R.URL.Path).
+			WithStr("ip", GetClientIP(ctx)).
+			WithStr("ua", args.R.UserAgent()).
+			WithStr("referer", args.R.Referer()).
+			WithInt64("reqLength", args.R.ContentLength).
 			Build()
 
 		startAt := time.Now()
-		ctx.Next()
+		next(ctx)
 		elapsed := time.Since(startAt)
 
-		logger.ModifyGinContext(ctx).
-			WithInt("status", ctx.Writer.Status()).
+		ctx = logger.WithAttributes(ctx).
+			WithInt("status", args.W.Written().StatusCode).
 			WithInt64("elapsedMs", elapsed.Milliseconds()).
-			WithInt("resLength", ctx.Writer.Size()).
+			WithInt("resLength", args.W.Written().BodyBytes).
 			Build()
 		logger.Of(ctx).Infof(logger.CatHTTP, "HTTP endpoint served")
 	}
