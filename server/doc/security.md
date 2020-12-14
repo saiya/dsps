@@ -30,3 +30,11 @@ To ensure webhook security, general outgoing HTTP security practices such as fol
 1. Use HTTPS (TLS)
 2. Send webhook to only safe destinations
 3. Do not send webhook to dynamic domain, domain name should be fixed
+
+## HTTP response headers
+
+DSPS server send some response headers by default but you can override them to more security.
+
+For instance, you can enable `Strict-Transport-Security` by setting the header for each response.
+
+Use [`http.defaultHeaders` configuration item](./config.md#defaultHeaders) to set your custom headers for all responses.

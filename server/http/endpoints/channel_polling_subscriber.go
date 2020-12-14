@@ -7,10 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/http/lifecycle"
+	"github.com/saiya/dsps/server/http/router"
 	"github.com/saiya/dsps/server/http/utils"
 	"github.com/saiya/dsps/server/logger"
 )
@@ -24,36 +23,36 @@ type PollingEndpointDependency interface {
 }
 
 // InitSubscriptionPollingEndpoints registers endpoints
-func InitSubscriptionPollingEndpoints(router gin.IRouter, deps PollingEndpointDependency) {
-	group := router.Group("/subscription/polling/:subscriberID")
-	group.Use(func(ctx *gin.Context) {
-		logger.ModifyGinContext(ctx).WithStr("subscriberID", ctx.Param("subscriberID")).Build()
-		ctx.Next()
-	})
-
+func InitSubscriptionPollingEndpoints(rt *router.Router, deps PollingEndpointDependency) {
+	group := rt.NewGroup(
+		"/subscription/polling/:subscriberID",
+		func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context)) {
+			next(logger.WithAttributes(ctx).WithStr("subscriberID", args.PS.ByName("subscriberID")).Build())
+		},
+	)
 	group.PUT("", subscriberPutEndpoint(deps))
 	group.DELETE("", subscriberDeleteEndpoint(deps))
 	group.GET("", subscriberGetEndpoint(deps))
 	group.DELETE("/message", subscriberMessageDeleteEndpoint(deps))
 }
 
-func subscriberPutEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
+func subscriberPutEndpoint(deps PollingEndpointDependency) router.Handler {
 	pubsub := deps.GetStorage().AsPubSubStorage()
-	return func(ctx *gin.Context) {
+	return func(ctx context.Context, args router.HandlerArgs) {
 		if pubsub == nil {
-			utils.SendPubSubUnsupportedError(ctx)
+			utils.SendPubSubUnsupportedError(ctx, args.W)
 			return
 		}
 
-		channelID, err := domain.ParseChannelID(ctx.Param("channelID"))
+		channelID, err := domain.ParseChannelID(args.PS.ByName("channelID"))
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "channelID", err)
+			utils.SendInvalidParameter(ctx, args.W, "channelID", err)
 			return
 		}
 
-		subscriberID, err := domain.ParseSubscriberID(ctx.Param("subscriberID"))
+		subscriberID, err := domain.ParseSubscriberID(args.PS.ByName("subscriberID"))
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "subscriberID", err)
+			utils.SendInvalidParameter(ctx, args.W, "subscriberID", err)
 			return
 		}
 
@@ -64,37 +63,37 @@ func subscriberPutEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
 		if err != nil {
 			if errors.Is(err, domain.ErrInvalidChannel) {
 				// Could not create/access to the channel because not permitted by configuration
-				utils.SendError(ctx, http.StatusForbidden, err.Error(), err)
+				utils.SendError(ctx, args.W, http.StatusForbidden, err.Error(), err)
 			} else {
-				utils.SentInternalServerError(ctx, err)
+				utils.SendInternalServerError(ctx, args.W, err)
 			}
 			return
 		}
 
-		ctx.JSON(http.StatusOK, gin.H{
+		utils.SendJSON(ctx, args.W, http.StatusOK, map[string]interface{}{
 			"channelID":    channelID,
 			"subscriberID": subscriberID,
 		})
 	}
 }
 
-func subscriberDeleteEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
+func subscriberDeleteEndpoint(deps PollingEndpointDependency) router.Handler {
 	pubsub := deps.GetStorage().AsPubSubStorage()
-	return func(ctx *gin.Context) {
+	return func(ctx context.Context, args router.HandlerArgs) {
 		if pubsub == nil {
-			utils.SendPubSubUnsupportedError(ctx)
+			utils.SendPubSubUnsupportedError(ctx, args.W)
 			return
 		}
 
-		channelID, err := domain.ParseChannelID(ctx.Param("channelID"))
+		channelID, err := domain.ParseChannelID(args.PS.ByName("channelID"))
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "channelID", err)
+			utils.SendInvalidParameter(ctx, args.W, "channelID", err)
 			return
 		}
 
-		subscriberID, err := domain.ParseSubscriberID(ctx.Param("subscriberID"))
+		subscriberID, err := domain.ParseSubscriberID(args.PS.ByName("subscriberID"))
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "subscriberID", err)
+			utils.SendInvalidParameter(ctx, args.W, "subscriberID", err)
 			return
 		}
 
@@ -105,45 +104,45 @@ func subscriberDeleteEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
 		if err != nil {
 			if errors.Is(err, domain.ErrInvalidChannel) {
 				// Belonging channel might be deleted / expired or not permitted in configuration.
-				utils.SendError(ctx, http.StatusForbidden, err.Error(), err)
+				utils.SendError(ctx, args.W, http.StatusForbidden, err.Error(), err)
 			} else {
-				utils.SentInternalServerError(ctx, err)
+				utils.SendInternalServerError(ctx, args.W, err)
 			}
 			return
 		}
 
-		ctx.JSON(http.StatusOK, gin.H{
+		utils.SendJSON(ctx, args.W, http.StatusOK, map[string]interface{}{
 			"channelID":    channelID,
 			"subscriberID": subscriberID,
 		})
 	}
 }
 
-func subscriberGetEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
+func subscriberGetEndpoint(deps PollingEndpointDependency) router.Handler {
 	pubsub := deps.GetStorage().AsPubSubStorage()
 	serverClose := deps.GetServerClose()
 	longPollingMaxTimeout := deps.GetLongPollingMaxTimeout().Duration
-	return func(ctx *gin.Context) {
+	return func(ctx context.Context, args router.HandlerArgs) {
 		if pubsub == nil {
-			utils.SendPubSubUnsupportedError(ctx)
+			utils.SendPubSubUnsupportedError(ctx, args.W)
 			return
 		}
 
-		channelID, err := domain.ParseChannelID(ctx.Param("channelID"))
+		channelID, err := domain.ParseChannelID(args.PS.ByName("channelID"))
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "channelID", err)
+			utils.SendInvalidParameter(ctx, args.W, "channelID", err)
 			return
 		}
 
-		subscriberID, err := domain.ParseSubscriberID(ctx.Param("subscriberID"))
+		subscriberID, err := domain.ParseSubscriberID(args.PS.ByName("subscriberID"))
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "subscriberID", err)
+			utils.SendInvalidParameter(ctx, args.W, "subscriberID", err)
 			return
 		}
 
-		timeout, err := time.ParseDuration(ctx.DefaultQuery("timeout", "0ms"))
+		timeout, err := time.ParseDuration(args.R.GetQueryParamOrDefault("timeout", "0ms"))
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "timeout", err)
+			utils.SendInvalidParameter(ctx, args.W, "timeout", err)
 			return
 		}
 		if timeout > longPollingMaxTimeout {
@@ -151,9 +150,9 @@ func subscriberGetEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
 			timeout = longPollingMaxTimeout
 		}
 
-		max, err := strconv.ParseInt(ctx.DefaultQuery("max", "64"), 10, 0)
+		max, err := strconv.ParseInt(args.R.GetQueryParamOrDefault("max", "64"), 10, 0)
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "max", err)
+			utils.SendInvalidParameter(ctx, args.W, "max", err)
 			return
 		}
 
@@ -176,25 +175,25 @@ func subscriberGetEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
 					// Continue to normal flow
 				} else {
 					if errors.Is(err, domain.ErrInvalidChannel) {
-						utils.SendError(ctx, http.StatusForbidden, err.Error(), err)
+						utils.SendError(ctx, args.W, http.StatusForbidden, err.Error(), err)
 					} else if errors.Is(err, domain.ErrSubscriptionNotFound) {
 						// Channel / subscriber might be expired or intentionally deleted.
-						utils.SendError(ctx, http.StatusNotFound, err.Error(), err)
+						utils.SendError(ctx, args.W, http.StatusNotFound, err.Error(), err)
 					} else {
-						utils.SentInternalServerError(ctx, err)
+						utils.SendInternalServerError(ctx, args.W, err)
 					}
 					return
 				}
 			}
 
-			resultMsgs := make([]gin.H, 0, len(msgs))
+			resultMsgs := make([]interface{}, 0, len(msgs))
 			for _, msg := range msgs {
-				resultMsgs = append(resultMsgs, gin.H{
+				resultMsgs = append(resultMsgs, map[string]interface{}{
 					"messageID": msg.MessageID,
 					"content":   msg.Content,
 				})
 			}
-			result := gin.H{
+			result := map[string]interface{}{
 				"channelID":    channelID,
 				"messages":     resultMsgs,
 				"moreMessages": moreMsg,
@@ -202,34 +201,34 @@ func subscriberGetEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
 			if len(msgs) > 0 {
 				result["ackHandle"] = ackHandle.Handle
 			}
-			ctx.JSON(http.StatusOK, result)
+			utils.SendJSON(ctx, args.W, 200, result)
 		})
 	}
 }
 
-func subscriberMessageDeleteEndpoint(deps PollingEndpointDependency) gin.HandlerFunc {
+func subscriberMessageDeleteEndpoint(deps PollingEndpointDependency) router.Handler {
 	pubsub := deps.GetStorage().AsPubSubStorage()
-	return func(ctx *gin.Context) {
+	return func(ctx context.Context, args router.HandlerArgs) {
 		if pubsub == nil {
-			utils.SendPubSubUnsupportedError(ctx)
+			utils.SendPubSubUnsupportedError(ctx, args.W)
 			return
 		}
 
-		channelID, err := domain.ParseChannelID(ctx.Param("channelID"))
+		channelID, err := domain.ParseChannelID(args.PS.ByName("channelID"))
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "channelID", err)
+			utils.SendInvalidParameter(ctx, args.W, "channelID", err)
 			return
 		}
 
-		subscriberID, err := domain.ParseSubscriberID(ctx.Param("subscriberID"))
+		subscriberID, err := domain.ParseSubscriberID(args.PS.ByName("subscriberID"))
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "subscriberID", err)
+			utils.SendInvalidParameter(ctx, args.W, "subscriberID", err)
 			return
 		}
 
-		ackHandle := ctx.Query("ackHandle")
+		ackHandle := args.R.GetQueryParam("ackHandle")
 		if ackHandle == "" {
-			utils.SendMissingParameter(ctx, "ackHandle")
+			utils.SendMissingParameter(ctx, args.W, "ackHandle")
 			return
 		}
 
@@ -242,18 +241,18 @@ func subscriberMessageDeleteEndpoint(deps PollingEndpointDependency) gin.Handler
 		})
 		if err != nil {
 			if errors.Is(err, domain.ErrInvalidChannel) {
-				utils.SendError(ctx, http.StatusForbidden, err.Error(), err)
+				utils.SendError(ctx, args.W, http.StatusForbidden, err.Error(), err)
 			} else if errors.Is(err, domain.ErrMalformedAckHandle) {
-				utils.SendError(ctx, http.StatusBadRequest, err.Error(), err)
+				utils.SendError(ctx, args.W, http.StatusBadRequest, err.Error(), err)
 			} else if errors.Is(err, domain.ErrSubscriptionNotFound) {
 				// Belonging channel/subscriber could be expired/deleted.
-				utils.SendError(ctx, http.StatusNotFound, err.Error(), err)
+				utils.SendError(ctx, args.W, http.StatusNotFound, err.Error(), err)
 			} else {
-				utils.SentInternalServerError(ctx, err)
+				utils.SendInternalServerError(ctx, args.W, err)
 			}
 			return
 		}
 
-		ctx.Status(http.StatusNoContent)
+		utils.SendNoContent(ctx, args.W)
 	}
 }

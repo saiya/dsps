@@ -5,11 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/saiya/dsps/server/jwt"
-
-	"github.com/gin-gonic/gin"
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/http/router"
 	"github.com/saiya/dsps/server/http/utils"
+	"github.com/saiya/dsps/server/jwt"
 	"github.com/saiya/dsps/server/logger"
 )
 
@@ -20,16 +19,16 @@ type NormalAuthDependency interface {
 }
 
 // NewNormalAuth creates middleware for authentication
-func NewNormalAuth(mainCtx context.Context, deps NormalAuthDependency, channelOf func(*gin.Context) (domain.Channel, error)) gin.HandlerFunc {
+func NewNormalAuth(mainCtx context.Context, deps NormalAuthDependency, channelOf func(context.Context, router.MiddlewareArgs) (domain.Channel, error)) router.Middleware {
 	jwtStorage := deps.GetStorage().AsJwtStorage()
-	return func(ctx *gin.Context) {
-		channel, err := channelOf(ctx)
+	return func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context)) {
+		channel, err := channelOf(ctx, args)
 		if err != nil {
-			utils.SendInvalidParameter(ctx, "channelID", err)
+			utils.SendInvalidParameter(ctx, args.W, "channelID", err)
 			return
 		}
 
-		bearerToken := utils.GetBearerToken(ctx)
+		bearerToken := utils.GetBearerToken(ctx, args)
 		authErr := channel.ValidateJwt(ctx, bearerToken)
 		if authErr == nil && jwtStorage != nil {
 			// If bearerToken is not JWT, channel.ValidateJwt() rejects it if JWT validation configured.
@@ -46,17 +45,17 @@ func NewNormalAuth(mainCtx context.Context, deps NormalAuthDependency, channelOf
 		if authErr != nil {
 			logger.Of(ctx).Infof(logger.CatAuth, `JWT verification failure: %v`, authErr)
 
-			body := gin.H{
+			body := map[string]interface{}{
 				"code":  ErrAuthRejection.Code(),
 				"error": "Unauthorized",
 			}
 			if deps.DiscloseAuthRejectionDetail() {
 				body["reason"] = fmt.Sprintf("JWT verification failure: %v", authErr)
 			}
-			ctx.AbortWithStatusJSON(403, body)
+			utils.SendJSON(ctx, args.W, 403, body)
 			return
 		}
 
-		ctx.Next()
+		next(ctx)
 	}
 }

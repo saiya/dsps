@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/http/router"
+	"github.com/saiya/dsps/server/http/utils"
 )
 
 // ProbeEndpointDependency is to inject required objects to the endpoint
@@ -15,13 +15,13 @@ type ProbeEndpointDependency interface {
 }
 
 // InitProbeEndpoints registers endpoints
-func InitProbeEndpoints(router gin.IRoutes, deps ProbeEndpointDependency) {
-	router.GET("/probe/liveness", probeEndpointImpl(deps, func(ctx context.Context, storage domain.Storage) (interface{}, error) { return storage.Liveness(ctx) }))
-	router.GET("/probe/readiness", probeEndpointImpl(deps, func(ctx context.Context, storage domain.Storage) (interface{}, error) { return storage.Readiness(ctx) }))
+func InitProbeEndpoints(rt *router.Router, deps ProbeEndpointDependency) {
+	rt.GET("/probe/liveness", probeEndpointImpl(deps, func(ctx context.Context, storage domain.Storage) (interface{}, error) { return storage.Liveness(ctx) }))
+	rt.GET("/probe/readiness", probeEndpointImpl(deps, func(ctx context.Context, storage domain.Storage) (interface{}, error) { return storage.Readiness(ctx) }))
 }
 
-func probeEndpointImpl(deps ProbeEndpointDependency, storageHandler func(ctx context.Context, storage domain.Storage) (interface{}, error)) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
+func probeEndpointImpl(deps ProbeEndpointDependency, storageHandler func(ctx context.Context, storage domain.Storage) (interface{}, error)) router.Handler {
+	return func(ctx context.Context, args router.HandlerArgs) {
 		status := http.StatusOK
 
 		storage, storageErr := storageHandler(ctx, deps.GetStorage())
@@ -30,7 +30,7 @@ func probeEndpointImpl(deps ProbeEndpointDependency, storageHandler func(ctx con
 			storage = storageErr
 		}
 
-		ctx.JSON(status, gin.H{
+		utils.SendJSON(ctx, args.W, status, map[string]interface{}{
 			"storage": storage,
 		})
 	}

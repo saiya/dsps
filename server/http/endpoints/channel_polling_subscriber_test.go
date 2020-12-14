@@ -93,7 +93,7 @@ func TestPollingSubscriberPutFailure(t *testing.T) {
 
 		pubsub.EXPECT().NewSubscriber(gomock.Any(), sl).Return(errors.New("mock error"))
 		res = DoHTTPRequest(t, "PUT", fmt.Sprintf("%s/channel/%s/subscription/polling/%s", baseURL, sl.ChannelID, sl.SubscriberID), ``)
-		AssertErrorResponse(t, res, 500, nil, "")
+		AssertInternalServerErrorResponse(t, res)
 	})
 }
 
@@ -147,7 +147,7 @@ func TestPollingSubscriberDeleteFailure(t *testing.T) {
 
 		pubsub.EXPECT().RemoveSubscriber(gomock.Any(), sl).Return(errors.New("mock error"))
 		res = DoHTTPRequest(t, "DELETE", fmt.Sprintf("%s/channel/%s/subscription/polling/%s", baseURL, sl.ChannelID, sl.SubscriberID), ``)
-		AssertErrorResponse(t, res, 500, nil, "")
+		AssertInternalServerErrorResponse(t, res)
 	})
 }
 
@@ -316,7 +316,7 @@ func TestPollingSubscriberGetFailure(t *testing.T) {
 
 		pubsub.EXPECT().FetchMessages(gomock.Any(), sl, max, timeout).Return([]domain.Message{}, false, domain.AckHandle{}, errors.New("mock error"))
 		res = DoHTTPRequest(t, "GET", fmt.Sprintf("%s/channel/%s/subscription/polling/%s?timeout=%s&max=%d", baseURL, sl.ChannelID, sl.SubscriberID, timeout, max), ``)
-		AssertErrorResponse(t, res, 500, nil, "")
+		AssertInternalServerErrorResponse(t, res)
 	})
 }
 
@@ -396,6 +396,6 @@ func TestPollingSubscriberMessageDeleteFailure(t *testing.T) { // FIXME
 
 		pubsub.EXPECT().AcknowledgeMessages(gomock.Any(), ackHandle).Return(errors.New("mock error"))
 		res = DoHTTPRequest(t, "DELETE", fmt.Sprintf("%s/channel/%s/subscription/polling/%s/message?ackHandle=%s", baseURL, sl.ChannelID, sl.SubscriberID, ackHandle.Handle), ``)
-		AssertErrorResponse(t, res, 500, nil, "")
+		AssertInternalServerErrorResponse(t, res)
 	})
 }

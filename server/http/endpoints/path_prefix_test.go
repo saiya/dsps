@@ -18,9 +18,11 @@ func TestPathPrefix(t *testing.T) {
 		assert.Regexp(t, "/foo/bar$", baseURL)
 
 		res := DoHTTPRequest(t, "GET", baseURL+"/probe/liveness", "")
+		assert.NoError(t, res.Body.Close())
 		assert.Equal(t, 200, res.StatusCode)
 
 		res = DoHTTPRequest(t, "GET", baseURL+"/probe/readiness", "")
+		assert.NoError(t, res.Body.Close())
 		assert.Equal(t, 200, res.StatusCode)
 	})
 }

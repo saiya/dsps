@@ -14,9 +14,11 @@ import (
 func TestProbeSuccess(t *testing.T) {
 	WithServer(t, `logging: category: "*": FATAL`, func(deps *ServerDependencies) {}, func(deps *ServerDependencies, baseURL string) {
 		res := DoHTTPRequest(t, "GET", baseURL+"/probe/liveness", "")
+		assert.NoError(t, res.Body.Close())
 		assert.Equal(t, 200, res.StatusCode)
 
 		res = DoHTTPRequest(t, "GET", baseURL+"/probe/readiness", "")
+		assert.NoError(t, res.Body.Close())
 		assert.Equal(t, 200, res.StatusCode)
 	})
 }
@@ -31,10 +33,12 @@ func TestProbeFailure(t *testing.T) {
 	}, func(deps *ServerDependencies, baseURL string) {
 		storage.EXPECT().Liveness(gomock.Any()).Return(nil, errors.New("mock error"))
 		res := DoHTTPRequest(t, "GET", baseURL+"/probe/liveness", "")
-		assert.Equal(t, 500, res.StatusCode)
+		assert.NoError(t, res.Body.Close())
+		AssertInternalServerErrorResponse(t, res)
 
 		storage.EXPECT().Readiness(gomock.Any()).Return(nil, errors.New("mock error"))
 		res = DoHTTPRequest(t, "GET", baseURL+"/probe/readiness", "")
-		assert.Equal(t, 500, res.StatusCode)
+		assert.NoError(t, res.Body.Close())
+		AssertInternalServerErrorResponse(t, res)
 	})
 }
