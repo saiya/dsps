@@ -20,7 +20,12 @@ func ParseJwtExp(str string) (JwtExp, error) {
 
 // String method to implement Stringer
 func (exp JwtExp) String() string {
-	return strconv.FormatInt(time.Time(exp).Unix(), 10)
+	return strconv.FormatInt(exp.Int64(), 10)
+}
+
+// Int64 returns integer as same as "jwt" claim spec.
+func (exp JwtExp) Int64() int64 {
+	return time.Time(exp).Unix()
 }
 
 // Time returns time.Time instance equivalent to this

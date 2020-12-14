@@ -16,6 +16,7 @@ func InitEndpoints(mainCtx context.Context, router gin.IRouter, deps *ServerDepe
 	endpoints.InitProbeEndpoints(router, deps)
 
 	adminRouter := router.Group("/admin")
+	endpoints.InitAdminJwtEndpoints(adminRouter, deps)
 	endpoints.InitAdminLoggingEndpoints(adminRouter, deps)
 
 	channelRouter := router.Group(
