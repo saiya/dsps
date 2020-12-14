@@ -37,8 +37,8 @@ func CreateServer(mainContext context.Context, deps *ServerDependencies) http.Ha
 		},
 		r,
 		deps.Config.HTTPServer.PathPrefix,
-		// TODO: Add middleware for more security headers (such as strict transport)
 		middleware.LoggingMiddleware(),
+		middleware.DefaultHeadersMiddleware(deps),
 	)
 	InitEndpoints(mainContext, rt, deps)
 	return r
