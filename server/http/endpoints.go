@@ -15,7 +15,7 @@ import (
 func InitEndpoints(mainCtx context.Context, router gin.IRouter, deps *ServerDependencies) {
 	endpoints.InitProbeEndpoints(router, deps)
 
-	adminRouter := router.Group("/admin")
+	adminRouter := router.Group("/admin", middleware.NewAdminAuth(mainCtx, deps))
 	endpoints.InitAdminJwtEndpoints(adminRouter, deps)
 	endpoints.InitAdminLoggingEndpoints(adminRouter, deps)
 
