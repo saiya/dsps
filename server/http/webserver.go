@@ -62,7 +62,7 @@ func runServer(mainContext context.Context, config *config.ServerConfig, engine 
 			}
 		}
 	}()
-	logger.Of(mainContext).Infof("HTTP server running on %s", addr)
+	logger.Of(mainContext).Infof(logger.CatServer, "HTTP server (version %s %s) running on %s", config.BuildInfo.BuildVersion, config.BuildInfo.BuildAt, addr)
 
 	quit := make(chan os.Signal, 1)
 	// kill (no param) default send syscall.SIGTERM
