@@ -1,12 +1,51 @@
 package config_test
 
 import (
+	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/saiya/dsps/server/config"
+	"github.com/saiya/dsps/server/domain"
 )
+
+func TestHttpServerDefaultValues(t *testing.T) {
+	config, err := ParseConfig(context.Background(), Overrides{}, ``)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	cfg := *config.HTTPServer
+	assert.Equal(t, "", cfg.RealIPHeader)
+	assert.Equal(t, len(domain.PrivateCIDRs), len(cfg.TrustedProxyRanges))
+	assert.Equal(t, domain.PrivateCIDRs[0].String(), cfg.TrustedProxyRanges[0].String())
+	assert.Equal(t, `deny`, cfg.DefaultHeaders["X-Frame-Options"])
+}
+
+func TestHttpServerNonDefaultValues(t *testing.T) {
+	configYaml := strings.ReplaceAll(`
+http:
+	realIpHeader: X-Forwarded-For
+	trustedProxyRanges:
+		- 1.2.3.4/16
+	defaultHeaders:
+		X-Frame-Options:
+`, "\t", "  ")
+	config, err := ParseConfig(context.Background(), Overrides{}, configYaml)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	cfg := *config.HTTPServer
+	assert.Equal(t, "X-Forwarded-For", cfg.RealIPHeader)
+	assert.Equal(t, 1, len(cfg.TrustedProxyRanges))
+	assert.Equal(t, "1.2.3.4/16", cfg.TrustedProxyRanges[0].String())
+	assert.Equal(t, ``, cfg.DefaultHeaders["X-Frame-Options"])
+}
 
 func TestHttpServerConfigOverride(t *testing.T) {
 	cfg := HTTPServerConfig{}

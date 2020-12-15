@@ -18,7 +18,7 @@ By default, server accepts admin API call from private IP addresses with randoml
 
 To configure it, see [`admin` configuration block](./config.md#admin).
 
-Also if you run this server behind LoadBalancer, be sure to set [`http.ipheader` configuration item](./config.md#ipheader) if your LoadBalancer changes source IP of the packets.
+Also if you run this server behind LoadBalancer, be sure to set [`http.realIpHeader`  and `http.trustedProxyRanges` configuration item](./config.md#ipheader) if your LoadBalancer changes source IP of the packets.
 Otherwise server could not check client's IP address due to LoadBalancer.
 
 ## Secure outgoing Webhook

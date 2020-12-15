@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -23,7 +24,7 @@ channels:
 			RS256:
 				- "../jwt/testdata/RS256-2048bit-public.pem"
 `, "\t", "  ")
-	config, err := ParseConfig(Overrides{}, configYaml)
+	config, err := ParseConfig(context.Background(), Overrides{}, configYaml)
 	if err != nil {
 		t.Error(err)
 		return
@@ -53,7 +54,7 @@ channels:
 		claims:
 			chatroom: '{{.regex.id}}'
 `, "\t", "  ")
-	config, err := ParseConfig(Overrides{}, configYaml)
+	config, err := ParseConfig(context.Background(), Overrides{}, configYaml)
 	if err != nil {
 		t.Error(err)
 		return
@@ -70,18 +71,18 @@ channels:
 }
 
 func TestJwtConfigError(t *testing.T) {
-	_, err := ParseConfig(Overrides{}, `channels: [ { regex: '.+', jwt: { keys: { none: [] } } } ]`)
+	_, err := ParseConfig(context.Background(), Overrides{}, `channels: [ { regex: '.+', jwt: { keys: { none: [] } } } ]`)
 	assert.Regexp(t, `must supply one or more "iss" \(issuer claim\) list`, err.Error())
 
-	_, err = ParseConfig(Overrides{}, `channels: [ { regex: '.+', jwt: { iss: [ "issuer1" ] } } ]`)
+	_, err = ParseConfig(context.Background(), Overrides{}, `channels: [ { regex: '.+', jwt: { iss: [ "issuer1" ] } } ]`)
 	assert.Regexp(t, `must supply one or more "keys" \(signing algorithm and keys\) setting`, err.Error())
 
-	_, err = ParseConfig(Overrides{}, `channels: [ { regex: '.+', jwt: { iss: [ "issuer1" ], keys: { INVALID: [ "../jwt/testdata/RS256-2048bit-public.pem" ] } } } ]`)
+	_, err = ParseConfig(context.Background(), Overrides{}, `channels: [ { regex: '.+', jwt: { iss: [ "issuer1" ], keys: { INVALID: [ "../jwt/testdata/RS256-2048bit-public.pem" ] } } } ]`)
 	assert.Regexp(t, `invalid signing algorithm name given "INVALID"`, err.Error())
 
-	_, err = ParseConfig(Overrides{}, `channels: [ { regex: '.+', jwt: { iss: [ "issuer1" ], keys: { RS256: [] } } } ]`)
+	_, err = ParseConfig(context.Background(), Overrides{}, `channels: [ { regex: '.+', jwt: { iss: [ "issuer1" ], keys: { RS256: [] } } } ]`)
 	assert.Regexp(t, `must supply one or more key file\(s\) to validate JWT signature for alg=RS256`, err.Error())
 
-	_, err = ParseConfig(Overrides{}, `channels: [ { regex: '.+', jwt: { iss: [ "issuer1" ], keys: { RS256: [ "/file/not/found" ] } } } ]`)
+	_, err = ParseConfig(context.Background(), Overrides{}, `channels: [ { regex: '.+', jwt: { iss: [ "issuer1" ], keys: { RS256: [ "/file/not/found" ] } } } ]`)
 	assert.Regexp(t, `failed to read JWT key file "/file/not/found"`, err.Error())
 }

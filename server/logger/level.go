@@ -22,20 +22,29 @@ const (
 	FATAL
 )
 
+func (level Level) String() string {
+	switch level {
+	case DEBUG:
+		return "DEBUG"
+	case INFO:
+		return "INFO"
+	case WARN:
+		return "WARN"
+	case ERROR:
+		return "ERROR"
+	case FATAL:
+		return "FATAL"
+	}
+	return fmt.Sprintf("logger.Level(%d)", level)
+}
+
 // ParseLevel parses log level string
 func ParseLevel(str string) (Level, error) {
-	switch strings.ToUpper(str) {
-	case "DEBUG":
-		return DEBUG, nil
-	case "INFO":
-		return INFO, nil
-	case "WARN":
-		return WARN, nil
-	case "ERROR":
-		return ERROR, nil
-	case "FATAL":
-		return FATAL, nil
-	default:
-		return DEBUG, fmt.Errorf(`invalid log level string given: "%s"`, str)
+	given := strings.ToUpper(str)
+	for i := 0; i <= int(FATAL); i++ {
+		if given == Level(i).String() {
+			return Level(i), nil
+		}
 	}
+	return DEBUG, fmt.Errorf(`invalid log level string given: "%s"`, str)
 }

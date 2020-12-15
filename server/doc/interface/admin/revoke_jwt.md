@@ -17,15 +17,16 @@ This API success even if specified JWT has already been revoked.
 
 ### `jti` parameter (required, string)
 
-This value must be exactly equal to [`jti` (JWT ID) claim](https://tools.ietf.org/html/rfc7519#section-4.1.7) of the JWT you want to revoke.
+String exactly equal to the value of [`jti` (JWT ID) claim](https://tools.ietf.org/html/rfc7519#section-4.1.7) identifies the JWT you want to revoke.
 
 ### `exp` parameter (required, integer)
 
-This value must be equal to or larger than [`exp` (expiration time) claim](https://tools.ietf.org/html/rfc7519#section-4.1.4) of the JWT you want to revoke.
+Expiration of the deny list entry added by this API call.
+To prevent bloat of storage, [storages](../../storage) may forget expired revocation records after this period passes.
 
-Value of the `exp` claim is number of seconds from 1970-01-01T00:00:00Z UTC without leap seconds.
+This value should be equal to or larger than [`exp` (expiration time) claim](https://tools.ietf.org/html/rfc7519#section-4.1.4) of the JWT you want to revoke.
 
-Note: to prevent bloat of storage, [storage implementation](../../storage) may automatically delete expired revocation records from revocation list.
+Format of this parameter is exactly same as `exp` claim of JWT, number of seconds from `1970-01-01T00:00:00Z` without leap seconds.
 
 ### Request body
 
@@ -39,15 +40,15 @@ Example:
 
 ```json
 {
-  "exp": 1300819380,
-  "jti": "id-of-the-JWT-to-revoke"
+  "jti": "id-of-the-JWT-to-revoke",
+  "exp": 1300819380
 }
 ```
 
-### `exp` (integer, always returned)
+### `jti` (string, always returned)
 
 This is exactly same value you specified.
 
-### `jti` (string, always returned)
+### `exp` (integer, always returned)
 
 This is exactly same value you specified.

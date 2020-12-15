@@ -12,7 +12,7 @@ import (
 )
 
 func TestProvider(t *testing.T) {
-	cfg, err := config.ParseConfig(config.Overrides{}, `channels: [ { regex: "test.+", expire: "1s" } ]`)
+	cfg, err := config.ParseConfig(context.Background(), config.Overrides{}, `channels: [ { regex: "test.+", expire: "1s" } ]`)
 	assert.NoError(t, err)
 	clock := dspstesting.NewStubClock(t)
 	cp, err := NewChannelProvider(context.Background(), &cfg, clock)

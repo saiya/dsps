@@ -12,7 +12,8 @@ type HTTPServerConfig struct {
 	Port                        int               `json:"port" validate:"min=0,max=65535"`
 	Listen                      string            `json:"listen"`
 	PathPrefix                  string            `json:"pathPrefix"`
-	SourceIPHeader              string            `json:"sourceIpHeader"`
+	RealIPHeader                string            `json:"realIpHeader"`
+	TrustedProxyRanges          []domain.CIDR     `json:"trustedProxyRanges"`
 	DiscloseAuthRejectionDetail bool              `json:"discloseAuthRejectionDetail"`
 	DefaultHeaders              map[string]string `json:"defaultHeaders"`
 
@@ -20,14 +21,16 @@ type HTTPServerConfig struct {
 	GracefulShutdownTimeout domain.Duration `json:"gracefulShutdownTimeout"`
 }
 
-var httpServerConfigDefault = HTTPServerConfig{
-	Port:                        3000,
-	Listen:                      "",
-	SourceIPHeader:              "",
-	DiscloseAuthRejectionDetail: false,
+func httpServerConfigDefault() *HTTPServerConfig {
+	return &HTTPServerConfig{
+		Port:                        3000,
+		Listen:                      "",
+		RealIPHeader:                "",
+		DiscloseAuthRejectionDetail: false,
 
-	LongPollingMaxTimeout:   makeDuration("30s"),
-	GracefulShutdownTimeout: makeDuration("5s"),
+		LongPollingMaxTimeout:   makeDuration("30s"),
+		GracefulShutdownTimeout: makeDuration("5s"),
+	}
 }
 
 var defaultHeaders = map[string]string{
@@ -48,6 +51,11 @@ func PostprocessHTTPServerConfig(config *HTTPServerConfig, overrides Overrides) 
 	}
 	if overrides.Listen != "" {
 		config.Listen = overrides.Listen
+	}
+
+	if len(config.TrustedProxyRanges) == 0 {
+		config.TrustedProxyRanges = make([]domain.CIDR, len(domain.PrivateCIDRs))
+		copy(config.TrustedProxyRanges, domain.PrivateCIDRs)
 	}
 
 	if config.DefaultHeaders == nil {

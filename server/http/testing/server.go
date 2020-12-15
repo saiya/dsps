@@ -19,12 +19,13 @@ import (
 
 // WithServerDeps runs given test function with ServerDependencies
 func WithServerDeps(t *testing.T, configYaml string, f func(*http.ServerDependencies)) {
-	cfg, err := config.ParseConfig(config.Overrides{}, strings.ReplaceAll(configYaml, "\t", "  "))
+	cfg, err := config.ParseConfig(context.Background(), config.Overrides{}, strings.ReplaceAll(configYaml, "\t", "  "))
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	assert.NoError(t, logger.InitLogger(cfg.Logging))
+	logFilter, err := logger.InitLogger(cfg.Logging)
+	assert.NoError(t, err)
 
 	ctx := context.Background()
 	clock := domain.RealSystemClock
@@ -39,7 +40,9 @@ func WithServerDeps(t *testing.T, configYaml string, f func(*http.ServerDependen
 		Config:          &cfg,
 		ChannelProvider: channelProvider,
 		Storage:         storage,
-		ServerClose:     serverClose,
+
+		LogFilter:   logFilter,
+		ServerClose: serverClose,
 	})
 }
 

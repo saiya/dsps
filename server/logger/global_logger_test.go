@@ -15,20 +15,22 @@ func TestInitLogger(t *testing.T) {
 	initImpl() // Ensure default
 	assert.False(t, rootLogger.filter.Filter(DEBUG, CatAuth))
 
-	assert.NoError(t, InitLogger(&config.LoggingConfig{
+	_, err := InitLogger(&config.LoggingConfig{
 		Category: map[string]string{
 			CatAuth: "DEBUG",
 		},
 		Attributes: map[string]string{
 			"tag1": "value 1",
 		},
-	}))
+	})
+	assert.NoError(t, err)
 	assert.NotNil(t, rootLogger)
 	assert.True(t, rootLogger.filter.Filter(DEBUG, CatAuth))
 
-	assert.Regexp(t, `invalid log level string given: "INVALID-LEVEL"`, InitLogger(&config.LoggingConfig{
+	_, err = InitLogger(&config.LoggingConfig{
 		Category: map[string]string{
 			CatAuth: "INVALID-LEVEL",
 		},
-	}).Error())
+	})
+	assert.Regexp(t, `invalid log level string given: "INVALID-LEVEL"`, err.Error())
 }

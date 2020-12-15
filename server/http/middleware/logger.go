@@ -11,7 +11,7 @@ import (
 )
 
 // LoggingMiddleware is middleware for logging
-func LoggingMiddleware() router.Middleware {
+func LoggingMiddleware(realIPDeps RealIPDependency) router.Middleware {
 	return func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context)) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -22,7 +22,7 @@ func LoggingMiddleware() router.Middleware {
 		ctx = logger.WithAttributes(ctx).
 			WithStr("method", args.R.Method).
 			WithStr("path", args.R.URL.Path).
-			WithStr("ip", GetClientIP(ctx)).
+			WithStr("ip", GetRealIP(realIPDeps, args.R)).
 			WithStr("ua", args.R.UserAgent()).
 			WithStr("referer", args.R.Referer()).
 			WithInt64("reqLength", args.R.ContentLength).

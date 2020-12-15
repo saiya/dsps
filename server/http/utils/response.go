@@ -78,3 +78,8 @@ func SendInvalidParameter(ctx context.Context, w http.ResponseWriter, name strin
 func SendPubSubUnsupportedError(ctx context.Context, w http.ResponseWriter) {
 	SendError(ctx, w, http.StatusNotImplemented, "No PubSub compatible storage available.", nil)
 }
+
+// SendJwtUnsupportedError send 501
+func SendJwtUnsupportedError(ctx context.Context, w http.ResponseWriter) {
+	SendError(ctx, w, http.StatusNotImplemented, "No JWT compatible storage available.", nil)
+}

@@ -37,11 +37,11 @@ func CreateServer(mainContext context.Context, deps *ServerDependencies) http.Ha
 		},
 		r,
 		deps.Config.HTTPServer.PathPrefix,
-		middleware.LoggingMiddleware(),
+		middleware.LoggingMiddleware(deps),
 		middleware.DefaultHeadersMiddleware(deps),
 	)
 	InitEndpoints(mainContext, rt, deps)
-	return r
+	return middleware.RealIPMiddleware(deps, r)
 }
 
 func runServer(mainContext context.Context, config *config.ServerConfig, engine http.Handler, serverClose httplifecycle.ServerClose) {

@@ -6,8 +6,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// Due to gin.Context, cannot use non-string (unique) key.
-const loggerContextKey = "github.com/saiya/dsps/server/logger"
+type loggerContextKeyType int
+
+const loggerContextKey = loggerContextKeyType(1)
 
 // Of returns or creates Logger instance associated to the context.
 func Of(ctx context.Context) Logger {

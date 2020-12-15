@@ -14,7 +14,11 @@ import (
 func InitEndpoints(mainCtx context.Context, rt *router.Router, deps *ServerDependencies) {
 	endpoints.InitProbeEndpoints(rt, deps)
 
-	channel := rt.NewGroup(
+	adminRouter := rt.NewGroup("/admin", middleware.NewAdminAuth(mainCtx, deps))
+	endpoints.InitAdminJwtEndpoints(adminRouter, deps)
+	endpoints.InitAdminLoggingEndpoints(adminRouter, deps)
+
+	channelRouter := rt.NewGroup(
 		"/channel/:channelID",
 		func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context)) {
 			next(logger.WithAttributes(ctx).WithStr("channelID", args.PS.ByName("channelID")).Build())
@@ -27,6 +31,6 @@ func InitEndpoints(mainCtx context.Context, rt *router.Router, deps *ServerDepen
 			return deps.ChannelProvider(id)
 		}),
 	)
-	endpoints.InitPublishEndpoints(channel, deps)
-	endpoints.InitSubscriptionPollingEndpoints(channel, deps)
+	endpoints.InitPublishEndpoints(channelRouter, deps)
+	endpoints.InitSubscriptionPollingEndpoints(channelRouter, deps)
 }
