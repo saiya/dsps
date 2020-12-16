@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/saiya/dsps/server/channel"
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/domain/channel"
 	"github.com/saiya/dsps/server/http"
 	httplifecycle "github.com/saiya/dsps/server/http/lifecycle"
 	"github.com/saiya/dsps/server/logger"
