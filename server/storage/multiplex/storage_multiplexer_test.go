@@ -244,16 +244,16 @@ func TestInsufficientStorages(t *testing.T) {
 	assert.Nil(t, multiWithoutJwt.AsJwtStorage())
 }
 
-func TestGetNoFilePressure(t *testing.T) {
+func TestGetFileDescriptorPressure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mock1 := NewMockStorage(ctrl)
-	mock1.EXPECT().GetNoFilePressure().Return(21)
+	mock1.EXPECT().GetFileDescriptorPressure().Return(21)
 	mock1.EXPECT().AsPubSubStorage().Return(nil).AnyTimes()
 	mock1.EXPECT().AsJwtStorage().Return(nil).AnyTimes()
 	mock2 := NewMockStorage(ctrl)
-	mock2.EXPECT().GetNoFilePressure().Return(300)
+	mock2.EXPECT().GetFileDescriptorPressure().Return(300)
 	mock2.EXPECT().AsPubSubStorage().Return(nil).AnyTimes()
 	mock2.EXPECT().AsJwtStorage().Return(nil).AnyTimes()
 
@@ -262,5 +262,5 @@ func TestGetNoFilePressure(t *testing.T) {
 		"mock2": mock2,
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, 321, s.GetNoFilePressure())
+	assert.Equal(t, 321, s.GetFileDescriptorPressure())
 }

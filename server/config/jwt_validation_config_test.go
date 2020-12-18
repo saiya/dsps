@@ -52,7 +52,7 @@ channels:
 			RS256:
 				- "../jwt/testdata/RS256-2048bit-public.pem"
 		claims:
-			chatroom: '{{.regex.id}}'
+			chatroom: '{{.channel.id}}'
 `, "\t", "  ")
 	config, err := ParseConfig(context.Background(), Overrides{}, configYaml)
 	if err != nil {
@@ -67,7 +67,7 @@ channels:
 	assert.Equal(t, []domain.JwtIss{domain.JwtIss("https://issuer.example.com/issuer-url")}, jwt.Iss)
 	assert.Equal(t, []string{}, jwt.Keys["none"])
 	assert.Equal(t, []string{"../jwt/testdata/RS256-2048bit-public.pem"}, jwt.Keys["RS256"])
-	assert.Equal(t, "{{.regex.id}}", jwt.Claims["chatroom"].String())
+	assert.Equal(t, "{{.channel.id}}", jwt.Claims["chatroom"].String())
 }
 
 func TestJwtConfigError(t *testing.T) {

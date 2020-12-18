@@ -78,10 +78,10 @@ func (s *storageMultiplexer) Shutdown(ctx context.Context) error {
 	return g.Wait()
 }
 
-func (s *storageMultiplexer) GetNoFilePressure() int {
+func (s *storageMultiplexer) GetFileDescriptorPressure() int {
 	result := 0
 	for _, c := range s.children {
-		result += c.GetNoFilePressure()
+		result += c.GetFileDescriptorPressure()
 	}
 	return result
 }

@@ -13,48 +13,58 @@ const cachedChannelCleanupFactor = 2
 const cachedChannelNegativeCacheExpire = 5 * time.Minute
 
 func newCachedChannelProvider(inner domain.ChannelProvider, clock domain.SystemClock) domain.ChannelProvider {
-	cache := &cachedChannels{
-		clock: clock,
-		lock:  sync.Mutex{},
-		m:     make(map[domain.ChannelID]*cachedChannelEntry, 1024),
-		age:   0,
-	}
-	return func(id domain.ChannelID) (domain.Channel, error) {
-		cache.lock.Lock()
-		defer cache.lock.Unlock()
+	return &cachedChannels{
+		inner:      inner,
+		clock:      clock,
+		fdPressure: inner.GetFileDescriptorPressure(),
 
-		if ent, ok := cache.m[id]; ok {
-			ent.extend(clock)
-			if ent.channel == nil {
-				return nil, domain.ErrInvalidChannel
-			}
-			return ent.channel, nil
-		}
-
-		cache.cleanup()
-		cache.age++
-
-		c, err := inner(id)
-		if err != nil && !errors.Is(err, domain.ErrInvalidChannel) {
-			return nil, xerrors.Errorf(`channel configuration error on "%s": %w`, id, err)
-		}
-		ent := &cachedChannelEntry{channel: c}
-		ent.extend(clock)
-		cache.m[id] = ent
-		if c == nil {
-			return nil, domain.ErrInvalidChannel
-		}
-		return c, nil
+		lock: sync.Mutex{},
+		m:    make(map[domain.ChannelID]*cachedChannelEntry, 1024),
+		age:  0,
 	}
 }
 
 type cachedChannels struct {
-	clock domain.SystemClock
+	inner      domain.ChannelProvider
+	clock      domain.SystemClock
+	fdPressure int
 
 	// Writer lock blocks all further Rlocks, but reader won't take lock so long time in this usecase.
 	lock sync.Mutex
 	m    map[domain.ChannelID]*cachedChannelEntry
 	age  uint64
+}
+
+func (cache *cachedChannels) GetFileDescriptorPressure() int {
+	return cache.fdPressure
+}
+
+func (cache *cachedChannels) Get(id domain.ChannelID) (domain.Channel, error) {
+	cache.lock.Lock()
+	defer cache.lock.Unlock()
+
+	if ent, ok := cache.m[id]; ok {
+		ent.extend(cache.clock)
+		if ent.channel == nil {
+			return nil, domain.ErrInvalidChannel
+		}
+		return ent.channel, nil
+	}
+
+	cache.cleanup()
+	cache.age++
+
+	c, err := cache.inner.Get(id)
+	if err != nil && !errors.Is(err, domain.ErrInvalidChannel) {
+		return nil, xerrors.Errorf(`channel configuration error on "%s": %w`, id, err)
+	}
+	ent := &cachedChannelEntry{channel: c}
+	ent.extend(cache.clock)
+	cache.m[id] = ent
+	if c == nil {
+		return nil, domain.ErrInvalidChannel
+	}
+	return c, nil
 }
 
 type cachedChannelEntry struct {

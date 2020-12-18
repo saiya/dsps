@@ -66,6 +66,6 @@ func (s *redisStorage) Shutdown(ctx context.Context) error {
 	return s.redisConnection.close()
 }
 
-func (s *redisStorage) GetNoFilePressure() int {
+func (s *redisStorage) GetFileDescriptorPressure() int {
 	return s.maxConnections
 }

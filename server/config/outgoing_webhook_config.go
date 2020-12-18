@@ -2,17 +2,26 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/saiya/dsps/server/domain"
 )
 
 // OutgoingWebhookConfig is webhook configuration of a channel
 type OutgoingWebhookConfig struct {
+	Method     string                           `json:"method"`
 	URL        *domain.TemplateString           `json:"url"`
 	Timeout    *domain.Duration                 `json:"timeout"`
 	Connection OutgoingWebhookConnectionConfig  `json:"connection"`
 	Retry      OutgoingWebhookRetryConfig       `json:"retry"`
 	Headers    map[string]domain.TemplateString `json:"headers"`
+
+	MaxRedirects *int `json:"maxRedirects"`
+}
+
+var validWebhookMethods = map[string]interface{}{
+	"PUT":  struct{}{},
+	"POST": struct{}{},
 }
 
 // OutgoingWebhookConnectionConfig is HTTP/TCP connection config
@@ -30,6 +39,7 @@ type OutgoingWebhookRetryConfig struct {
 }
 
 var outgoingWebhookConfigDefaults = OutgoingWebhookConfig{
+	Method:  "PUT",
 	Timeout: makeDurationPtr("30s"),
 	Connection: OutgoingWebhookConnectionConfig{
 		Max:         makeIntPtr(1024),
@@ -41,14 +51,22 @@ var outgoingWebhookConfigDefaults = OutgoingWebhookConfig{
 		IntervalMultiplier: makeFloat64Ptr(1.5),
 		IntervalJitter:     makeDurationPtr("1s500ms"),
 	},
+	MaxRedirects: makeIntPtr(10),
 }
 
 func postprocessWebhookConfig(webhook *OutgoingWebhookConfig) error {
+	if webhook.Method == "" {
+		webhook.Method = outgoingWebhookConfigDefaults.Method
+	}
+	webhook.Method = strings.ToUpper(webhook.Method)
 	if webhook.Timeout == nil {
 		webhook.Timeout = outgoingWebhookConfigDefaults.Timeout
 	}
 	if webhook.Headers == nil {
 		webhook.Headers = make(map[string]domain.TemplateString)
+	}
+	if webhook.MaxRedirects == nil {
+		webhook.MaxRedirects = outgoingWebhookConfigDefaults.MaxRedirects
 	}
 
 	if err := postprocessWebhookRetryConfig(webhook); err != nil {
@@ -58,8 +76,14 @@ func postprocessWebhookConfig(webhook *OutgoingWebhookConfig) error {
 		return err
 	}
 
+	if _, ok := validWebhookMethods[webhook.Method]; !ok {
+		return fmt.Errorf(`"%s" is not valid outgoing-webhook HTTP method`, webhook.Method)
+	}
 	if err := durationMustBeLargerThanZero("timeout", *webhook.Timeout); err != nil {
 		return err
+	}
+	if *webhook.MaxRedirects < 0 {
+		return fmt.Errorf("maxRedirects must not be negative: %d", *webhook.MaxRedirects)
 	}
 	return nil
 }

@@ -36,7 +36,7 @@ channels:
 func TestNormalAuthFilter(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
-			return deps.ChannelProvider("auth-test-channel")
+			return deps.ChannelProvider.Get("auth-test-channel")
 		})
 
 		rec := httptest.NewRecorder()
@@ -126,7 +126,7 @@ func TestNormalAuthFilterPassThrough(t *testing.T) {
 func TestNormalAuthInvalidChannel(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
-			return deps.ChannelProvider("INVALID-channel") // Invalid channel ID
+			return deps.ChannelProvider.Get("INVALID-channel") // Invalid channel ID
 		})
 
 		rec := httptest.NewRecorder()
@@ -142,7 +142,7 @@ func TestNormalAuthInvalidChannel(t *testing.T) {
 func TestNormalAuthMissingHeader(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT+`http: discloseAuthRejectionDetail: true`, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
-			return deps.ChannelProvider("auth-test-channel")
+			return deps.ChannelProvider.Get("auth-test-channel")
 		})
 
 		rec := httptest.NewRecorder()
@@ -158,7 +158,7 @@ func TestNormalAuthMissingHeader(t *testing.T) {
 func TestNormalAuthRejection(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
-			return deps.ChannelProvider("auth-test-channel")
+			return deps.ChannelProvider.Get("auth-test-channel")
 		})
 
 		rec := httptest.NewRecorder()
@@ -175,7 +175,7 @@ func TestNormalAuthRejection(t *testing.T) {
 func TestNormalAuthRejectionWithDetail(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT+`http: discloseAuthRejectionDetail: true`, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
-			return deps.ChannelProvider("auth-test-channel")
+			return deps.ChannelProvider.Get("auth-test-channel")
 		})
 
 		rec := httptest.NewRecorder()

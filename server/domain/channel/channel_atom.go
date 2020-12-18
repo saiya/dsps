@@ -9,6 +9,7 @@ import (
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
 	jwtv "github.com/saiya/dsps/server/jwt/validator"
+	"github.com/saiya/dsps/server/webhook/outgoing"
 )
 
 // channelAtom is an Channel implementation corresponds to a ChannelConfiguration
@@ -16,7 +17,8 @@ type channelAtom struct {
 	// ChannelConfig that this object corresponds to.
 	config *config.ChannelConfig
 
-	JwtValidatorTemplate jwtv.Template
+	JwtValidatorTemplate     jwtv.Template
+	OutgoingWebHookTemplates []outgoing.ClientTemplate
 }
 
 func newChannelAtom(ctx context.Context, config *config.ChannelConfig, clock domain.SystemClock, validate bool) (*channelAtom, error) {
@@ -37,11 +39,28 @@ func newChannelAtom(ctx context.Context, config *config.ChannelConfig, clock dom
 		atom.JwtValidatorTemplate = jvt
 	}
 
+	atom.OutgoingWebHookTemplates = make([]outgoing.ClientTemplate, 0, len(config.Webhooks))
+	for i := range config.Webhooks {
+		tpl, err := outgoing.NewClientTemplate(ctx, &config.Webhooks[i])
+		if err != nil {
+			return nil, err
+		}
+		atom.OutgoingWebHookTemplates = append(atom.OutgoingWebHookTemplates, tpl)
+	}
+
 	return atom, nil
 }
 
 func (c *channelAtom) String() string {
 	return c.config.Regex.String()
+}
+
+func (c *channelAtom) GetFileDescriptorPressure() int {
+	result := 0
+	for _, webhook := range c.OutgoingWebHookTemplates {
+		result += webhook.GetFileDescriptorPressure()
+	}
+	return result
 }
 
 func (c *channelAtom) validate() error {
@@ -80,7 +99,7 @@ func (c *channelAtom) TemplateEnvironmentOf(id domain.ChannelID) domain.Template
 		return nil
 	}
 	return map[string]interface{}{
-		"regex": matches,
+		"channel": matches,
 	}
 }
 
@@ -90,7 +109,7 @@ func (c *channelAtom) dummyTemplateEnvironment() domain.TemplateStringEnv {
 		dummyRegexMatches[name] = "dummy"
 	}
 	return map[string]interface{}{
-		"regex": dummyRegexMatches,
+		"channel": dummyRegexMatches,
 	}
 }
 

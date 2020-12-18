@@ -71,7 +71,7 @@ func (s *onmemoryStorage) RemoveSubscriber(ctx context.Context, sl domain.Subscr
 func (s *onmemoryStorage) getChannel(id domain.ChannelID) (*onmemoryChannel, error) {
 	ch := s.channels[id]
 	if ch == nil {
-		rawCh, err := s.channelProvider(id)
+		rawCh, err := s.channelProvider.Get(id)
 		if err != nil {
 			return nil, err
 		}

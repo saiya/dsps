@@ -91,6 +91,6 @@ func (s *onmemoryStorage) AsJwtStorage() domain.JwtStorage {
 	return s
 }
 
-func (s *onmemoryStorage) GetNoFilePressure() int {
+func (s *onmemoryStorage) GetFileDescriptorPressure() int {
 	return 0
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/saiya/dsps/server/domain"
 	jwtv "github.com/saiya/dsps/server/jwt/validator"
+	"github.com/saiya/dsps/server/webhook/outgoing"
 	"golang.org/x/xerrors"
 )
 
@@ -13,8 +14,9 @@ type channelImpl struct {
 	id    domain.ChannelID
 	atoms []*channelAtom
 
-	expire        domain.Duration
-	jwtValidators []jwtv.Validator
+	expire          domain.Duration
+	jwtValidators   []jwtv.Validator
+	outgoingWebhook outgoing.Client
 }
 
 func (c *channelImpl) Expire() domain.Duration {
@@ -22,12 +24,19 @@ func (c *channelImpl) Expire() domain.Duration {
 }
 
 func newChannelImpl(id domain.ChannelID, atoms []*channelAtom) (*channelImpl, error) {
+	expire := domain.Duration{Duration: 0}
 	jwtValidators := make([]jwtv.Validator, 0, len(atoms))
+	outgoingWebhooks := make([]outgoing.Client, 0, len(atoms)*2)
 	for _, atom := range atoms {
 		tplEnv := atom.TemplateEnvironmentOf(id)
 		if tplEnv == nil {
 			return nil, fmt.Errorf(`failed to evaluate channel configuration /%s/ to channel "%s"`, atom.String(), id)
 		}
+
+		if expire.Duration < atom.Expire().Duration {
+			expire = atom.Expire()
+		}
+
 		if atom.JwtValidatorTemplate != nil {
 			jv, err := atom.JwtValidatorTemplate.NewValidator(tplEnv)
 			if err != nil {
@@ -35,21 +44,23 @@ func newChannelImpl(id domain.ChannelID, atoms []*channelAtom) (*channelImpl, er
 			}
 			jwtValidators = append(jwtValidators, jv)
 		}
-	}
 
-	c := &channelImpl{
+		for _, tpl := range atom.OutgoingWebHookTemplates {
+			client, err := tpl.NewClient(tplEnv)
+			if err != nil {
+				return nil, xerrors.Errorf(`failed to setup outgoing webhook of channel "%s": %w`, id, err)
+			}
+			outgoingWebhooks = append(outgoingWebhooks, client)
+		}
+	}
+	return &channelImpl{
 		id:    id,
 		atoms: atoms,
 
-		expire:        atoms[0].Expire(),
-		jwtValidators: jwtValidators,
-	}
-	for _, atom := range atoms {
-		if c.expire.Duration < atom.Expire().Duration {
-			c.expire = atom.Expire()
-		}
-	}
-	return c, nil
+		expire:          expire,
+		jwtValidators:   jwtValidators,
+		outgoingWebhook: outgoing.NewMultiplexClient(outgoingWebhooks),
+	}, nil
 }
 
 func (c *channelImpl) ValidateJwt(ctx context.Context, jwt string) error {
@@ -59,4 +70,8 @@ func (c *channelImpl) ValidateJwt(ctx context.Context, jwt string) error {
 		}
 	}
 	return nil
+}
+
+func (c *channelImpl) SendOutgoingWebhook(ctx context.Context, msg domain.Message) error {
+	return c.outgoingWebhook.Send(ctx, msg)
 }
