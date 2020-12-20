@@ -48,7 +48,7 @@ func SendInternalServerError(ctx context.Context, w http.ResponseWriter, err err
 		}
 	}()
 
-	logger.Of(ctx).Error("internal server error caught on HTTP endpoint", err)
+	logger.Of(ctx).Error("internal server error on HTTP endpoint", err)
 	w.WriteHeader(500) // Do not send response body. It could be appended to response body sent before.
 }
 

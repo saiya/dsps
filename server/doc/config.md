@@ -30,7 +30,7 @@ channels:
   - regex: 'chat-room-(?P<id>\d+)'
     expire: 15m
     webhooks:
-      - url: 'http://localhost:3001/you-got-message/room/{{.regex.id}}'
+      - url: 'http://localhost:3001/you-got-message/room/{{.channel.id}}'
 
 admin:
   auth:
@@ -41,7 +41,7 @@ admin:
 ## Words & definitions used in this document
 
 - `regex string` means YAML string that constructs [golang compatible regular expression](https://golang.org/pkg/regexp/) (e.g. `'chat-room-(?P<id>\d+)'`)
-- `template string` means YAML string that follows [golang Template](https://golang.org/pkg/text/template) syntax (e.g. `'http://localhost:3001/room/{{.regex.id}}'`)
+- `template string` means YAML string that follows [golang Template](https://golang.org/pkg/text/template) syntax (e.g. `'http://localhost:3001/room/{{.channel.id}}'`)
 - `duration string` means YAML string that follows [golang ParseDuration](https://golang.org/pkg/time/#ParseDuration) syntax (e.g. `'1h30m'`)
 
 ## storages configuration block
@@ -109,16 +109,20 @@ Configuration items under `channels[n]`:
 
 - `regex` (regex string, required): regex string to match with name of a channel
   - Must match with *entire string* of the channel name (no need to write `^` nor `$`).
-  - You can use named group/subexp (e.g. `(?P<id>\d+)`). In the channel configuration, captured value of the group is visible to template strings under `.regex` (e.g. `{{.regex.id}}`).
+  - You can use named group/subexp (e.g. `(?P<id>\d+)`). In the channel configuration, captured value of the group is visible to template strings under `.channel` (e.g. `{{.channel.id}}`).
 - `expire` (duration string, default `30m`): DSPS server may discard inactive subscribers & messages after this duration
   - Duration counts from last access of the subscriber or sent time of the message.
   - DSPS may not resend after this expiration duration, so that this value must be larger than client's polling period if you polling.
   - If multiple channel configuration matches to a channel, largest value wins.
   - If outgoing webhook is configured, expire value must be larger than maximum webhook time includes webhook timeout and retry interval
 
-### channels.webhooks configuration block
+### <a name="outgoing-webhook"></a> channels.webhooks configuration block
 
 You can configure outgoing webhook to send messages from DSPS server to any HTTP(S) services.
+
+DSPS server calls given HTTP(S) endpoint for each incoming message.
+
+See [outgoing webhook document](./outgoing-webhook.md) for more info.
 
 ```yaml
 # Webhook with retry configuration example
@@ -127,8 +131,12 @@ channels:
     # Must be larger than final retry attempt time
     expire: 15m
     webhooks:
-      - url: 'http://localhost:3001/you-got-message/room/{{.regex.id}}'
+      - method: PUT
+        url: 'http://localhost:3001/you-got-message/room/{{.channel.id}}'
         timeout: 30s
+        connection:
+          max: 1024
+          maxIdleTime: 3m
         retry:
           # Enable 3 retries as below:
           # 1st retry: 3 * 1.5^0 ± 1.5 = 3    ± 1.5 [sec] after first webhook attempt
@@ -139,14 +147,15 @@ channels:
           intervalMultiplier: 1.5
           intervalJitter: 1s500ms
         headers:
-          User-Agent: my DSPS server
-          X-Chat-Room-ID: '{{.regex.id}}'
+          User-Agent: My DSPS server
+          X-Chat-Room-ID: '{{.channel.id}}'
 ```
 
 If there are multiple webhooks, DSPS server calls them concurrently. Configuration order of the webhooks has no meaning.
 
 Configuration item under `channels[n].webhooks`:
 
+- `method` (string, default `PUT`): HTTP method to send.
 - `url` (template string, required): Full URL to send message
 - `timeout` (duration string, default: `30s`): Timeout of the webhook call
 - `connection.max` (integer, default: `1024`): Max connections between DSPS server and webhook target
@@ -158,6 +167,7 @@ Configuration item under `channels[n].webhooks`:
 - `retry.intervalMultiplier` (float, default: `1.5`): Exponential backoff factor, multiply to the previous interval
 - `retry.intervalJitter` (duration string, default: `1s500ms`): Max range of the retry interval randomization, plus or minus to the resulted interval
 - `headers` (string to template string map, optional): HTTP headers to set for each outgoing requests
+- `maxRedirects` (number, default `10`): Max count of redirects to follow.
 
 ### <a name="jwt"></a> channels.jwt configuration block
 
@@ -175,7 +185,7 @@ channels:
         RS256:
           - path/to/public-key-file.pem
       claims:
-        chatroom: '{{.regex.id}}'
+        chatroom: '{{.channel.id}}'
       clockSkewLeeway: 5m
 ```
 
@@ -194,7 +204,7 @@ Configuration item under `channels[n].jwt`:
     - `none` alg is easy way for testing purpose, but **do NOT use `none` on production**.
 - `claims` (string to template string map, optional): Validation rule of custom claims
   - For example, `foo: 'bar'` means JWT must have custom claim named `foo` with a value `bar`
-  - You can use template string to validate value (e.g. `chatroom: '{{.regex.id}}'` means custom claim `chatroom` must match with `id` of `channels.regex`).
+  - You can use template string to validate value (e.g. `chatroom: '{{.channel.id}}'` means custom claim `chatroom` must match with `id` of `channels.regex`).
   - If value of JWT claim is boolean or number, validator convert them to string (e.g. `"true"`, `"3.14"`)
 - `clockSkewLeeway` (duration string, default `5m`): When validate time-based claims such as `exp`, `nbf`, allow clock skew with this tolerance.
 

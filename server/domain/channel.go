@@ -9,9 +9,15 @@ import (
 // ChannelID is ID of the PubSub channel, system-wide unique value
 type ChannelID string
 
+//go:generate mockgen -source=${GOFILE} -package=mock -destination=./mock/${GOFILE}
+
 // ChannelProvider provides configured Channel object.
 // If given ChannelID is not valid for this server process, returns (nil, domain.ErrInvalidChannel).
-type ChannelProvider func(id ChannelID) (Channel, error)
+type ChannelProvider interface {
+	Get(id ChannelID) (Channel, error)
+
+	GetFileDescriptorPressure() int
+}
 
 // Channel struct holds all objects/information of a channel
 type Channel interface {
@@ -19,6 +25,8 @@ type Channel interface {
 
 	// Note that this method does not check revocation list.
 	ValidateJwt(ctx context.Context, jwt string) error
+
+	SendOutgoingWebhook(ctx context.Context, msg Message) error
 }
 
 // see: doc/interface/validation_rule.md

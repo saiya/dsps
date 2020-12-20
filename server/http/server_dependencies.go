@@ -17,6 +17,11 @@ type ServerDependencies struct {
 	ServerClose lifecycle.ServerClose
 }
 
+// GetChannelProvider returns ChannelProvider object
+func (deps *ServerDependencies) GetChannelProvider() domain.ChannelProvider {
+	return deps.ChannelProvider
+}
+
 // GetStorage returns Storage instance
 func (deps *ServerDependencies) GetStorage() domain.Storage {
 	return deps.Storage

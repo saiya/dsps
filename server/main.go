@@ -77,7 +77,7 @@ func mainImpl(ctx context.Context, args []string, clock domain.SystemClock) erro
 	}
 
 	unix.NotifyUlimit(ctx, unix.UlimitRequirement{
-		NoFiles: storage.GetNoFilePressure(),
+		NoFiles: channelProvider.GetFileDescriptorPressure() + storage.GetFileDescriptorPressure(),
 	})
 
 	http.StartServer(ctx, &http.ServerDependencies{

@@ -108,7 +108,7 @@ func TestPanicHandling(t *testing.T) {
 
 			errorLog := lc.LastLog(0)
 			assert.Equal(t, zapcore.ErrorLevel, errorLog.Level)
-			assert.Equal(t, "internal server error caught on HTTP endpoint", errorLog.Message)
+			assert.Equal(t, "internal server error on HTTP endpoint", errorLog.Message)
 			assert.Equal(t, panicErr, errorLog.FindErrorField())
 		})
 
@@ -119,7 +119,7 @@ func TestPanicHandling(t *testing.T) {
 
 			errorLog := lc.LastLog(0)
 			assert.Equal(t, zapcore.ErrorLevel, errorLog.Level)
-			assert.Equal(t, "internal server error caught on HTTP endpoint", errorLog.Message)
+			assert.Equal(t, "internal server error on HTTP endpoint", errorLog.Message)
 			assert.Equal(t, fmt.Errorf("%+v", panicString), errorLog.FindErrorField())
 		})
 
@@ -133,7 +133,7 @@ func TestPanicHandling(t *testing.T) {
 
 			errorLog := lc.LastLog(0)
 			assert.Equal(t, zapcore.ErrorLevel, errorLog.Level)
-			assert.Equal(t, "internal server error caught on HTTP endpoint", errorLog.Message)
+			assert.Equal(t, "internal server error on HTTP endpoint", errorLog.Message)
 			assert.Equal(t, fmt.Errorf("%+v", panicString), errorLog.FindErrorField())
 		})
 
@@ -144,7 +144,7 @@ func TestPanicHandling(t *testing.T) {
 
 			errorLog := lc.LastLog(0)
 			assert.Equal(t, zapcore.ErrorLevel, errorLog.Level)
-			assert.Equal(t, "internal server error caught on HTTP endpoint", errorLog.Message)
+			assert.Equal(t, "internal server error on HTTP endpoint", errorLog.Message)
 			assert.Equal(t, fmt.Errorf("%+v", panicString), errorLog.FindErrorField())
 		})
 	})

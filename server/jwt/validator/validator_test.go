@@ -287,7 +287,7 @@ func TestClockLeeway(t *testing.T) {
 }
 
 func TestCustomClaims(t *testing.T) {
-	chatroomTpl, err := domain.NewTemplateString(`{{.regex.id}}`)
+	chatroomTpl, err := domain.NewTemplateString(`{{.channel.id}}`)
 	assert.NoError(t, err)
 	trueTpl, err := domain.NewTemplateString(`true`)
 	assert.NoError(t, err)
@@ -304,7 +304,7 @@ func TestCustomClaims(t *testing.T) {
 	}, domain.RealSystemClock)
 	assert.NoError(t, err)
 	v, err := tpl.NewValidator(map[string]map[string]string{
-		"regex": {
+		"channel": {
 			"id": "1234",
 		},
 	})

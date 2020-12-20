@@ -67,12 +67,12 @@ func TestRedisStorageFeatureFlag(t *testing.T) {
 	assert.Nil(t, s.AsJwtStorage())
 }
 
-func TestGetNoFilePressure(t *testing.T) {
+func TestGetFileDescriptorPressure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	s, _ := newMockedRedisStorage(ctrl)
 
 	s.maxConnections = 1234
-	assert.Equal(t, 1234, s.GetNoFilePressure())
+	assert.Equal(t, 1234, s.GetFileDescriptorPressure())
 }

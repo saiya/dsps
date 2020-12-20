@@ -7,19 +7,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/domain/mock"
 	dspstesting "github.com/saiya/dsps/server/testing"
 )
 
 func TestPositiveCache(t *testing.T) {
 	clock := dspstesting.NewStubClock(t)
-	cp := newCachedChannelProvider(func(id domain.ChannelID) (domain.Channel, error) {
+	cp := newCachedChannelProvider(dspstesting.ChannelProviderFunc(func(id domain.ChannelID) (domain.Channel, error) {
 		return NewChannelByAtomYamls(t, id, []string{`{ regex: ".+", expire: "1s" }`}), nil
-	}, clock)
+	}), clock)
 	p := func(id domain.ChannelID) domain.Channel {
-		c, err := cp(id)
+		c, err := cp.Get(id)
 		if c == nil {
 			dspstesting.IsError(t, domain.ErrInvalidChannel, err)
 		} else {
@@ -54,15 +56,15 @@ func TestPositiveCache(t *testing.T) {
 func TestNegativeCache(t *testing.T) {
 	clock := dspstesting.NewStubClock(t)
 	notFoundCount := 0
-	cp := newCachedChannelProvider(func(id domain.ChannelID) (domain.Channel, error) {
+	cp := newCachedChannelProvider(dspstesting.ChannelProviderFunc(func(id domain.ChannelID) (domain.Channel, error) {
 		if strings.HasPrefix(string(id), "not-found-") {
 			notFoundCount++
 			return nil, domain.ErrInvalidChannel
 		}
 		return NewChannelByAtomYamls(t, id, []string{`{ regex: ".+", expire: "1s" }`}), nil
-	}, clock)
+	}), clock)
 	p := func(id domain.ChannelID) domain.Channel {
-		c, err := cp(id)
+		c, err := cp.Get(id)
 		if c == nil {
 			dspstesting.IsError(t, domain.ErrInvalidChannel, err)
 		} else {
@@ -89,16 +91,28 @@ func TestCacheChannelError(t *testing.T) {
 	clock := dspstesting.NewStubClock(t)
 	called := 0
 	errToReturn := errors.New("stub error")
-	cp := newCachedChannelProvider(func(id domain.ChannelID) (domain.Channel, error) {
+	cp := newCachedChannelProvider(dspstesting.ChannelProviderFunc(func(id domain.ChannelID) (domain.Channel, error) {
 		called++
 		return nil, errToReturn
-	}, clock)
+	}), clock)
 
-	_, err := cp("ch-1")
+	_, err := cp.Get("ch-1")
 	assert.Equal(t, 1, called)
 	dspstesting.IsError(t, errToReturn, err)
 
-	_, err = cp("ch-1")
+	_, err = cp.Get("ch-1")
 	assert.Equal(t, 2, called) // Should not be cached
 	dspstesting.IsError(t, errToReturn, err)
+}
+
+func TestGetFileDescriptorPressure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	inner := mock.NewMockChannelProvider(ctrl)
+	inner.EXPECT().GetFileDescriptorPressure().Return(1234).Times(1)
+
+	cp := newCachedChannelProvider(inner, domain.RealSystemClock)
+	assert.Equal(t, 1234, cp.GetFileDescriptorPressure())
+	assert.Equal(t, 1234, cp.GetFileDescriptorPressure())
 }

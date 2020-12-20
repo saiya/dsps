@@ -48,8 +48,8 @@ func TestFeatureFlags(t *testing.T) {
 	assert.Same(t, s, s.AsJwtStorage())
 }
 
-func TestGetNoFilePressure(t *testing.T) {
+func TestGetFileDescriptorPressure(t *testing.T) {
 	s, err := NewOnmemoryStorage(context.Background(), &config.OnmemoryStorageConfig{}, domain.RealSystemClock, StubChannelProvider)
 	assert.NoError(t, err)
-	assert.Equal(t, 0, s.GetNoFilePressure())
+	assert.Equal(t, 0, s.GetFileDescriptorPressure())
 }

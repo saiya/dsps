@@ -10,11 +10,11 @@ import (
 )
 
 func TestNewTemplateString(t *testing.T) {
-	tpl, err := NewTemplateString("chat-room-{{.regex.id}}")
+	tpl, err := NewTemplateString("chat-room-{{.channel.id}}")
 	assert.NoError(t, err)
 
 	result, err := tpl.Execute(map[string](map[string]string){
-		"regex": map[string]string{"id": "1234"},
+		"channel": map[string]string{"id": "1234"},
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "chat-room-1234", result)
@@ -37,24 +37,24 @@ func TestTemplateStringJsonMapping(t *testing.T) {
 }
 
 func TestInvalidTemplateString(t *testing.T) {
-	_, err := NewTemplateString("chat-room-{{.regex.id}")
+	_, err := NewTemplateString("chat-room-{{.channel.id}")
 	assert.Regexp(t, `Unable to parse Template`, err.Error())
 
 	var tpl TemplateString
-	assert.Regexp(t, `Unable to parse Template`, json.Unmarshal([]byte(`"chat-room-{{.regex.id}"`), &tpl).Error())
+	assert.Regexp(t, `Unable to parse Template`, json.Unmarshal([]byte(`"chat-room-{{.channel.id}"`), &tpl).Error())
 	assert.Regexp(t, `invalid template`, json.Unmarshal([]byte(`1234`), &tpl).Error())
 }
 
 func TestTemplateStringStringer(t *testing.T) {
-	tpl, err := NewTemplateString("chat-room-{{.regex.id}}")
+	tpl, err := NewTemplateString("chat-room-{{.channel.id}}")
 	assert.NoError(t, err)
-	assert.Equal(t, `chat-room-{{.regex.id}}`, tpl.String())
+	assert.Equal(t, `chat-room-{{.channel.id}}`, tpl.String())
 }
 
 func TestTemplateStringExecuteError(t *testing.T) {
-	tpl, err := NewTemplateString("chat-room-{{.regex.id}}")
+	tpl, err := NewTemplateString("chat-room-{{.channel.id}}")
 	assert.NoError(t, err)
 
-	_, err = tpl.Execute(map[string]string{"regex": "not-map"})
-	assert.Regexp(t, `executing "template-string" at <.regex.id>: can't evaluate field id in type string`, err.Error())
+	_, err = tpl.Execute(map[string]string{"channel": "not-map"})
+	assert.Regexp(t, `executing "template-string" at <.channel.id>: can't evaluate field id in type string`, err.Error())
 }

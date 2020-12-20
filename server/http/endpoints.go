@@ -28,7 +28,7 @@ func InitEndpoints(mainCtx context.Context, rt *router.Router, deps *ServerDepen
 			if err != nil {
 				return nil, err
 			}
-			return deps.ChannelProvider(id)
+			return deps.ChannelProvider.Get(id)
 		}),
 	)
 	endpoints.InitPublishEndpoints(channelRouter, deps)

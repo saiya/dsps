@@ -42,7 +42,7 @@ type Storage interface {
 	AsJwtStorage() JwtStorage
 
 	// Estimated maximum pressure of syscall.RLIMIT_NOFILE
-	GetNoFilePressure() int
+	GetFileDescriptorPressure() int
 }
 
 // PubSubStorage interface is an abstraction layer of PubSub storage implementations

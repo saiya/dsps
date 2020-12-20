@@ -15,7 +15,7 @@ func (c channelTTLSec) MarshalBinary() (data []byte, err error) {
 }
 
 func (s *redisStorage) channelRedisTTLSec(channelID domain.ChannelID) (channelTTLSec, error) {
-	ch, err := s.channelProvider(channelID)
+	ch, err := s.channelProvider.Get(channelID)
 	if err != nil {
 		return 0, err
 	}
