@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -23,6 +24,10 @@ func TestHttpServerDefaultValues(t *testing.T) {
 	assert.Equal(t, len(domain.PrivateCIDRs), len(cfg.TrustedProxyRanges))
 	assert.Equal(t, domain.PrivateCIDRs[0].String(), cfg.TrustedProxyRanges[0].String())
 	assert.Equal(t, `deny`, cfg.DefaultHeaders["X-Frame-Options"])
+	assert.Equal(t, 10*time.Second, cfg.ReadTimeout.Duration)
+	assert.Equal(t, 60*time.Second, cfg.WriteTimeout.Duration)
+	assert.Equal(t, 30*time.Second, cfg.LongPollingMaxTimeout.Duration)
+	assert.Equal(t, 5*time.Second, cfg.GracefulShutdownTimeout.Duration)
 }
 
 func TestHttpServerNonDefaultValues(t *testing.T) {
@@ -33,6 +38,10 @@ http:
 		- 1.2.3.4/16
 	defaultHeaders:
 		X-Frame-Options:
+	readTimeout: 1s
+	writeTimeout: 2s
+	longPollingMaxTimeout: 3s
+	gracefulShutdownTimeout: 4s
 `, "\t", "  ")
 	config, err := ParseConfig(context.Background(), Overrides{}, configYaml)
 	if err != nil {
@@ -45,6 +54,10 @@ http:
 	assert.Equal(t, 1, len(cfg.TrustedProxyRanges))
 	assert.Equal(t, "1.2.3.4/16", cfg.TrustedProxyRanges[0].String())
 	assert.Equal(t, ``, cfg.DefaultHeaders["X-Frame-Options"])
+	assert.Equal(t, 1*time.Second, cfg.ReadTimeout.Duration)
+	assert.Equal(t, 2*time.Second, cfg.WriteTimeout.Duration)
+	assert.Equal(t, 3*time.Second, cfg.LongPollingMaxTimeout.Duration)
+	assert.Equal(t, 4*time.Second, cfg.GracefulShutdownTimeout.Duration)
 }
 
 func TestHttpServerConfigOverride(t *testing.T) {

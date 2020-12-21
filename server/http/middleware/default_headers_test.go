@@ -1,7 +1,6 @@
 package middleware_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,7 +16,7 @@ http:
 		Strict-Transport-Security: "max-age=31536000 ; includeSubDomains"
 		X-Frame-Options: ""
 	`, func(deps *ServerDependencies) {}, func(deps *ServerDependencies, baseURL string) {
-		res := DoHTTPRequest(t, "GET", fmt.Sprintf("%s/probe/liveness", baseURL), ``)
+		res := DoHTTPRequest(t, "GET", baseURL+"/probe/liveness", ``)
 		assert.NoError(t, res.Body.Close())
 		assert.Equal(t, 200, res.StatusCode)
 

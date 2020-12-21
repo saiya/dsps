@@ -17,6 +17,8 @@ type HTTPServerConfig struct {
 	DiscloseAuthRejectionDetail bool              `json:"discloseAuthRejectionDetail"`
 	DefaultHeaders              map[string]string `json:"defaultHeaders"`
 
+	ReadTimeout             domain.Duration `json:"readTimeout"`
+	WriteTimeout            domain.Duration `json:"writeTimeout"`
 	LongPollingMaxTimeout   domain.Duration `json:"longPollingMaxTimeout"`
 	GracefulShutdownTimeout domain.Duration `json:"gracefulShutdownTimeout"`
 }
@@ -28,6 +30,8 @@ func httpServerConfigDefault() *HTTPServerConfig {
 		RealIPHeader:                "",
 		DiscloseAuthRejectionDetail: false,
 
+		ReadTimeout:             makeDuration("10s"),
+		WriteTimeout:            makeDuration("60s"),
 		LongPollingMaxTimeout:   makeDuration("30s"),
 		GracefulShutdownTimeout: makeDuration("5s"),
 	}
@@ -56,6 +60,18 @@ func PostprocessHTTPServerConfig(config *HTTPServerConfig, overrides Overrides) 
 	if len(config.TrustedProxyRanges) == 0 {
 		config.TrustedProxyRanges = make([]domain.CIDR, len(domain.PrivateCIDRs))
 		copy(config.TrustedProxyRanges, domain.PrivateCIDRs)
+	}
+	if config.ReadTimeout.Duration == 0 {
+		config.ReadTimeout = httpServerConfigDefault().ReadTimeout
+	}
+	if config.WriteTimeout.Duration == 0 {
+		config.WriteTimeout = httpServerConfigDefault().WriteTimeout
+	}
+	if config.LongPollingMaxTimeout.Duration == 0 {
+		config.LongPollingMaxTimeout = httpServerConfigDefault().LongPollingMaxTimeout
+	}
+	if config.GracefulShutdownTimeout.Duration == 0 {
+		config.GracefulShutdownTimeout = httpServerConfigDefault().GracefulShutdownTimeout
 	}
 
 	if config.DefaultHeaders == nil {

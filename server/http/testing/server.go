@@ -56,6 +56,9 @@ func WithServer(t *testing.T, configYaml string, setup func(deps *http.ServerDep
 		defer ts.Close()
 		defer deps.ServerClose.Close() // Close requests first
 
-		f(deps, strings.TrimSuffix(ts.URL, "/")+"/"+strings.TrimSuffix(deps.Config.HTTPServer.PathPrefix, "/"))
+		f(deps, strings.TrimSuffix(strings.Join([]string{
+			strings.TrimSuffix(ts.URL, "/"),
+			strings.TrimPrefix(strings.TrimSuffix(deps.Config.HTTPServer.PathPrefix, "/"), "/"),
+		}, "/"), "/"))
 	})
 }
