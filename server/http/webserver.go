@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/julienschmidt/httprouter"
 
@@ -28,7 +27,9 @@ func StartServer(mainContext context.Context, deps *ServerDependencies) {
 // CreateServer creates server (http.Handler) instance.
 func CreateServer(mainContext context.Context, deps *ServerDependencies) http.Handler {
 	r := httprouter.New()
-	// TODO: Configure httprouter
+	r.HandleOPTIONS = false
+	r.HandleMethodNotAllowed = true
+	r.RedirectFixedPath = false
 	r.RedirectTrailingSlash = false
 
 	rt := router.NewRouter(
@@ -46,11 +47,12 @@ func CreateServer(mainContext context.Context, deps *ServerDependencies) http.Ha
 
 func runServer(mainContext context.Context, config *config.ServerConfig, engine http.Handler, serverClose httplifecycle.ServerClose) {
 	addr := config.HTTPServer.Listen
+
 	srv := &http.Server{
 		Addr:           addr,
 		Handler:        engine,
-		ReadTimeout:    60 * time.Second, // FIXME: Fix hardcorded
-		WriteTimeout:   60 * time.Second, // FIXME: Fix hardcorded
+		ReadTimeout:    config.HTTPServer.ReadTimeout.Duration,
+		WriteTimeout:   config.HTTPServer.LongPollingMaxTimeout.Duration + config.HTTPServer.WriteTimeout.Duration,
 		MaxHeaderBytes: 1 << 20,
 	}
 	go func() {

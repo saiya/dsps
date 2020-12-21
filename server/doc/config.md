@@ -79,6 +79,9 @@ Configuration items under `http`:
   - `realIpHeader` only accepts header values from those ranges.
   - By default or if empty list given, allow [RFC 1918](https://tools.ietf.org/html/rfc1918) ranges `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and [RFC 4193](https://tools.ietf.org/html/rfc4193) range `fc00::/7` and also `127.0.0.0/8` ((RFC 1122)[https://tools.ietf.org/html/rfc1122#section-3.2.1.3]), `169.254.0.0/16` ((RFC 3927)[https://tools.ietf.org/html/rfc3927]), `::1/128` and `fe80::/10` ((RFC 4291)[https://tools.ietf.org/html/rfc4291]).
 - `discloseAuthRejectionDetail` (boolean, default `false`): Show detail reason of 403 to clients, **do not enable on production**
+- `readTimeout` (duration string, default `10s`): Max duration to read request from clients.
+- `writeTimeout` (duration string, default `60s`): Max duration since end of request header reading until request processing completion
+  - Note that server automatically add `longPollingMaxTimeout` to this value
 - `longPollingMaxTimeout` (duration string, default `30s`): Max duration of the [long-polling requests](./interface/subscribe/polling.md#polling-get).
 - `gracefulShutdownTimeout` (duration string, default `5s`): Timeout to await end of running requests.
 - <a name="defaultHeaders"></a> `defaultHeaders` (string to string map, optional): Always send those response headers
