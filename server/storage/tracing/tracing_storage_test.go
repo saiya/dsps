@@ -17,7 +17,7 @@ var onmemoryTracingCtor = func(onmemConfig config.OnmemoryStorageConfig) Storage
 		if err != nil {
 			return nil, err
 		}
-		return NewTracingStorage(storage)
+		return NewTracingStorage(storage, "test"), nil
 	}
 }
 

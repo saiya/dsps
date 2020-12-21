@@ -1,27 +1,56 @@
 package tracing
 
-import "github.com/saiya/dsps/server/domain"
+import (
+	"context"
+
+	"github.com/saiya/dsps/server/domain"
+)
+
+type tracingStorage struct {
+	s      domain.Storage
+	pubsub domain.PubSubStorage
+	jwt    domain.JwtStorage
+}
 
 // NewTracingStorage wraps given Storage to trace calls
-func NewTracingStorage(s domain.Storage) (domain.Storage, error) {
-	return s, nil // TODO: Implement
+func NewTracingStorage(s domain.Storage, id domain.StorageID) domain.Storage {
+	return &tracingStorage{
+		s:      s,
+		pubsub: s.AsPubSubStorage(),
+		jwt:    s.AsJwtStorage(),
+	}
 }
 
-/*
-type tracingStorageMethodCallStat struct {
-	Liveness  int64 `json:"liveness"`
-	Readiness int64 `json:"readiness"`
-
-	Stat             int64 `json:"stat"`
-	NewSubscriber    int64 `json:"newSubscriber"`
-	RemoveSubscriber int64 `json:"deleteSubscriber"`
-
-	PublishMessages     int64 `json:"publishMessages"`
-	FetchMessages       int64 `json:"fetchMessages"`
-	AcknowledgeMessages int64 `json:"acknowledgeMessages"`
-	IsOldMessages       int64 `json:"isOldMessages"`
-
-	RevokeJwt    int64 `json:"revokeJwt"`
-	IsRevokedJwt int64 `json:"isRevokedJwt"`
+func (ts *tracingStorage) AsPubSubStorage() domain.PubSubStorage {
+	if ts.pubsub == nil {
+		return nil
+	}
+	return ts
 }
-*/
+
+func (ts *tracingStorage) AsJwtStorage() domain.JwtStorage {
+	if ts.jwt == nil {
+		return nil
+	}
+	return ts
+}
+
+func (ts *tracingStorage) String() string {
+	return ts.s.String()
+}
+
+func (ts *tracingStorage) GetFileDescriptorPressure() int {
+	return ts.s.GetFileDescriptorPressure()
+}
+
+func (ts *tracingStorage) Shutdown(ctx context.Context) error {
+	return ts.s.Shutdown(ctx)
+}
+
+func (ts *tracingStorage) Liveness(ctx context.Context) (interface{}, error) {
+	return ts.s.Liveness(ctx)
+}
+
+func (ts *tracingStorage) Readiness(ctx context.Context) (interface{}, error) {
+	return ts.s.Readiness(ctx)
+}

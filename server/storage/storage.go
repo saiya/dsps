@@ -23,18 +23,14 @@ func NewStorage(ctx context.Context, config *config.StoragesConfig, systemClock 
 		if err != nil {
 			return nil, fmt.Errorf("Failed to initialize storage \"%s\": %w", id, err)
 		}
-		storage, err = tracing.NewTracingStorage(storage)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to initialize storage tracer of \"%s\": %w", id, err)
-		}
-		children[id] = storage
+		children[id] = tracing.NewTracingStorage(storage, id)
 	}
 
 	storage, err := multiplex.NewStorageMultiplexer(children)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize storage multiplexer: %w", err)
 	}
-	return storage, nil
+	return tracing.NewTracingStorage(storage, "#root"), nil
 }
 
 func newSubStorage(ctx context.Context, id domain.StorageID, config *config.StorageConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
