@@ -360,7 +360,7 @@ func TestPollingSubscriberMessageDeleteSuccess(t *testing.T) {
 	})
 }
 
-func TestPollingSubscriberMessageDeleteFailure(t *testing.T) { // FIXME
+func TestPollingSubscriberMessageDeleteFailure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	storage, pubsub, _ := NewMockStorages(ctrl)
