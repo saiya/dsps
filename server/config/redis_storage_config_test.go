@@ -68,6 +68,8 @@ storages:
 	}
 	cfg := *config.Storages["myRedis"].Redis
 
+	assert.Equal(t, MakeDurationPtr("5m"), cfg.ScriptReloadInterval)
+
 	assert.Equal(t, MakeDurationPtr("5s"), cfg.Timeout.Connect)
 	assert.Equal(t, MakeDurationPtr("5s"), cfg.Timeout.Read)
 	assert.Equal(t, MakeDurationPtr("5s"), cfg.Timeout.Write)

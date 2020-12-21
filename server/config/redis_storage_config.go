@@ -20,6 +20,8 @@ type RedisStorageConfig struct {
 	Password string `json:"password"`
 	DBNumber int    `json:"db" validate:"min=0"`
 
+	ScriptReloadInterval *domain.Duration `json:"scriptReloadInterval"`
+
 	Timeout struct {
 		Connect *domain.Duration `json:"connect"`
 		Read    *domain.Duration `json:"read"`
@@ -55,6 +57,10 @@ func postprocessRedisSubStorageConfig(config *RedisStorageConfig) error {
 	}
 	if !(config.IsSingleNode() || config.IsCluster()) {
 		return xerrors.New("Redis configration must have one of 'singleNode' and 'cluster' item")
+	}
+
+	if config.ScriptReloadInterval == nil {
+		config.ScriptReloadInterval = makeDurationPtr("5m")
 	}
 
 	if config.Timeout.Connect == nil {
