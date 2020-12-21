@@ -72,7 +72,6 @@ jobs:
         env:
           DSPS_REDIS: "redis:6379"
       - name: Upload to codecov
-        if: github.ref == 'refs/heads/main'
         shell: bash
         working-directory: server
         run: |
