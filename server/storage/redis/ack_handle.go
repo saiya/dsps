@@ -19,7 +19,7 @@ type ackHandleData struct {
 }
 
 // Note this method does NOT read nor write ackHandleData.Checksum field.
-func (data ackHandleData) ComputeChechsum(sl domain.SubscriberLocator) string {
+func (data ackHandleData) ComputeChecksum(sl domain.SubscriberLocator) string {
 	hashBuffer := bytes.Buffer{}
 	hashBuffer.WriteString("dsps.storage.redis")
 	hashBuffer.WriteByte(0x00)
@@ -36,7 +36,7 @@ func (data ackHandleData) ComputeChechsum(sl domain.SubscriberLocator) string {
 
 // EncodeAckHandle encapsulate AckHandle
 func encodeAckHandle(sl domain.SubscriberLocator, data ackHandleData) domain.AckHandle {
-	data.Checksum = data.ComputeChechsum(sl)
+	data.Checksum = data.ComputeChecksum(sl)
 	encoded, err := json.Marshal(data)
 	if err != nil { // Must success
 		panic(xerrors.Errorf("Failed to encode Redis ackHandleData (%v): %w", data, err))
@@ -50,7 +50,7 @@ func decodeAckHandle(h domain.AckHandle) (ackHandleData, error) {
 	if err := json.Unmarshal([]byte(h.Handle), &data); err != nil {
 		return data, xerrors.Errorf("Invalid Redis AckHandle (%s), JSON parse error: %v (%w)", h.Handle, err, domain.ErrMalformedAckHandle)
 	}
-	if data.ComputeChechsum(h.SubscriberLocator) != data.Checksum {
+	if data.ComputeChecksum(h.SubscriberLocator) != data.Checksum {
 		return data, xerrors.Errorf("Corrupted AckHandle (%s), checksum unmatch (%w)", h.Handle, domain.ErrMalformedAckHandle)
 	}
 	return data, nil

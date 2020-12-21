@@ -1,4 +1,4 @@
-package redis
+package onmemory
 
 import (
 	"encoding/json"
@@ -15,19 +15,14 @@ func TestAckHandleChecksum(t *testing.T) {
 		SubscriberID: "sbsc-1",
 	}
 	for _, data := range []ackHandleData{
-		{LastMessageClock: 0},
-		{LastMessageClock: 1024},
-		{LastMessageClock: -1024},
-		{LastMessageClock: clockMin},
-		{LastMessageClock: clockMax},
+		{LastMessageID: "msg-1"},
 	} {
 		data.Checksum = "INVALID"
 		data.ComputeChecksum(sl)
 		assert.Equal(t, "INVALID", data.Checksum, "ComputeChechsum() should not modify struct")
 
 		assert.Equal(t, data.ComputeChecksum(sl), data.ComputeChecksum(sl))
-		assert.NotEqual(t, data.ComputeChecksum(sl), ackHandleData{LastMessageClock: data.LastMessageClock - 1}.ComputeChecksum(sl))
-		assert.NotEqual(t, data.ComputeChecksum(sl), ackHandleData{LastMessageClock: data.LastMessageClock + 1}.ComputeChecksum(sl))
+		assert.NotEqual(t, data.ComputeChecksum(sl), ackHandleData{LastMessageID: data.LastMessageID + "-diff"}.ComputeChecksum(sl))
 		assert.NotEqual(t, data.ComputeChecksum(sl), data.ComputeChecksum(domain.SubscriberLocator{
 			ChannelID:    sl.ChannelID,
 			SubscriberID: sl.SubscriberID + "-different",
@@ -45,8 +40,8 @@ func TestUnmatchAckHandle(t *testing.T) {
 		SubscriberID: "sbsc-1",
 	}
 	data := ackHandleData{
-		LastMessageClock: -1234,
-		Checksum:         "???",
+		LastMessageID: "msg-1",
+		Checksum:      "???",
 	}
 	data.Checksum = data.ComputeChecksum(sl)
 	dataJSON, _ := json.Marshal(data)
@@ -80,11 +75,11 @@ func TestInvalidAckHandle(t *testing.T) {
 			ChannelID:    "ch-1",
 			SubscriberID: "sbsc-1",
 		},
-		Handle: `{ "clk": "invalid-clock" }`,
+		Handle: `{ "mid": 1234 }`,
 	})
 	dspstesting.IsError(t, domain.ErrMalformedAckHandle, err)
 	assert.Contains(t, err.Error(), "JSON parse error")
-	assert.Contains(t, err.Error(), "cannot unmarshal string into Go struct field ackHandleData.clk of type redis.channelClock")
+	assert.Contains(t, err.Error(), "cannot unmarshal number into Go struct field ackHandleData.mid of type domain.MessageID ")
 
 	_, err = decodeAckHandle(domain.AckHandle{
 		SubscriberLocator: domain.SubscriberLocator{
@@ -101,7 +96,7 @@ func TestInvalidAckHandle(t *testing.T) {
 			ChannelID:    "ch-1",
 			SubscriberID: "sbsc-1",
 		},
-		Handle: `{ "clk": 1234, "xs": "invalid-checksum" }`,
+		Handle: `{ "mid": "invalid-message-id", "xs": "invalid-checksum" }`,
 	})
 	dspstesting.IsError(t, domain.ErrMalformedAckHandle, err)
 	assert.Contains(t, err.Error(), "checksum unmatch")
