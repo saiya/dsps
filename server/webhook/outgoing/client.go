@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/logger"
 	"golang.org/x/xerrors"
 )
 
@@ -72,6 +73,7 @@ func (c *clientImpl) Send(ctx context.Context, msg domain.Message) error {
 	if c.isClosed() {
 		return xerrors.Errorf("outgoing-webhook client already closed")
 	}
+	logger.Of(ctx).Debugf(logger.CatOutgoingWebhook, "sending outgoing webhook (channel: %s, messageID: %s) to %s", msg.ChannelID, msg.MessageID, c.url)
 
 	body, err := encodeWebhookBody(ctx, msg)
 	if err != nil {
@@ -88,7 +90,12 @@ func (c *clientImpl) Send(ctx context.Context, msg domain.Message) error {
 			// Should overwrite default headers, thus use Set() rather than Add()
 			req.Header.Set(name, value)
 		}
-		return c.h.Do(req)
+
+		res, err := c.h.Do(req)
+		if res != nil {
+			logger.Of(ctx).Debugf(logger.CatOutgoingWebhook, "received outgoing webhook response (%s %d, contentLength: %d)", res.Proto, res.StatusCode, res.ContentLength)
+		}
+		return res, err
 	})
 }
 

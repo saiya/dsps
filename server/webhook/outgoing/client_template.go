@@ -11,7 +11,7 @@ import (
 // ClientTemplate is factory object to make Client
 type ClientTemplate interface {
 	NewClient(tplEnv domain.TemplateStringEnv) (Client, error)
-	Close() error
+	Close()
 
 	GetFileDescriptorPressure() int // estimated max usage of file descriptors
 }
@@ -37,9 +37,8 @@ func (tpl *clientTemplate) NewClient(tplEnv domain.TemplateStringEnv) (Client, e
 	return newClientImpl(tpl, tplEnv)
 }
 
-func (tpl *clientTemplate) Close() error {
+func (tpl *clientTemplate) Close() {
 	tpl.h.CloseIdleConnections()
-	return nil
 }
 
 func (tpl *clientTemplate) GetFileDescriptorPressure() int {

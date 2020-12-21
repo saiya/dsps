@@ -6,6 +6,7 @@ import (
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/logger"
 	"github.com/saiya/dsps/server/sync"
 )
 
@@ -57,6 +58,8 @@ func (s *onmemoryStorage) String() string {
 }
 
 func (s *onmemoryStorage) Shutdown(ctx context.Context) error {
+	logger.Of(ctx).Debugf(logger.CatStorage, "Closing on-memory storage...")
+
 	select {
 	case s.gcTickerShutdownRequest <- true:
 	default:

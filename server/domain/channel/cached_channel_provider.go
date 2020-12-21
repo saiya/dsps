@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -37,6 +38,13 @@ type cachedChannels struct {
 
 func (cache *cachedChannels) GetFileDescriptorPressure() int {
 	return cache.fdPressure
+}
+
+func (cache *cachedChannels) Shutdown(ctx context.Context) {
+	cache.lock.Lock()
+	defer cache.lock.Unlock()
+
+	cache.inner.Shutdown(ctx)
 }
 
 func (cache *cachedChannels) Get(id domain.ChannelID) (domain.Channel, error) {

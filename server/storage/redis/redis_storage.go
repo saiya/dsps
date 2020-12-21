@@ -6,6 +6,7 @@ import (
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/logger"
 )
 
 // In case of clock drift
@@ -63,6 +64,7 @@ func (s *redisStorage) String() string {
 }
 
 func (s *redisStorage) Shutdown(ctx context.Context) error {
+	logger.Of(ctx).Debugf(logger.CatStorage, "Closing Redis storage connections...")
 	return s.redisConnection.close()
 }
 

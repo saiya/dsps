@@ -20,7 +20,7 @@ func newClientAndServerByConfig(t *testing.T, handler http.Handler, tplEnv domai
 	defer server.Close()
 
 	tpl := newClientTemplateByConfig(t, `.+`, strings.ReplaceAll(config, "${BASE_URL}", server.URL))
-	defer assert.NoError(t, tpl.Close())
+	tpl.Close()
 	assert.NotNil(t, tpl)
 
 	client, err := tpl.NewClient(tplEnv)
@@ -151,7 +151,7 @@ func TestClientRetryFailure(t *testing.T) {
 
 func TestClientInvalidUrl(t *testing.T) {
 	tpl := newClientTemplateByConfig(t, `.+`, `{ "url": "://example.com", "retry": { "interval": "1ms", "intervalJitter": "1ms" } }`)
-	defer assert.NoError(t, tpl.Close())
+	tpl.Close()
 	assert.NotNil(t, tpl)
 
 	client, err := tpl.NewClient(map[string]interface{}{})
@@ -162,7 +162,7 @@ func TestClientInvalidUrl(t *testing.T) {
 
 func TestClientClose(t *testing.T) {
 	tpl := newClientTemplateByConfig(t, `.+`, strings.ReplaceAll(`{ "url": "${BASE_URL}/you-got-message/room/1234" }`, "${BASE_URL}", "http://localhost:1234"))
-	defer assert.NoError(t, tpl.Close())
+	tpl.Close()
 	assert.NotNil(t, tpl)
 
 	client, err := tpl.NewClient(map[string]interface{}{})
@@ -195,7 +195,7 @@ func TestClientTemplateEvalFailures(t *testing.T) {
 	tpl := newClientTemplateByConfig(t, `.+`, strings.ReplaceAll(`{
 		"url": "${BASE_URL}/you-got-message/room/{{.INVALID}}",
 	}`, "${BASE_URL}", "http://localhost:1234"))
-	defer assert.NoError(t, tpl.Close())
+	tpl.Close()
 	assert.NotNil(t, tpl)
 	_, err := tpl.NewClient(map[string]interface{}{})
 	assert.Regexp(t, `map has no entry for key "INVALID"`, err.Error())
@@ -204,7 +204,7 @@ func TestClientTemplateEvalFailures(t *testing.T) {
 		"url": "${BASE_URL}/you-got-message/room/1234",
 		"headers": { "X-Something": "{{.INVALID}}" }
 	}`, "${BASE_URL}", "http://localhost:1234"))
-	defer assert.NoError(t, tpl.Close())
+	tpl.Close()
 	assert.NotNil(t, tpl)
 	_, err = tpl.NewClient(map[string]interface{}{})
 	assert.Regexp(t, `map has no entry for key "INVALID"`, err.Error())

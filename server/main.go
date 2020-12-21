@@ -34,6 +34,8 @@ func main() {
 }
 
 func mainImpl(ctx context.Context, args []string, clock domain.SystemClock) error {
+	defer func() { logger.Of(ctx).Debugf(logger.CatServer, "Sever closed.") }()
+
 	var (
 		port   = flag.Int("port", 0, "Override http.port configuration item")
 		listen = flag.String("listen", "", "Override http.listen configuration item")
@@ -67,6 +69,8 @@ func mainImpl(ctx context.Context, args []string, clock domain.SystemClock) erro
 	if err != nil {
 		return err
 	}
+	defer channelProvider.Shutdown(ctx)
+
 	logFilter, err := logger.InitLogger(config.Logging)
 	if err != nil {
 		return err
@@ -75,6 +79,11 @@ func mainImpl(ctx context.Context, args []string, clock domain.SystemClock) erro
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err := storage.Shutdown(ctx); err != nil {
+			logger.Of(ctx).WarnError(logger.CatStorage, "Failed to shutdown storage: %w", err)
+		}
+	}()
 
 	unix.NotifyUlimit(ctx, unix.UlimitRequirement{
 		NoFiles: channelProvider.GetFileDescriptorPressure() + storage.GetFileDescriptorPressure(),
