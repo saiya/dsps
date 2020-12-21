@@ -51,6 +51,12 @@ func newChannelAtom(ctx context.Context, config *config.ChannelConfig, clock dom
 	return atom, nil
 }
 
+func (c *channelAtom) Shutdown(ctx context.Context) {
+	for _, webhook := range c.OutgoingWebHookTemplates {
+		webhook.Close()
+	}
+}
+
 func (c *channelAtom) String() string {
 	return c.config.Regex.String()
 }

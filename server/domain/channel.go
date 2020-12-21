@@ -17,6 +17,8 @@ type ChannelProvider interface {
 	Get(id ChannelID) (Channel, error)
 
 	GetFileDescriptorPressure() int
+
+	Shutdown(ctx context.Context)
 }
 
 // Channel struct holds all objects/information of a channel

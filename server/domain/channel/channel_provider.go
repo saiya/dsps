@@ -46,3 +46,9 @@ func (cp *channelProvider) Get(id domain.ChannelID) (domain.Channel, error) {
 	}
 	return newChannelImpl(id, found)
 }
+
+func (cp *channelProvider) Shutdown(ctx context.Context) {
+	for _, atom := range cp.atoms {
+		atom.Shutdown(ctx)
+	}
+}
