@@ -16,7 +16,7 @@ const ttlMargin = 15 * time.Second
 func NewRedisStorage(ctx context.Context, config *config.RedisStorageConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
 	conn, err := connect(ctx, config)
 	if err != nil {
-		return &redisStorage{}, err
+		return nil, err
 	}
 	s := &redisStorage{
 		clock:           systemClock,
@@ -30,6 +30,7 @@ func NewRedisStorage(ctx context.Context, config *config.RedisStorageConfig, sys
 	if err := s.loadScripts(ctx); err != nil {
 		return nil, err
 	}
+	s.scriptLoader = s.startScriptLoader(ctx, config.ScriptReloadInterval.Duration)
 	return s, nil
 }
 
@@ -41,6 +42,9 @@ type redisStorage struct {
 	jwtEnabled    bool
 
 	redisConnection
+
+	// Use startScriptLoader/stopScriptLoader methods to start/stop this.
+	scriptLoader *scriptLoader
 }
 
 func (s *redisStorage) AsPubSubStorage() domain.PubSubStorage {
@@ -64,6 +68,8 @@ func (s *redisStorage) String() string {
 }
 
 func (s *redisStorage) Shutdown(ctx context.Context) error {
+	s.scriptLoader.stopScriptLoader(ctx)
+
 	logger.Of(ctx).Debugf(logger.CatStorage, "Closing Redis storage connections...")
 	return s.redisConnection.close()
 }
