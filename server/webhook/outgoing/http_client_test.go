@@ -42,8 +42,9 @@ func TestHTTPClientRedirect(t *testing.T) {
 		if called < redirectUntil {
 			rw.Header().Set("Location", serverURL)
 			rw.WriteHeader(307)
+		} else {
+			rw.WriteHeader(204)
 		}
-		rw.WriteHeader(204)
 	}))
 	serverURL = server.URL
 	defer server.Close()

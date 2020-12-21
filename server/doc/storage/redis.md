@@ -100,6 +100,7 @@ Configuration items:
 - `password` (string, default `""`): Password of Redis authentication
 - `db` (number, optional, default `0`): Database number of the Redis
   - Note: ignored if using redis cluster because it does not support database number
+- `scriptReloadInterval` (duration, default `5m`): Interval of [SCRIPT LOAD](https://redis.io/commands/script-load) to preload Redis lua scripts
 - `timeout.connect` (duration, default `5s`): Timeout to connect to the Redis
 - `timeout.read` (duration, default `5s`): Timeout to wait response from the Redis
 - `timeout.write` (duration, default `5s`): Timeout of request write operation to the Redis
