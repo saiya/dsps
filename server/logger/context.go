@@ -31,6 +31,16 @@ func WithAttributes(ctx context.Context) ContextLoggerBuilder {
 	}
 }
 
+// PinLoggerContext creates context-specific logger along with the new context.
+// By default, logger.Of(Context) returns same logger instance if no configuration changed.
+// Some operation (e.g. global handlers) looks top-most context that logger belongs to.
+func PinLoggerContext(ctx context.Context) context.Context {
+	logger := of(ctx).copy()
+	ctx = context.WithValue(ctx, loggerContextKey, logger)
+	logger.ctx = ctx
+	return ctx
+}
+
 // ContextLoggerBuilder is an interface to create child context that holds child logger
 type ContextLoggerBuilder interface {
 	Build() context.Context
@@ -49,8 +59,10 @@ type contextLoggerBuilder struct {
 }
 
 func (b *contextLoggerBuilder) Build() context.Context {
-	newLogger := b.baseLogger.WithAttributes(b.fields)
-	return context.WithValue(b.ctx, loggerContextKey, newLogger) //nolint:golint,staticcheck
+	newLogger := b.baseLogger.withAttributes(b.fields)
+	ctx := context.WithValue(b.ctx, loggerContextKey, newLogger) //nolint:golint,staticcheck
+	newLogger.ctx = ctx
+	return ctx
 }
 
 func (b *contextLoggerBuilder) WithStr(key string, value string) ContextLoggerBuilder {

@@ -14,6 +14,7 @@ func TestInitLogger(t *testing.T) {
 
 	initImpl() // Ensure default
 	assert.False(t, rootLogger.filter.Filter(DEBUG, CatAuth))
+	assert.NotNil(t, rootLogger.ctx)
 
 	_, err := InitLogger(&config.LoggingConfig{
 		Category: map[string]string{
@@ -26,6 +27,7 @@ func TestInitLogger(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, rootLogger)
 	assert.True(t, rootLogger.filter.Filter(DEBUG, CatAuth))
+	assert.NotNil(t, rootLogger.ctx)
 
 	_, err = InitLogger(&config.LoggingConfig{
 		Category: map[string]string{

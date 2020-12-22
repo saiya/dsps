@@ -14,6 +14,7 @@ import (
 	httplifecycle "github.com/saiya/dsps/server/http/lifecycle"
 	"github.com/saiya/dsps/server/logger"
 	"github.com/saiya/dsps/server/storage"
+	"github.com/saiya/dsps/server/telemetry"
 	"github.com/saiya/dsps/server/unix"
 )
 
@@ -65,16 +66,23 @@ func mainImpl(ctx context.Context, args []string, clock domain.SystemClock) erro
 		}
 	}
 
+	logFilter, err := logger.InitLogger(config.Logging)
+	if err != nil {
+		return err
+	}
+
+	telemetry, err := telemetry.InitTelemetry(config.Telemetry)
+	if err != nil {
+		return err
+	}
+	defer telemetry.Shutdown(ctx)
+
 	channelProvider, err := channel.NewChannelProvider(ctx, &config, clock)
 	if err != nil {
 		return err
 	}
 	defer channelProvider.Shutdown(ctx)
 
-	logFilter, err := logger.InitLogger(config.Logging)
-	if err != nil {
-		return err
-	}
 	storage, err := storage.NewStorage(ctx, &config.Storages, clock, channelProvider)
 	if err != nil {
 		return err
