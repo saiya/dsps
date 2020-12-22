@@ -2,11 +2,13 @@ package redis
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/sync"
 )
 
 // In case of clock drift
@@ -26,11 +28,19 @@ func NewRedisStorage(ctx context.Context, config *config.RedisStorageConfig, sys
 		jwtEnabled:    !config.DisableJwt,
 
 		redisConnection: conn,
+		daemonSystem: sync.NewDaemonSystem("dsps.storage.redis", func(ctx context.Context, name string, err error) {
+			logger.Of(ctx).Error(fmt.Sprintf(`error in background routine "%s"`, name), err)
+		}),
 	}
 	if err := s.loadScripts(ctx); err != nil {
 		return nil, err
 	}
-	s.scriptLoader = s.startScriptLoader(ctx, config.ScriptReloadInterval.Duration)
+	s.daemonSystem.Start("scriptLoader", func(ctx context.Context) (sync.DaemonNextRun, error) {
+		err := s.loadScripts(ctx)
+		return sync.DaemonNextRun{
+			Interval: config.ScriptReloadInterval.Duration,
+		}, err
+	})
 	return s, nil
 }
 
@@ -42,9 +52,7 @@ type redisStorage struct {
 	jwtEnabled    bool
 
 	redisConnection
-
-	// Use startScriptLoader/stopScriptLoader methods to start/stop this.
-	scriptLoader *scriptLoader
+	daemonSystem *sync.DaemonSystem
 }
 
 func (s *redisStorage) AsPubSubStorage() domain.PubSubStorage {
@@ -68,7 +76,9 @@ func (s *redisStorage) String() string {
 }
 
 func (s *redisStorage) Shutdown(ctx context.Context) error {
-	s.scriptLoader.stopScriptLoader(ctx)
+	if err := s.daemonSystem.Shutdown(ctx); err != nil {
+		logger.Of(ctx).WarnError(logger.CatStorage, `Failed to stop background routines`, err)
+	}
 
 	logger.Of(ctx).Debugf(logger.CatStorage, "Closing Redis storage connections...")
 	return s.redisConnection.close()
