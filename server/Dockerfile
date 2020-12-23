@@ -5,8 +5,9 @@ COPY . .
 RUN go get && go get github.com/Songmu/gocredits/cmd/gocredits
 RUN make dsps/dsps-$(uname -o | sed 's/GNU\///')-$(uname -m) && mv dsps/dsps-$(uname -o | sed 's/GNU\///')-$(uname -m) /dsps.bin
 
-FROM alpine:latest  
-RUN apk --no-cache add ca-certificates
+FROM alpine:3.12.3  
+# Add some utilities for convinience: gettext (contains envsubst), curl, jq
+RUN apk --no-cache add ca-certificates gettext curl jq
 WORKDIR /root/
 COPY --from=0 /dsps.bin ./dsps
 EXPOSE 3000
