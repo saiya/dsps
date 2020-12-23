@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 
+	"github.com/go-redis/redis/extra/redisotel"
 	"github.com/go-redis/redis/v8"
 
 	"github.com/saiya/dsps/server/config"
@@ -55,6 +56,7 @@ func createClientSingleNode(ctx context.Context, config *config.RedisStorageConf
 		PoolSize:     *config.Connection.Max,
 		IdleTimeout:  config.Connection.MaxIdleTime.Duration,
 	})
+	c.AddHook(redisotel.TracingHook{})
 	return redisConnection{
 		redisCmd: newRedisCmd(c, func(ctx context.Context, channel string) *redis.PubSub {
 			return c.Subscribe(ctx, channel)
@@ -90,6 +92,7 @@ func createClientCluster(ctx context.Context, config *config.RedisStorageConfig)
 		MaxRedirects: 3,
 		ReadOnly:     false,
 	})
+	c.AddHook(redisotel.TracingHook{})
 	return redisConnection{
 		redisCmd: newRedisCmd(c, func(ctx context.Context, channel string) *redis.PubSub {
 			return c.Subscribe(ctx, channel)

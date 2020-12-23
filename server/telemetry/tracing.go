@@ -61,8 +61,8 @@ func (t *Telemetry) StartMessageSpan(ctx context.Context, lifecycle MessageLifec
 	// see: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/messaging.md
 	labels := []label.KeyValue{
 		label.String("messaging.system", "dsps"),
+		label.String("messaging.destination", string(msg.ChannelID)),
 		label.String("messaging.message_id", string(msg.MessageID)),
-		label.String("messaging.conversation_id", string(msg.ChannelID)),
 		label.Int("messaging.message_payload_size_bytes", len([]byte(msg.Content))),
 	}
 	if lifecycle.otOperationName() != "send" {
@@ -85,6 +85,22 @@ func (t *Telemetry) StartStorageSpan(ctx context.Context, id domain.StorageID, o
 		ctx, fmt.Sprintf(`DSPS storage %s`, operation),
 		ottrace.WithSpanKind(ottrace.SpanKindInternal),
 		ottrace.WithAttributes(label.String("dsps.storage.id", string(id))),
+	)
+}
+
+// SetSubscriberAttributes adds attributes of subscriber
+func (t *Telemetry) SetSubscriberAttributes(ctx context.Context, sl domain.SubscriberLocator) {
+	ottrace.SpanFromContext(ctx).SetAttributes(
+		label.String("messaging.system", "dsps"),
+		label.String("messaging.destination", string(sl.ChannelID)),
+		label.String("dsps.subscriber_id", string(sl.SubscriberID)),
+	)
+}
+
+// SetJTI adds attribute of JWT
+func (t *Telemetry) SetJTI(ctx context.Context, jti domain.JwtJti) {
+	ottrace.SpanFromContext(ctx).SetAttributes(
+		label.String("jwt.jti", string(jti)),
 	)
 }
 

@@ -13,24 +13,25 @@ import (
 	"github.com/saiya/dsps/server/storage/onmemory"
 	"github.com/saiya/dsps/server/storage/redis"
 	"github.com/saiya/dsps/server/storage/tracing"
+	"github.com/saiya/dsps/server/telemetry"
 )
 
 // NewStorage initialize Storage instance as per given config
-func NewStorage(ctx context.Context, config *config.StoragesConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
+func NewStorage(ctx context.Context, config *config.StoragesConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider, telemetry *telemetry.Telemetry) (domain.Storage, error) {
 	children := map[domain.StorageID]domain.Storage{}
 	for id, subConfig := range *config {
 		storage, err := newSubStorage(ctx, id, subConfig, systemClock, channelProvider)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to initialize storage \"%s\": %w", id, err)
 		}
-		children[id] = tracing.NewTracingStorage(storage, id)
+		children[id] = tracing.NewTracingStorage(storage, id, telemetry)
 	}
 
 	storage, err := multiplex.NewStorageMultiplexer(children)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize storage multiplexer: %w", err)
 	}
-	return tracing.NewTracingStorage(storage, "#root"), nil
+	return tracing.NewTracingStorage(storage, "#root", telemetry), nil
 }
 
 func newSubStorage(ctx context.Context, id domain.StorageID, config *config.StorageConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {

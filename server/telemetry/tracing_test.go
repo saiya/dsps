@@ -7,16 +7,13 @@ import (
 	"strings"
 	"testing"
 
-	otsdktrace "go.opentelemetry.io/otel/sdk/trace"
 	ottrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/saiya/dsps/server/domain"
-	"github.com/saiya/dsps/server/telemetry/opentelemetry"
-	ottesting "github.com/saiya/dsps/server/telemetry/opentelemetry/testing"
 )
 
 func TestHTTPSpan(t *testing.T) {
-	result := withStubTracing(t, func(t *Telemetry) {
+	result := WithStubTracing(t, func(t *Telemetry) {
 		// Server request
 		r := httptest.NewRequest("POST", "https://vhost.example.com/foo/bar", strings.NewReader("{}"))
 		r.Header.Set("User-Agent", "test/0.1.2")
@@ -32,7 +29,7 @@ func TestHTTPSpan(t *testing.T) {
 		t.SetHTTPResponseAttributes(ctx, 201, 123)
 		close()
 	})
-	result.ot.AssertSpan(0, ottrace.SpanKindServer, "HTTP POST /foo/{name}", map[string]interface{}{
+	result.OT.AssertSpan(0, ottrace.SpanKindServer, "HTTP POST /foo/{name}", map[string]interface{}{
 		// StartHTTPSpan
 		"http.method":                 "POST",
 		"http.url":                    "https://vhost.example.com/foo/bar",
@@ -47,7 +44,7 @@ func TestHTTPSpan(t *testing.T) {
 		"http.status_code":             int64(200),
 		"http.response_content_length": int64(123),
 	})
-	result.ot.AssertSpan(1, ottrace.SpanKindClient, "HTTP GET", map[string]interface{}{
+	result.OT.AssertSpan(1, ottrace.SpanKindClient, "HTTP GET", map[string]interface{}{
 		// StartHTTPSpan
 		"http.method":                 "GET",
 		"http.url":                    "http://vhost.example.com/outgoing/webhook",
@@ -69,7 +66,7 @@ func TestMessageSpan(t *testing.T) {
 		},
 		Content: json.RawMessage("{}"),
 	}
-	result := withStubTracing(t, func(t *Telemetry) {
+	result := WithStubTracing(t, func(t *Telemetry) {
 		_, close := t.StartMessageSpan(context.Background(), Send, msg)
 		close()
 		_, close = t.StartMessageSpan(context.Background(), Fetch, msg)
@@ -77,54 +74,54 @@ func TestMessageSpan(t *testing.T) {
 		_, close = t.StartMessageSpan(context.Background(), Acknowledge, msg)
 		close()
 	})
-	result.ot.AssertSpan(0, ottrace.SpanKindProducer, "DSPS send", map[string]interface{}{
+	result.OT.AssertSpan(0, ottrace.SpanKindProducer, "DSPS send", map[string]interface{}{
 		"messaging.system":                     "dsps",
 		"messaging.message_id":                 string(msg.MessageID),
-		"messaging.conversation_id":            string(msg.ChannelID),
+		"messaging.destination":                string(msg.ChannelID),
 		"messaging.message_payload_size_bytes": int64(len(msg.Content)),
 	})
-	result.ot.AssertSpan(1, ottrace.SpanKindConsumer, "DSPS receive", map[string]interface{}{
+	result.OT.AssertSpan(1, ottrace.SpanKindConsumer, "DSPS receive", map[string]interface{}{
 		"messaging.system":                     "dsps",
 		"messaging.message_id":                 string(msg.MessageID),
-		"messaging.conversation_id":            string(msg.ChannelID),
+		"messaging.destination":                string(msg.ChannelID),
 		"messaging.message_payload_size_bytes": int64(len(msg.Content)),
 		"messaging.operation":                  "receive",
 	})
-	result.ot.AssertSpan(2, ottrace.SpanKindConsumer, "DSPS process", map[string]interface{}{
+	result.OT.AssertSpan(2, ottrace.SpanKindConsumer, "DSPS process", map[string]interface{}{
 		"messaging.system":                     "dsps",
 		"messaging.message_id":                 string(msg.MessageID),
-		"messaging.conversation_id":            string(msg.ChannelID),
+		"messaging.destination":                string(msg.ChannelID),
 		"messaging.message_payload_size_bytes": int64(len(msg.Content)),
 		"messaging.operation":                  "process",
 	})
 }
 
-func TestStorageSpan(t *testing.T) {
-	result := withStubTracing(t, func(t *Telemetry) {
-		_, close := t.StartStorageSpan(context.Background(), "storage-1", "DoSomething")
+func TestStorageSpanWithMessagingAttrs(t *testing.T) {
+	result := WithStubTracing(t, func(t *Telemetry) {
+		ctx, close := t.StartStorageSpan(context.Background(), "storage-1", "DoSomething")
+		t.SetSubscriberAttributes(ctx, domain.SubscriberLocator{
+			ChannelID:    "ch-1",
+			SubscriberID: "sbsc-1",
+		})
 		close()
 	})
-	result.ot.AssertSpan(0, ottrace.SpanKindInternal, "DSPS storage DoSomething", map[string]interface{}{
-		"dsps.storage.id": "storage-1",
+	result.OT.AssertSpan(0, ottrace.SpanKindInternal, "DSPS storage DoSomething", map[string]interface{}{
+		"dsps.storage.id":       "storage-1",
+		"messaging.system":      "dsps",
+		"messaging.destination": "ch-1",
+		"dsps.subscriber_id":    "sbsc-1",
 	})
 }
 
-type traceResult struct {
-	ot *ottesting.StubExporter
-}
+func TestJTIAttrs(t *testing.T) {
+	result := WithStubTracing(t, func(t *Telemetry) {
+		ctx, close := t.StartStorageSpan(context.Background(), "storage-1", "DoSomething")
+		t.SetJTI(ctx, "jti-value")
+		close()
 
-func withStubTracing(t *testing.T, f func(*Telemetry)) *traceResult {
-	tr := &traceResult{
-		ot: ottesting.NewStubExporter(t),
-	}
-	telemetry := &Telemetry{
-		ot: &opentelemetry.OTFacility{
-			Tracing: &opentelemetry.Tracing{
-				Tracer: otsdktrace.NewTracerProvider(otsdktrace.WithSyncer(tr.ot)).Tracer("test"),
-			},
-		},
-	}
-	defer telemetry.Shutdown(context.Background())
-	f(telemetry)
-	return tr
+	})
+	result.OT.AssertSpan(0, ottrace.SpanKindInternal, "DSPS storage DoSomething", map[string]interface{}{
+		"dsps.storage.id": "storage-1",
+		"jwt.jti":         "jti-value",
+	})
 }

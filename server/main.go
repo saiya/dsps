@@ -83,7 +83,7 @@ func mainImpl(ctx context.Context, args []string, clock domain.SystemClock) erro
 	}
 	defer channelProvider.Shutdown(ctx)
 
-	storage, err := storage.NewStorage(ctx, &config.Storages, clock, channelProvider)
+	storage, err := storage.NewStorage(ctx, &config.Storages, clock, channelProvider, telemetry)
 	if err != nil {
 		return err
 	}
@@ -102,6 +102,7 @@ func mainImpl(ctx context.Context, args []string, clock domain.SystemClock) erro
 		ChannelProvider: channelProvider,
 		Storage:         storage,
 
+		Telemetry:   telemetry,
 		LogFilter:   logFilter,
 		ServerClose: httplifecycle.NewServerClose(),
 	})

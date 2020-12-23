@@ -2,6 +2,7 @@ package testing
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +13,9 @@ import (
 
 // StubExporter implements OT SpanExporter
 type StubExporter struct {
-	t       *testing.T
+	t *testing.T
+
+	lock    sync.Mutex
 	otSpans []*ottraceexport.SpanData
 }
 
@@ -23,6 +26,9 @@ func NewStubExporter(t *testing.T) *StubExporter {
 
 // AssertSpan asserts specified span captured
 func (tr *StubExporter) AssertSpan(index int, kind ottrace.SpanKind, name string, attributes map[string]interface{}) *ottraceexport.SpanData {
+	tr.lock.Lock()
+	defer tr.lock.Unlock()
+
 	t := tr.t
 	if !assert.Greater(t, len(tr.otSpans), index) {
 		return nil
@@ -37,11 +43,17 @@ func (tr *StubExporter) AssertSpan(index int, kind ottrace.SpanKind, name string
 
 // GetSpans returns captured spans
 func (tr *StubExporter) GetSpans() []*ottraceexport.SpanData {
+	tr.lock.Lock()
+	defer tr.lock.Unlock()
+
 	return tr.otSpans
 }
 
 // ExportSpans implements OT SpanExporter
 func (tr *StubExporter) ExportSpans(ctx context.Context, spanData []*ottraceexport.SpanData) error {
+	tr.lock.Lock()
+	defer tr.lock.Unlock()
+
 	tr.otSpans = append(tr.otSpans, spanData...)
 	return nil
 }

@@ -8,6 +8,7 @@ require (
 	github.com/Songmu/gocredits v0.2.0
 	github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
 	github.com/go-playground/validator/v10 v10.4.1
+	github.com/go-redis/redis/extra/redisotel v0.2.0
 	github.com/go-redis/redis/v8 v8.4.0
 	github.com/goccy/go-yaml v1.8.4
 	github.com/golang/mock v1.4.4
