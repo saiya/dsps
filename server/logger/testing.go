@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"context"
 	"sync"
 	"testing"
 
@@ -76,6 +77,7 @@ func WithTestLogger(t *testing.T, filter *Filter, f func(lc *LogCapture)) {
 		return zapcore.NewTee(z, lc.createZapCore())
 	}))
 	rootLogger = &loggerImpl{
+		ctx:    context.Background(),
 		zap:    logger,
 		filter: filter,
 	}

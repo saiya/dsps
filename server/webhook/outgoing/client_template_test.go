@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/saiya/dsps/server/config"
+	"github.com/saiya/dsps/server/telemetry"
 )
 
 func newClientTemplateByConfig(t *testing.T, channelRegex string, json string) ClientTemplate {
@@ -25,7 +26,8 @@ func newClientTemplateByConfig(t *testing.T, channelRegex string, json string) C
 	cfg, err := config.ParseConfig(ctx, config.Overrides{}, yaml)
 	assert.NoError(t, err)
 
-	tpl, err := NewClientTemplate(ctx, &cfg.Channels[0].Webhooks[0])
+	telemetry := telemetry.NewEmptyTelemetry(t)
+	tpl, err := NewClientTemplate(ctx, &cfg.Channels[0].Webhooks[0], telemetry)
 	assert.NoError(t, err)
 	return tpl
 }

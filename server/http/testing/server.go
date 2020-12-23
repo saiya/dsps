@@ -15,6 +15,7 @@ import (
 	httplifecycle "github.com/saiya/dsps/server/http/lifecycle"
 	"github.com/saiya/dsps/server/logger"
 	"github.com/saiya/dsps/server/storage"
+	"github.com/saiya/dsps/server/telemetry"
 )
 
 // WithServerDeps runs given test function with ServerDependencies
@@ -29,9 +30,11 @@ func WithServerDeps(t *testing.T, configYaml string, f func(*http.ServerDependen
 
 	ctx := context.Background()
 	clock := domain.RealSystemClock
-	channelProvider, err := channel.NewChannelProvider(ctx, &cfg, clock)
+	telemetry, err := telemetry.InitTelemetry(cfg.Telemetry)
 	assert.NoError(t, err)
-	storage, err := storage.NewStorage(ctx, &cfg.Storages, clock, channelProvider)
+	channelProvider, err := channel.NewChannelProvider(ctx, &cfg, clock, telemetry)
+	assert.NoError(t, err)
+	storage, err := storage.NewStorage(ctx, &cfg.Storages, clock, channelProvider, telemetry)
 	assert.NoError(t, err)
 	serverClose := httplifecycle.NewServerClose()
 	defer serverClose.Close()
@@ -42,6 +45,7 @@ func WithServerDeps(t *testing.T, configYaml string, f func(*http.ServerDependen
 		Storage:         storage,
 
 		LogFilter:   logFilter,
+		Telemetry:   telemetry,
 		ServerClose: serverClose,
 	})
 }

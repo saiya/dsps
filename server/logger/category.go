@@ -8,6 +8,8 @@ const (
 	CatServer Category = "server"
 	// CatLogger is logging system events
 	CatLogger = "logger"
+	// CatTracing is tracing system events
+	CatTracing = "tracing"
 	// CatAuth is auth related events
 	CatAuth = "auth"
 	// CatHTTP is HTTP layer log

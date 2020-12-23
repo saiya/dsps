@@ -19,6 +19,10 @@ func CoreFunctionTest(t *testing.T, storageCtor StorageCtor) {
 	defer func() { assert.NoError(t, storage.Shutdown(ctx)) }()
 
 	assert.NotEmpty(t, storage.String())
+	assert.GreaterOrEqual(t, storage.GetFileDescriptorPressure(), 0)
+
+	storage.AsPubSubStorage() // Should not crash
+	storage.AsJwtStorage()    // Should not crash
 
 	if _, err := storage.Liveness(ctx); !assert.NoError(t, err) {
 		return

@@ -33,8 +33,8 @@ func TestRealIPMiddlewareXFF(t *testing.T) {
 		r := httprouter.New()
 		rt := NewRouter(func(r *http.Request, f func(context.Context)) {
 			f(context.Background())
-		}, r, "/")
-		server := httptest.NewServer(RealIPMiddleware(deps, r))
+		}, r, "/", RealIPMiddleware(deps))
+		server := httptest.NewServer(r)
 		defer server.Close()
 
 		var lastRealIP string

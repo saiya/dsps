@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"context"
 	"fmt"
 
 	"go.uber.org/zap"
@@ -21,24 +22,31 @@ type Logger interface {
 }
 
 type loggerImpl struct {
+	ctx context.Context
 	zap *zap.Logger
 
 	// Log filter, must point same instance across all logger instances belongs to same tree.
 	filter *Filter
 }
 
-func (logger *loggerImpl) WithAttributes(fields []zap.Field) *loggerImpl {
+func (logger *loggerImpl) copy() *loggerImpl {
 	return &loggerImpl{
-		zap:    logger.zap.With(fields...),
+		ctx:    logger.ctx,
+		zap:    logger.zap,
 		filter: logger.filter,
 	}
 }
 
+func (logger *loggerImpl) withAttributes(fields []zap.Field) *loggerImpl {
+	result := logger.copy()
+	result.zap = result.zap.With(fields...)
+	return result
+}
+
 func (logger *loggerImpl) withFilter(filter *Filter) *loggerImpl {
-	return &loggerImpl{
-		zap:    logger.zap,
-		filter: filter,
-	}
+	result := logger.copy()
+	result.filter = filter
+	return result
 }
 
 func (logger *loggerImpl) FatalExitProcess(msg string, err error) {
@@ -50,6 +58,7 @@ func (logger *loggerImpl) Error(msg string, err error) {
 		return
 	}
 	logger.zap.Error(msg, zap.Error(err), zap.String("category", "ERROR"))
+	invokeGlobalErrorHandlers(logger.ctx, msg, err)
 }
 
 func (logger *loggerImpl) WarnError(cat Category, msg string, err error) {

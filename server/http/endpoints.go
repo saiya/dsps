@@ -20,9 +20,9 @@ func InitEndpoints(mainCtx context.Context, rt *router.Router, deps *ServerDepen
 
 	channelRouter := rt.NewGroup(
 		"/channel/:channelID",
-		func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context)) {
-			next(logger.WithAttributes(ctx).WithStr("channelID", args.PS.ByName("channelID")).Build())
-		},
+		router.AsMiddlewareFunc(func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context, router.MiddlewareArgs)) {
+			next(logger.WithAttributes(ctx).WithStr("channelID", args.PS.ByName("channelID")).Build(), args)
+		}),
 		middleware.NewNormalAuth(mainCtx, deps, func(c context.Context, args router.MiddlewareArgs) (domain.Channel, error) {
 			id, err := domain.ParseChannelID(args.PS.ByName("channelID"))
 			if err != nil {

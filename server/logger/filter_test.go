@@ -3,8 +3,9 @@ package logger_test
 import (
 	"testing"
 
-	. "github.com/saiya/dsps/server/logger"
 	"github.com/stretchr/testify/assert"
+
+	. "github.com/saiya/dsps/server/logger"
 )
 
 func TestFilter(t *testing.T) {

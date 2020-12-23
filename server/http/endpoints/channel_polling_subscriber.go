@@ -26,9 +26,9 @@ type PollingEndpointDependency interface {
 func InitSubscriptionPollingEndpoints(channelRouter *router.Router, deps PollingEndpointDependency) {
 	group := channelRouter.NewGroup(
 		"/subscription/polling/:subscriberID",
-		func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context)) {
-			next(logger.WithAttributes(ctx).WithStr("subscriberID", args.PS.ByName("subscriberID")).Build())
-		},
+		router.AsMiddlewareFunc(func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context, router.MiddlewareArgs)) {
+			next(logger.WithAttributes(ctx).WithStr("subscriberID", args.PS.ByName("subscriberID")).Build(), args)
+		}),
 	)
 	group.PUT("", subscriberPutEndpoint(deps))
 	group.DELETE("", subscriberDeleteEndpoint(deps))

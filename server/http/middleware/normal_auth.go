@@ -19,9 +19,9 @@ type NormalAuthDependency interface {
 }
 
 // NewNormalAuth creates middleware for authentication
-func NewNormalAuth(mainCtx context.Context, deps NormalAuthDependency, channelOf func(context.Context, router.MiddlewareArgs) (domain.Channel, error)) router.Middleware {
+func NewNormalAuth(mainCtx context.Context, deps NormalAuthDependency, channelOf func(context.Context, router.MiddlewareArgs) (domain.Channel, error)) router.MiddlewareFunc {
 	jwtStorage := deps.GetStorage().AsJwtStorage()
-	return func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context)) {
+	return router.AsMiddlewareFunc(func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context, router.MiddlewareArgs)) {
 		channel, err := channelOf(ctx, args)
 		if err != nil {
 			utils.SendInvalidParameter(ctx, args.W, "channelID", err)
@@ -56,6 +56,6 @@ func NewNormalAuth(mainCtx context.Context, deps NormalAuthDependency, channelOf
 			return
 		}
 
-		next(ctx)
-	}
+		next(ctx, args)
+	})
 }

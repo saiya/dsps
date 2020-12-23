@@ -16,7 +16,7 @@ type AdminAuthDependency interface {
 }
 
 // NewAdminAuth creates middleware for authentication
-func NewAdminAuth(mainCtx context.Context, deps AdminAuthDependency) router.Middleware {
+func NewAdminAuth(mainCtx context.Context, deps AdminAuthDependency) router.MiddlewareFunc {
 	allowedIP := func(args router.MiddlewareArgs) bool {
 		clientIP := GetRealIP(deps, args.R)
 		for _, allowed := range deps.GetAdminAuthConfig().Networks {
@@ -37,7 +37,7 @@ func NewAdminAuth(mainCtx context.Context, deps AdminAuthDependency) router.Midd
 		return false
 	}
 
-	return func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context)) {
+	return router.AsMiddlewareFunc(func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context, router.MiddlewareArgs)) {
 		if !allowedIP(args) {
 			utils.SendError(ctx, args.W, 403, ``, fmt.Errorf(`IP address is not in allow list: %s`, GetRealIP(deps, args.R)))
 			return
@@ -46,6 +46,6 @@ func NewAdminAuth(mainCtx context.Context, deps AdminAuthDependency) router.Midd
 			utils.SendError(ctx, args.W, 403, ``, fmt.Errorf(`Invalid authentication token or no token`))
 			return
 		}
-		next(ctx)
-	}
+		next(ctx, args)
+	})
 }

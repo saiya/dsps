@@ -98,6 +98,50 @@ Configuration items under `logging`:
 - `attributes` (string to string map, optional): Attributes set to every log records
   - Useful to set machine ID etcetera.
 
+## <a name="telemetry"></a> telemetry configuration block
+
+Configure `telemetry` block to enable tracing and metrics.
+
+```yaml
+telemetry:
+  ot:
+    tracing:
+      enable: true
+      sampling: 0.003
+      batch:
+        maxQueueSize: 2048
+        timeout: 5s
+        batchSize: 512
+      attributes:
+        host.name: hostname-of-the-instance
+        my.attribute: "foo bar"
+    exporters:
+      stdout:
+        enable: true
+```
+
+Configuration items under `telemetry.ot.tracing` ([OpenTelemetry](https://opentelemetry.io/) tracing):
+
+- `enable` (boolean, default `false`): true to enable OpenTelemetry
+- `sampling` (floating number, default `1.0`): Sampling ratio to capture or not capture traces
+  - Note that if tracing propagated from upstream, this ratio is not applied
+- `batch.maxQueueSize` (number, default `2048`): On-memory buffer size to buffer tracing spans
+- `batch.timeout` (duration string, default `5s`): Maximum duration to keep trace in buffer for bulk transmission
+- `batch.batchSize` (number, default `512`): Number of traces to submit at once.
+- `attributes`: (string to any map): Attributes of resource to add to traces
+  - See [official resource semantic conventions](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/resource/semantic_conventions/README.md) document for standard naming
+- `exporters`: Setup tracing exporters, see below.
+
+Configuration items under `telemetry.ot.exporters.stdout`:
+
+- `enable` (boolean, default `false`): true to output traces to stdout
+- `quantiles` (list of numbers, default `0.5, 0.9, 0.99`): quantiles for metrics sampling
+
+Configuration items under `telemetry.ot.exporters.gcp`:
+
+- `enableTrace` (boolean, default `false`): true to output traces to GCP Cloud Trace
+- `projectID` (string, default `""`): Set non-empty string to specify GCP Project ID
+
 ## <a name="channels"></a> channels configuration block
 
 You can configure channels under `channels` block.
