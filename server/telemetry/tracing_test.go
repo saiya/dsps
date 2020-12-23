@@ -15,15 +15,16 @@ import (
 func TestHTTPSpan(t *testing.T) {
 	result := WithStubTracing(t, func(t *Telemetry) {
 		// Server request
-		r := httptest.NewRequest("POST", "https://vhost.example.com/foo/bar", strings.NewReader("{}"))
+		r := httptest.NewRequest("POST", "/foo/bar?param=value", strings.NewReader("{}"))
+		r.Host = "vhost.example.com"
 		r.Header.Set("User-Agent", "test/0.1.2")
 		ctx, close := t.StartHTTPSpan(context.Background(), true, r)
-		t.SetHTTPServerAttributes(ctx, r, "/foo/{name}", "my.server.example.com", "172.0.0.2")
+		t.SetHTTPServerAttributes(ctx, r, "/foo/{name}", "172.0.0.2")
 		t.SetHTTPResponseAttributes(ctx, 200, 123)
 		close()
 
 		// Client request
-		r = httptest.NewRequest("GET", "http://vhost.example.com/outgoing/webhook", strings.NewReader("{}"))
+		r = httptest.NewRequest("GET", "http://vhost.example.com/outgoing/webhook?param=value", strings.NewReader("{}"))
 		r.Header.Set("User-Agent", "test/0.1.2")
 		ctx, close = t.StartHTTPSpan(context.Background(), false, r)
 		t.SetHTTPResponseAttributes(ctx, 201, 123)
@@ -32,14 +33,14 @@ func TestHTTPSpan(t *testing.T) {
 	result.OT.AssertSpan(0, ottrace.SpanKindServer, "HTTP POST /foo/{name}", map[string]interface{}{
 		// StartHTTPSpan
 		"http.method":                 "POST",
-		"http.url":                    "https://vhost.example.com/foo/bar",
+		"http.scheme":                 "http",
 		"http.host":                   "vhost.example.com",
-		"http.scheme":                 "https",
+		"http.target":                 "/foo/bar?param=value",
 		"http.user_agent":             "test/0.1.2",
 		"http.request_content_length": int64(2),
 		// SetHTTPServerAttributes
-		"http.server_name": "my.server.example.com",
-		"http.client_ip":   "172.0.0.2",
+		"http.route":     "/foo/{name}",
+		"http.client_ip": "172.0.0.2",
 		// SetHTTPResponseAttributes
 		"http.status_code":             int64(200),
 		"http.response_content_length": int64(123),
@@ -47,7 +48,7 @@ func TestHTTPSpan(t *testing.T) {
 	result.OT.AssertSpan(1, ottrace.SpanKindClient, "HTTP GET", map[string]interface{}{
 		// StartHTTPSpan
 		"http.method":                 "GET",
-		"http.url":                    "http://vhost.example.com/outgoing/webhook",
+		"http.url":                    "http://vhost.example.com/outgoing/webhook?param=value",
 		"http.host":                   "vhost.example.com",
 		"http.scheme":                 "http",
 		"http.user_agent":             "test/0.1.2",

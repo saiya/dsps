@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net"
 	"net/http"
 
@@ -32,19 +33,31 @@ func GetRealIP(deps RealIPDependency, r router.Request) string {
 
 // RealIPMiddleware initialize middleware for real IP handling.
 // Because "github.com/natureglobal/realip" is http.Handler middleware, this method wraps http.Handler
-func RealIPMiddleware(deps RealIPDependency, inner http.Handler) http.Handler {
-	if deps.GetIPHeaderName() == "" {
-		return inner
+func RealIPMiddleware(deps RealIPDependency) router.MiddlewareFunc {
+	return func(method, path string) router.Middleware {
+		if deps.GetIPHeaderName() == "" {
+			return func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context, router.MiddlewareArgs)) {
+				next(ctx, args)
+			}
+		}
+
+		realIPFrom := make([]*net.IPNet, 0, len(deps.GetTrustedProxyRanges()))
+		for _, cidr := range deps.GetTrustedProxyRanges() {
+			realIPFrom = append(realIPFrom, cidr.IPNet())
+		}
+		m := realip.MustMiddleware(&realip.Config{
+			RealIPHeader:    deps.GetIPHeaderName(),
+			SetHeader:       deps.GetIPHeaderName(),
+			RealIPFrom:      realIPFrom,
+			RealIPRecursive: true,
+		})
+		return func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context, router.MiddlewareArgs)) {
+			m(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+				args.R = router.Request{Request: r}
+				args.W = router.NewResponseWriter(rw)
+				next(ctx, args)
+			})).ServeHTTP(args.W, args.R.Request)
+		}
 	}
 
-	realIPFrom := make([]*net.IPNet, 0, len(deps.GetTrustedProxyRanges()))
-	for _, cidr := range deps.GetTrustedProxyRanges() {
-		realIPFrom = append(realIPFrom, cidr.IPNet())
-	}
-	return realip.MustMiddleware(&realip.Config{
-		RealIPHeader:    deps.GetIPHeaderName(),
-		SetHeader:       deps.GetIPHeaderName(),
-		RealIPFrom:      realIPFrom,
-		RealIPRecursive: true,
-	})(inner)
 }

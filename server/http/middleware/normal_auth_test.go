@@ -37,7 +37,7 @@ func TestNormalAuthFilter(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
 			return deps.ChannelProvider.Get("auth-test-channel")
-		})
+		})("", "")
 
 		rec := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/", nil)
@@ -48,7 +48,7 @@ func TestNormalAuthFilter(t *testing.T) {
 			Iss:     "https://issuer.example.com/issuer-url",
 			Aud:     []JwtAud{"https://my-service.example.com/"},
 		}))
-		withNextFunc(t, true, func(next func(context.Context)) {
+		withNextFunc(t, true, func(next func(context.Context, router.MiddlewareArgs)) {
 			auth(context.Background(), router.MiddlewareArgs{
 				HandlerArgs: router.HandlerArgs{R: router.Request{Request: req}, W: router.NewResponseWriter(rec), PS: httprouter.Params{}},
 			}, next)
@@ -127,12 +127,12 @@ func TestNormalAuthInvalidChannel(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
 			return deps.ChannelProvider.Get("INVALID-channel") // Invalid channel ID
-		})
+		})("", "")
 
 		rec := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/", nil)
 		req.Header.Add("Authorization", "Bearer NOT-JWT")
-		withNextFunc(t, false, func(next func(context.Context)) {
+		withNextFunc(t, false, func(next func(context.Context, router.MiddlewareArgs)) {
 			auth(context.Background(), router.MiddlewareArgs{HandlerArgs: router.HandlerArgs{R: router.Request{Request: req}, W: router.NewResponseWriter(rec), PS: httprouter.Params{}}}, next)
 		})
 		AssertRecordedCode(t, rec, http.StatusBadRequest, ErrInvalidChannel)
@@ -143,11 +143,11 @@ func TestNormalAuthMissingHeader(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT+`http: discloseAuthRejectionDetail: true`, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
 			return deps.ChannelProvider.Get("auth-test-channel")
-		})
+		})("", "")
 
 		rec := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/", nil) // No Authorization header
-		withNextFunc(t, false, func(next func(context.Context)) {
+		withNextFunc(t, false, func(next func(context.Context, router.MiddlewareArgs)) {
 			auth(context.Background(), router.MiddlewareArgs{HandlerArgs: router.HandlerArgs{R: router.Request{Request: req}, W: router.NewResponseWriter(rec), PS: httprouter.Params{}}}, next)
 		})
 		AssertRecordedCode(t, rec, http.StatusForbidden, ErrAuthRejection)
@@ -159,12 +159,12 @@ func TestNormalAuthRejection(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
 			return deps.ChannelProvider.Get("auth-test-channel")
-		})
+		})("", "")
 
 		rec := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/", nil)
 		req.Header.Add("Authorization", "Bearer NOT-JWT")
-		withNextFunc(t, false, func(next func(context.Context)) {
+		withNextFunc(t, false, func(next func(context.Context, router.MiddlewareArgs)) {
 			auth(context.Background(), router.MiddlewareArgs{HandlerArgs: router.HandlerArgs{R: router.Request{Request: req}, W: router.NewResponseWriter(rec), PS: httprouter.Params{}}}, next)
 		})
 		AssertRecordedCode(t, rec, http.StatusForbidden, ErrAuthRejection)
@@ -176,12 +176,12 @@ func TestNormalAuthRejectionWithDetail(t *testing.T) {
 	WithServerDeps(t, configRequiresJWT+`http: discloseAuthRejectionDetail: true`, func(deps *ServerDependencies) {
 		auth := NewNormalAuth(context.Background(), deps, func(context.Context, router.MiddlewareArgs) (Channel, error) {
 			return deps.ChannelProvider.Get("auth-test-channel")
-		})
+		})("", "")
 
 		rec := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/", nil)
 		req.Header.Add("Authorization", "Bearer NOT-JWT")
-		withNextFunc(t, false, func(next func(context.Context)) {
+		withNextFunc(t, false, func(next func(context.Context, router.MiddlewareArgs)) {
 			auth(context.Background(), router.MiddlewareArgs{HandlerArgs: router.HandlerArgs{R: router.Request{Request: req}, W: router.NewResponseWriter(rec), PS: httprouter.Params{}}}, next)
 		})
 		AssertRecordedCode(t, rec, http.StatusForbidden, ErrAuthRejection)

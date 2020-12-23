@@ -15,10 +15,13 @@ import (
 // StartHTTPSpan starts tracing span for incoming or outgoing HTTP call
 func (t *Telemetry) StartHTTPSpan(ctx context.Context, isServer bool, r *http.Request) (context.Context, context.CancelFunc) {
 	var spanKind ottrace.SpanKind
+	var requestURIlabel string
 	if isServer {
 		spanKind = ottrace.SpanKindServer
+		requestURIlabel = "http.target" // For server request, RequestURI is domain relative URI
 	} else {
 		spanKind = ottrace.SpanKindClient // e.g. Outgoing webhook from DSPS to anywhere
+		requestURIlabel = "http.url"
 	}
 	return t.startSpan(
 		// > Therefore, HTTP client spans SHOULD be using conservative, low cardinality names formed from the available parameters of an HTTP request, such as "HTTP {METHOD_NAME}".
@@ -28,9 +31,9 @@ func (t *Telemetry) StartHTTPSpan(ctx context.Context, isServer bool, r *http.Re
 		ottrace.WithAttributes(
 			// see: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/http.md
 			label.String("http.method", r.Method),
-			label.String("http.url", r.URL.String()),
+			label.String("http.scheme", "http"), // FIXME:
 			label.String("http.host", r.Host),
-			label.String("http.scheme", r.URL.Scheme),
+			label.String(requestURIlabel, r.RequestURI),
 			label.String("http.user_agent", r.UserAgent()),
 			label.Int64("http.request_content_length", r.ContentLength),
 		),
@@ -38,12 +41,12 @@ func (t *Telemetry) StartHTTPSpan(ctx context.Context, isServer bool, r *http.Re
 }
 
 // SetHTTPServerAttributes adds attributes for incoming HTTP request
-func (t *Telemetry) SetHTTPServerAttributes(ctx context.Context, r *http.Request, routePath string, serverName string, clientIP string) {
+func (t *Telemetry) SetHTTPServerAttributes(ctx context.Context, r *http.Request, routePath string, clientIP string) {
 	span := ottrace.SpanFromContext(ctx)
 	span.SetName(fmt.Sprintf("HTTP %s %s", r.Method, routePath))
 	span.SetAttributes(
 		// https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/http.md#http-server-semantic-conventions
-		label.String("http.server_name", serverName),
+		label.String("http.route", routePath),
 		label.String("http.client_ip", clientIP),
 	)
 }

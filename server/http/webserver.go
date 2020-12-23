@@ -34,15 +34,17 @@ func CreateServer(mainContext context.Context, deps *ServerDependencies) http.Ha
 
 	rt := router.NewRouter(
 		func(r *http.Request, f func(context.Context)) {
-			deps.ServerClose.WithCancel(context.Background(), f)
+			deps.ServerClose.WithCancel(r.Context(), f)
 		},
 		r,
 		deps.Config.HTTPServer.PathPrefix,
+		middleware.RealIPMiddleware(deps), // Must take precedence over logging, tracing, auth, ...
+		middleware.TracingMiddleware(deps, deps),
 		middleware.LoggingMiddleware(deps),
 		middleware.DefaultHeadersMiddleware(deps),
 	)
 	InitEndpoints(mainContext, rt, deps)
-	return middleware.RealIPMiddleware(deps, r)
+	return r
 }
 
 func runServer(mainContext context.Context, config *config.ServerConfig, engine http.Handler, serverClose httplifecycle.ServerClose) {

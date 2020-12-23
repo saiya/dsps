@@ -13,12 +13,20 @@ type Router struct {
 	r  *httprouter.Router
 	cp ContextProvider
 
-	pathPrefix  string
-	middlewares []Middleware
+	pathPrefix      string
+	middlewareFuncs []MiddlewareFunc
 }
 
 // Middleware is a filter that request passes
-type Middleware func(ctx context.Context, args MiddlewareArgs, next func(context.Context))
+type Middleware func(ctx context.Context, args MiddlewareArgs, next func(context.Context, MiddlewareArgs))
+
+// MiddlewareFunc is a function to dynamically create Middleware
+type MiddlewareFunc func(method string, path string) Middleware
+
+// AsMiddlewareFunc is to wrap Middleware as MiddlewareFunc
+func AsMiddlewareFunc(m Middleware) MiddlewareFunc {
+	return func(method, path string) Middleware { return m }
+}
 
 // Handler is a implementation of a endpoint
 type Handler func(ctx context.Context, args HandlerArgs)
@@ -32,54 +40,65 @@ type MiddlewareArgs struct {
 }
 
 // NewRouter creates new router (root node of router tree)
-func NewRouter(cp ContextProvider, r *httprouter.Router, pathPrefix string, middlewares ...Middleware) *Router {
+func NewRouter(cp ContextProvider, r *httprouter.Router, pathPrefix string, middlewareFuncs ...MiddlewareFunc) *Router {
 	return &Router{
 		r:  r,
 		cp: cp,
 
-		pathPrefix:  concatPath(pathPrefix),
-		middlewares: middlewares,
+		pathPrefix:      concatPath(pathPrefix),
+		middlewareFuncs: middlewareFuncs,
 	}
 }
 
 // NewGroup creates new child node of the router tree
-func (rt *Router) NewGroup(pathPrefix string, middlewares ...Middleware) *Router {
+func (rt *Router) NewGroup(pathPrefix string, middlewareFuncs ...MiddlewareFunc) *Router {
 	return &Router{
 		r:  rt.r,
 		cp: rt.cp,
 
-		pathPrefix:  concatPath(rt.pathPrefix, pathPrefix),
-		middlewares: append(rt.middlewares, middlewares...),
+		pathPrefix:      concatPath(rt.pathPrefix, pathPrefix),
+		middlewareFuncs: append(rt.middlewareFuncs, middlewareFuncs...),
 	}
 }
 
 // GET endpoint registration
 func (rt *Router) GET(pathPrefix string, h Handler) {
-	rt.r.GET(concatPath(rt.pathPrefix, pathPrefix), rt.wrap(h))
+	rt.register("GET", pathPrefix, h)
 }
 
 // PUT endpoint registration
 func (rt *Router) PUT(pathPrefix string, h Handler) {
-	rt.r.PUT(concatPath(rt.pathPrefix, pathPrefix), rt.wrap(h))
+	rt.register("PUT", pathPrefix, h)
 }
 
 // POST endpoint registration
 func (rt *Router) POST(pathPrefix string, h Handler) {
-	rt.r.POST(concatPath(rt.pathPrefix, pathPrefix), rt.wrap(h))
+	rt.register("POST", pathPrefix, h)
 }
 
 // DELETE endpoint registration
 func (rt *Router) DELETE(pathPrefix string, h Handler) {
-	rt.r.DELETE(concatPath(rt.pathPrefix, pathPrefix), rt.wrap(h))
+	rt.register("DELETE", pathPrefix, h)
 }
 
-func (rt *Router) wrap(h Handler) httprouter.Handle {
-	middlewares := rt.middlewares
+func (rt *Router) register(method string, pathPrefix string, h Handler) {
+	path := concatPath(rt.pathPrefix, pathPrefix)
+	rt.r.Handle(method, path, rt.wrap(method, path, h))
+}
+
+func (rt *Router) wrap(method, path string, h Handler) httprouter.Handle {
+	middlewares := make([]Middleware, len(rt.middlewareFuncs))
+	for i, mf := range rt.middlewareFuncs {
+		middlewares[i] = mf(method, path)
+	}
 
 	var caller func(ctx context.Context, middlewareIndex int, args MiddlewareArgs)
 	caller = func(ctx context.Context, middlewareIndex int, args MiddlewareArgs) {
 		if middlewareIndex < len(middlewares) {
-			middlewares[middlewareIndex](ctx, args, func(ctx context.Context) {
+			middlewares[middlewareIndex](ctx, args, func(ctx context.Context, args MiddlewareArgs) {
+				args.R = Request{
+					Request: args.R.WithContext(ctx),
+				}
 				caller(ctx, middlewareIndex+1, args)
 			})
 			return

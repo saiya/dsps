@@ -45,6 +45,7 @@ func WithServerDeps(t *testing.T, configYaml string, f func(*http.ServerDependen
 		Storage:         storage,
 
 		LogFilter:   logFilter,
+		Telemetry:   telemetry,
 		ServerClose: serverClose,
 	})
 }
