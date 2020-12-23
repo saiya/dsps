@@ -15,25 +15,31 @@ import (
 // StartHTTPSpan starts tracing span for incoming or outgoing HTTP call
 func (t *Telemetry) StartHTTPSpan(ctx context.Context, isServer bool, r *http.Request) (context.Context, context.CancelFunc) {
 	var spanKind ottrace.SpanKind
+	var scheme string
 	var requestURIlabel string
+	var requestURI string
 	if isServer {
 		spanKind = ottrace.SpanKindServer
+		scheme = "http"                 // Currently DSPS server only support HTTP
 		requestURIlabel = "http.target" // For server request, RequestURI is domain relative URI
+		requestURI = r.RequestURI
 	} else {
 		spanKind = ottrace.SpanKindClient // e.g. Outgoing webhook from DSPS to anywhere
+		scheme = r.URL.Scheme
 		requestURIlabel = "http.url"
+		requestURI = r.URL.String()
 	}
 	return t.startSpan(
 		// > Therefore, HTTP client spans SHOULD be using conservative, low cardinality names formed from the available parameters of an HTTP request, such as "HTTP {METHOD_NAME}".
 		// https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/http.md
-		ctx, fmt.Sprintf("HTTP %s", r.Method),
+		ctx, fmt.Sprintf("HTTP %s %s", r.Method, r.Host),
 		ottrace.WithSpanKind(spanKind),
 		ottrace.WithAttributes(
 			// see: https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/http.md
 			label.String("http.method", r.Method),
-			label.String("http.scheme", "http"), // FIXME:
+			label.String("http.scheme", scheme),
 			label.String("http.host", r.Host),
-			label.String(requestURIlabel, r.RequestURI),
+			label.String(requestURIlabel, requestURI),
 			label.String("http.user_agent", r.UserAgent()),
 			label.Int64("http.request_content_length", r.ContentLength),
 		),

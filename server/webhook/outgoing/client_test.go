@@ -7,12 +7,15 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/telemetry"
 )
 
 func newClientAndServerByConfig(t *testing.T, handler http.Handler, tplEnv domain.TemplateStringEnv, config string, h func(client *clientImpl)) {
@@ -71,6 +74,65 @@ func TestClientImpl(t *testing.T) {
 		},
 	)
 	assert.EqualValues(t, msg, received)
+}
+
+func TestClientTracing(t *testing.T) {
+	msg := domain.Message{
+		MessageLocator: domain.MessageLocator{
+			ChannelID: "chat-room-1234",
+			MessageID: "msg-1",
+		},
+		Content: []byte(`{"hi":"hello"}`),
+	}
+	var received domain.Message
+	var handler http.HandlerFunc = func(rw http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "PUT", r.Method)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, `/you-got-message/room/1234`, r.URL.Path)
+		assert.Equal(t, `My DSPS server`, r.Header.Get("User-Agent"))
+		assert.Equal(t, `1234`, r.Header.Get("X-Room-ID"))
+
+		body, err := ioutil.ReadAll(r.Body)
+		assert.NoError(t, err)
+		assert.Equal(t, fmt.Sprintf("%d", len(body)), r.Header.Get("Content-Length"))
+		assert.NoError(t, json.Unmarshal(body, &received))
+	}
+	var serverHostName string
+	tr := telemetry.WithStubTracing(t, func(telemetry *telemetry.Telemetry) {
+		newClientAndServerByConfig(
+			t,
+			handler,
+			map[string]interface{}{"channel": map[string]string{"id": "1234"}},
+			`{
+				"method": "PUT",
+				"url": "${BASE_URL}/you-got-message/room/{{.channel.id}}", 
+				"timeout": "3s",
+				"headers": { 
+					"User-Agent": "My DSPS server",
+					"X-Room-ID": "{{.channel.id}}"
+				}
+			}`,
+			func(client *clientImpl) {
+				url, err := url.Parse(client.url)
+				assert.NoError(t, err)
+				serverHostName = url.Host
+
+				client.telemetry = telemetry
+				assert.NoError(t, client.Send(context.Background(), msg))
+			},
+		)
+	})
+	assert.EqualValues(t, msg, received)
+	tr.OT.AssertSpan(0, trace.SpanKindClient, "HTTP PUT "+serverHostName, map[string]interface{}{
+		"http.method":                  "PUT",
+		"http.scheme":                  "http",
+		"http.host":                    serverHostName,
+		"http.url":                     fmt.Sprintf("http://%s/you-got-message/room/1234", serverHostName),
+		"http.user_agent":              "My DSPS server",
+		"http.request_content_length":  int64(114),
+		"http.status_code":             int64(200),
+		"http.response_content_length": int64(0),
+	})
 }
 
 func TestClientRetry(t *testing.T) {

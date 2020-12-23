@@ -8,9 +8,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/xerrors"
+
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/logger"
-	"golang.org/x/xerrors"
+	"github.com/saiya/dsps/server/telemetry"
 )
 
 // Client is an outgoing-webhook client.
@@ -34,8 +36,8 @@ type clientImpl struct {
 	timeout time.Duration
 	retry   retry
 
-	// Note that Client does not own this object, ClientTemplate owns.
-	h *http.Client
+	h         *http.Client // Note that Client does not own this object, ClientTemplate owns.
+	telemetry *telemetry.Telemetry
 }
 
 func newClientImpl(tpl *clientTemplate, tplEnv domain.TemplateStringEnv) (Client, error) {
@@ -48,7 +50,8 @@ func newClientImpl(tpl *clientTemplate, tplEnv domain.TemplateStringEnv) (Client
 		timeout: tpl.Timeout.Duration,
 		retry:   newRetry(&tpl.Retry),
 
-		h: tpl.h,
+		h:         tpl.h,
+		telemetry: tpl.telemetry,
 	}
 
 	var err error
@@ -91,9 +94,12 @@ func (c *clientImpl) Send(ctx context.Context, msg domain.Message) error {
 			req.Header.Set(name, value)
 		}
 
+		ctx, end := c.telemetry.StartHTTPSpan(ctx, false, req)
+		defer end()
 		res, err := c.h.Do(req)
 		if res != nil {
 			logger.Of(ctx).Debugf(logger.CatOutgoingWebhook, "received outgoing webhook response (%s %d, contentLength: %d)", res.Proto, res.StatusCode, res.ContentLength)
+			c.telemetry.SetHTTPResponseAttributes(ctx, res.StatusCode, res.ContentLength)
 		}
 		return res, err
 	})

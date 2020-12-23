@@ -45,7 +45,7 @@ func TestHTTPSpan(t *testing.T) {
 		"http.status_code":             int64(200),
 		"http.response_content_length": int64(123),
 	})
-	result.OT.AssertSpan(1, ottrace.SpanKindClient, "HTTP GET", map[string]interface{}{
+	result.OT.AssertSpan(1, ottrace.SpanKindClient, "HTTP GET vhost.example.com", map[string]interface{}{
 		// StartHTTPSpan
 		"http.method":                 "GET",
 		"http.url":                    "http://vhost.example.com/outgoing/webhook?param=value",

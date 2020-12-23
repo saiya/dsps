@@ -32,7 +32,7 @@ func WithServerDeps(t *testing.T, configYaml string, f func(*http.ServerDependen
 	clock := domain.RealSystemClock
 	telemetry, err := telemetry.InitTelemetry(cfg.Telemetry)
 	assert.NoError(t, err)
-	channelProvider, err := channel.NewChannelProvider(ctx, &cfg, clock)
+	channelProvider, err := channel.NewChannelProvider(ctx, &cfg, clock, telemetry)
 	assert.NoError(t, err)
 	storage, err := storage.NewStorage(ctx, &cfg.Storages, clock, channelProvider, telemetry)
 	assert.NoError(t, err)

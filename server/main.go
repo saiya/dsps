@@ -77,7 +77,7 @@ func mainImpl(ctx context.Context, args []string, clock domain.SystemClock) erro
 	}
 	defer telemetry.Shutdown(ctx)
 
-	channelProvider, err := channel.NewChannelProvider(ctx, &config, clock)
+	channelProvider, err := channel.NewChannelProvider(ctx, &config, clock, telemetry)
 	if err != nil {
 		return err
 	}

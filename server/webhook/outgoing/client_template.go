@@ -6,6 +6,7 @@ import (
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/telemetry"
 )
 
 // ClientTemplate is factory object to make Client
@@ -21,15 +22,19 @@ type clientTemplate struct {
 
 	h        *http.Client
 	maxConns int
+
+	telemetry *telemetry.Telemetry
 }
 
 // NewClientTemplate returns ClientTemplate instalce
-func NewClientTemplate(ctx context.Context, cfg *config.OutgoingWebhookConfig) (ClientTemplate, error) {
+func NewClientTemplate(ctx context.Context, cfg *config.OutgoingWebhookConfig, telemetry *telemetry.Telemetry) (ClientTemplate, error) {
 	return &clientTemplate{
 		OutgoingWebhookConfig: cfg,
 
 		h:        newHTTPClientFor(ctx, cfg),
 		maxConns: *cfg.Connection.Max,
+
+		telemetry: telemetry,
 	}, nil
 }
 

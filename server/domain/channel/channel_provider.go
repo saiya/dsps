@@ -7,13 +7,14 @@ import (
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/telemetry"
 )
 
 // NewChannelProvider initializes ChannelProvider
-func NewChannelProvider(ctx context.Context, config *config.ServerConfig, clock domain.SystemClock) (domain.ChannelProvider, error) {
+func NewChannelProvider(ctx context.Context, config *config.ServerConfig, clock domain.SystemClock, telemetry *telemetry.Telemetry) (domain.ChannelProvider, error) {
 	atoms := make([]*channelAtom, 0, len(config.Channels))
 	for i := range config.Channels {
-		atom, err := newChannelAtom(ctx, &config.Channels[i], clock, true)
+		atom, err := newChannelAtom(ctx, &config.Channels[i], clock, telemetry, true)
 		if err != nil {
 			return nil, xerrors.Errorf("channels[%d] configuration error: %w", i, err)
 		}
