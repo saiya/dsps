@@ -12,13 +12,13 @@ type DefaultHeadersDependency interface {
 }
 
 // DefaultHeadersMiddleware is middleware to set some headers by default
-func DefaultHeadersMiddleware(deps DefaultHeadersDependency) router.Middleware {
-	return func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context)) {
+func DefaultHeadersMiddleware(deps DefaultHeadersDependency) router.MiddlewareFunc {
+	return router.AsMiddlewareFunc(func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context, router.MiddlewareArgs)) {
 		for name, value := range deps.GetDefaultHeaders() {
 			if value != "" {
 				args.W.Header().Add(name, value)
 			}
 		}
-		next(ctx)
-	}
+		next(ctx, args)
+	})
 }

@@ -4,31 +4,20 @@ import (
 	"context"
 	"time"
 
-	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/sync"
 )
 
+var gcInterval = 5 * time.Minute
 var gcTimeout = 3 * time.Second
 
 func (s *onmemoryStorage) startGC() {
-	go func() {
-	L:
-		for {
-			select {
-			case <-s.gcTickerShutdownRequest:
-				break L
-			case <-s.gcTicker.C:
-				func() {
-					ctx, cancel := context.WithTimeout(context.Background(), gcTimeout)
-					defer cancel()
+	s.daemonSystem.Start("gc", func(ctx context.Context) (sync.DaemonNextRun, error) {
+		ctx, cancel := context.WithTimeout(ctx, gcTimeout)
+		defer cancel()
 
-					err := s.GC(ctx)
-					if err != nil {
-						logger.Of(ctx).WarnError(logger.CatStorage, "Onmemory storage GC failed", err)
-					}
-				}()
-			}
-		}
-	}()
+		err := s.GC(ctx)
+		return sync.DaemonNextRun{Interval: gcInterval}, err
+	})
 }
 
 func (s *onmemoryStorage) GC(ctx context.Context) error {

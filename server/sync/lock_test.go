@@ -34,7 +34,8 @@ func TestLockCancel(t *testing.T) {
 		atomic.StoreInt32(&canceled, 1)
 		cancel()
 	})
-	_, err = lock.Lock(ctx)
+	nopUnlock, err := lock.Lock(ctx)
+	nopUnlock() // Should not fail
 	IsError(t, ErrLockCanceled, err)
 	IsError(t, context.Canceled, err)
 	assert.Equal(t, "lock canceled due to context canceled", err.Error())

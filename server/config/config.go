@@ -34,6 +34,7 @@ type ServerConfig struct {
 	Storages   StoragesConfig    `json:"storages"`
 	HTTPServer *HTTPServerConfig `json:"http"`
 	Logging    *LoggingConfig    `json:"logging"`
+	Telemetry  *TelemetryConfig  `json:"telemetry"`
 	Channels   ChannelsConfig    `json:"channels"`
 	Admin      *AdminConfig      `json:"admin"`
 }
@@ -70,6 +71,7 @@ func ParseConfig(ctx context.Context, overrides Overrides, yaml string) (ServerC
 		BuildInfo:  parseBuildInfo(overrides),
 		Storages:   DefaultStoragesConfig(),
 		Logging:    loggingConfigDefault(),
+		Telemetry:  tracingConfigDefault(),
 		HTTPServer: httpServerConfigDefault(),
 		Admin:      adminConfigDefault(),
 	}
@@ -92,6 +94,9 @@ func ParseConfig(ctx context.Context, overrides Overrides, yaml string) (ServerC
 	}
 	if err := PostprocessHTTPServerConfig(config.HTTPServer, overrides); err != nil {
 		return config, fmt.Errorf("HTTP server configration problem: %w", err)
+	}
+	if err := PostprocessTelemetryConfig(config.Telemetry); err != nil {
+		return config, fmt.Errorf("Tracing configration problem: %w", err)
 	}
 	if err := PostprocessChannelsConfig(&config.Channels); err != nil {
 		return config, fmt.Errorf("Channel configration problem: %w", err)

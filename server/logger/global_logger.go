@@ -1,6 +1,8 @@
 package logger
 
 import (
+	"context"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/xerrors"
@@ -27,6 +29,7 @@ func initImpl() {
 	}
 
 	rootLogger = &loggerImpl{
+		ctx:    context.Background(),
 		zap:    zap,
 		filter: newDefaultFilter(),
 	}
@@ -44,6 +47,6 @@ func InitLogger(config *config.LoggingConfig) (*Filter, error) {
 		fields = append(fields, zap.String(key, value))
 	}
 
-	rootLogger = rootLogger.withFilter(filter).WithAttributes(fields)
+	rootLogger = rootLogger.withFilter(filter).withAttributes(fields)
 	return filter, nil
 }

@@ -13,7 +13,7 @@ import (
 )
 
 var storageCtor StorageCtor = func(ctx context.Context, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
-	cfg, err := config.ParseConfig(context.Background(), config.Overrides{}, fmt.Sprintf(`storages: { myRedis: { redis: { singleNode: "%s", connection: { max: 10 } } } }`, GetRedisAddr(nil)))
+	cfg, err := config.ParseConfig(context.Background(), config.Overrides{}, fmt.Sprintf(`storages: { myRedis: { redis: { singleNode: "%s", timeout: { connect: 500ms }, connection: { max: 10 } } } }`, GetRedisAddr(nil)))
 	if err != nil {
 		return nil, err
 	}

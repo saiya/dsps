@@ -5,6 +5,7 @@ import (
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/http/lifecycle"
 	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/telemetry"
 )
 
 // ServerDependencies struct holds all resource references to build web server
@@ -13,6 +14,7 @@ type ServerDependencies struct {
 	ChannelProvider domain.ChannelProvider
 	Storage         domain.Storage
 
+	Telemetry   *telemetry.Telemetry
 	LogFilter   *logger.Filter
 	ServerClose lifecycle.ServerClose
 }
@@ -55,6 +57,11 @@ func (deps *ServerDependencies) GetTrustedProxyRanges() []domain.CIDR {
 // GetAdminAuthConfig returns configuration value
 func (deps *ServerDependencies) GetAdminAuthConfig() *config.AdminAuthConfig {
 	return &deps.Config.Admin.Auth
+}
+
+// GetTelemetry returns telemetry facility
+func (deps *ServerDependencies) GetTelemetry() *telemetry.Telemetry {
+	return deps.Telemetry
 }
 
 // GetLogFilter returns log filter instance
