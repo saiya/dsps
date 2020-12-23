@@ -9,12 +9,14 @@ import (
 	"time"
 
 	. "github.com/saiya/dsps/server/sync"
+	"github.com/saiya/dsps/server/telemetry"
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func TestDaemonSystem(t *testing.T) {
-	testWithTimeout(t, 3*time.Second, func() {
-		ds := NewDaemonSystem("test", ensureNoDaemonError(t))
+	testWithTimeout(t, 1*time.Second, func() {
+		ds := NewDaemonSystem("test", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
 		defer closeDaemon(t, ds)
 		defer closeDaemon(t, ds) // double close should success
 
@@ -64,7 +66,6 @@ func TestDaemonSystem(t *testing.T) {
 			}))
 			assert.Equal(t, int32(i), atomic.LoadInt32(&test2count))
 		}
-
 		// Close test2, it should close context passed to daemon function
 		time.Sleep(3 * time.Millisecond) // Wait until next test2 cycle, blocks on select{}
 		test2.RequestShutdown()
@@ -73,9 +74,28 @@ func TestDaemonSystem(t *testing.T) {
 	})
 }
 
+func TestDaemonTelemetry(t *testing.T) {
+	invoked := make(chan interface{})
+	tr := telemetry.WithStubTracing(t, func(telemetry *telemetry.Telemetry) {
+		ds := NewDaemonSystem("test.system", telemetry, func(ctx context.Context, name string, err error) {
+			assert.NoError(t, err)
+		})
+		ds.Start("test.job", func(c context.Context) (DaemonNextRun, error) {
+			close(invoked)
+			return DaemonNextRun{Abort: true}, nil
+		})
+		<-invoked
+		defer closeDaemon(t, ds)
+	})
+	tr.OT.AssertSpan(0, trace.SpanKindInternal, "BackgroundJob test.system test.job", map[string]interface{}{
+		"dsps.daemon.system": "test.system",
+		"dsps.daemon.name":   "test.job",
+	})
+}
+
 func TestErrorHandler(t *testing.T) {
 	receivedErrors := make(chan error)
-	ds := NewDaemonSystem("test system", func(ctx context.Context, name string, err error) {
+	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), func(ctx context.Context, name string, err error) {
 		assert.Equal(t, "test1", name)
 		receivedErrors <- err
 	})
@@ -89,8 +109,36 @@ func TestErrorHandler(t *testing.T) {
 	assert.Same(t, expectedError, <-receivedErrors)
 }
 
+func TestPanicHandling(t *testing.T) {
+	errorHandlerCalled := int32(0)
+	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), func(ctx context.Context, name string, err error) {
+		atomic.AddInt32(&errorHandlerCalled, 1)
+		panic("test error") // Should not stop system
+	})
+	defer closeDaemon(t, ds)
+
+	invoked := int32(0)
+	fulfilled := make(chan interface{})
+	ds.Start("test1", func(c context.Context) (DaemonNextRun, error) {
+		switch atomic.AddInt32(&invoked, 1) {
+		case 1:
+			panic("test error") // Should not stop system
+		case 2:
+			panic(errors.New("test error")) // Should not stop system
+		case 3:
+			close(fulfilled)
+			return DaemonNextRun{Abort: true}, nil
+		}
+		panic("Unreachable code")
+	})
+
+	<-fulfilled
+	assert.Equal(t, int32(2), atomic.LoadInt32(&errorHandlerCalled))
+	assert.Equal(t, int32(3), atomic.LoadInt32(&invoked))
+}
+
 func TestDaemonSelfShutdown(t *testing.T) {
-	ds := NewDaemonSystem("test system", ensureNoDaemonError(t))
+	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
 	defer closeDaemon(t, ds)
 
 	test1 := ds.Start("test1", func(c context.Context) (DaemonNextRun, error) {
@@ -101,7 +149,7 @@ func TestDaemonSelfShutdown(t *testing.T) {
 }
 
 func TestDaemonShutdownWaitShouldBlock(t *testing.T) { // regression test case
-	ds := NewDaemonSystem("test system", ensureNoDaemonError(t))
+	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
 	defer closeDaemon(t, ds)
 
 	test1 := ds.Start("test1", func(c context.Context) (DaemonNextRun, error) {
@@ -114,8 +162,28 @@ func TestDaemonShutdownWaitShouldBlock(t *testing.T) { // regression test case
 	assert.Equal(t, context.DeadlineExceeded, test1.WaitUntilShutdown(shutdownWaitCtx))
 }
 
+func TestDaemonShutdownShouldCancelTasks(t *testing.T) {
+	testWithTimeout(t, 1*time.Second, func() {
+		ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
+		defer closeDaemon(t, ds)
+
+		test1invoked := make(chan interface{})
+		test1canceled := make(chan interface{})
+		ds.Start("test1", func(ctx context.Context) (DaemonNextRun, error) {
+			close(test1invoked)
+			<-ctx.Done()
+			close(test1canceled)
+			return DaemonNextRun{Abort: true}, nil
+		})
+
+		<-test1invoked
+		assert.NoError(t, ds.Shutdown(context.Background()))
+		<-test1canceled
+	})
+}
+
 func TestDaemonWaitCanceled(t *testing.T) {
-	ds := NewDaemonSystem("test system", ensureNoDaemonError(t))
+	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
 	defer closeDaemon(t, ds)
 
 	test1 := ds.Start("test1", func(c context.Context) (DaemonNextRun, error) {
@@ -130,7 +198,7 @@ func TestDaemonWaitCanceled(t *testing.T) {
 }
 
 func TestGetDaemon(t *testing.T) {
-	ds := NewDaemonSystem("test system", ensureNoDaemonError(t))
+	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
 	defer closeDaemon(t, ds)
 
 	assert.Nil(t, ds.Get("test1"))
@@ -141,7 +209,7 @@ func TestGetDaemon(t *testing.T) {
 }
 
 func TestDaemonStringer(t *testing.T) {
-	ds := NewDaemonSystem("test system", ensureNoDaemonError(t))
+	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
 	defer closeDaemon(t, ds)
 	assert.Equal(t, "DaemonSystem(test system)", ds.String())
 
@@ -152,7 +220,7 @@ func TestDaemonStringer(t *testing.T) {
 }
 
 func TestDaemonNameDuplicated(t *testing.T) {
-	ds := NewDaemonSystem("test system", ensureNoDaemonError(t))
+	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
 	defer closeDaemon(t, ds)
 
 	ds.Start("test daemon", func(c context.Context) (DaemonNextRun, error) {

@@ -80,7 +80,7 @@ func TestPanicHandling(t *testing.T) {
 		r := httprouter.New()
 		rt := NewRouter(func(r *http.Request, f func(context.Context)) {
 			f(context.Background())
-		}, r, "/", LoggingMiddleware(realIPDeps))
+		}, r, "/", LoggingMiddleware(realIPDeps, deps))
 		server := httptest.NewServer(r)
 		defer server.Close()
 

@@ -24,11 +24,32 @@ func NewStubExporter(t *testing.T) *StubExporter {
 	return &StubExporter{t: t}
 }
 
+// AssertSpanBy finds span by kind + name
+func (tr *StubExporter) AssertSpanBy(kind ottrace.SpanKind, name string, attributes map[string]interface{}) *ottraceexport.SpanData {
+	tr.lock.Lock()
+	defer tr.lock.Unlock()
+
+	foundAt := -1
+	for i, span := range tr.otSpans {
+		if span.SpanKind == kind && span.Name == name {
+			foundAt = i
+			break
+		}
+	}
+	if foundAt == -1 {
+		assert.Fail(tr.t, "span not found")
+		return nil
+	}
+	return tr.assertSpan(foundAt, kind, name, attributes)
+}
+
 // AssertSpan asserts specified span captured
 func (tr *StubExporter) AssertSpan(index int, kind ottrace.SpanKind, name string, attributes map[string]interface{}) *ottraceexport.SpanData {
 	tr.lock.Lock()
 	defer tr.lock.Unlock()
-
+	return tr.assertSpan(index, kind, name, attributes)
+}
+func (tr *StubExporter) assertSpan(index int, kind ottrace.SpanKind, name string, attributes map[string]interface{}) *ottraceexport.SpanData {
 	t := tr.t
 	if !assert.Greater(t, len(tr.otSpans), index) {
 		return nil

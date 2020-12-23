@@ -19,6 +19,9 @@ func of(ctx context.Context) *loggerImpl {
 	if logger, ok := ctx.Value(loggerContextKey).(*loggerImpl); ok {
 		return logger
 	}
+
+	rootLoggerLock.RLock()
+	defer rootLoggerLock.RUnlock()
 	return rootLogger
 }
 

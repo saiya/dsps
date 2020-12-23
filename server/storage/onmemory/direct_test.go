@@ -9,10 +9,11 @@ import (
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
 	. "github.com/saiya/dsps/server/storage/testing"
+	"github.com/saiya/dsps/server/telemetry"
 )
 
 func makeRawStorage(t *testing.T) *onmemoryStorage {
-	s, err := NewOnmemoryStorage(context.Background(), &config.OnmemoryStorageConfig{}, domain.RealSystemClock, StubChannelProvider)
+	s, err := NewOnmemoryStorage(context.Background(), &config.OnmemoryStorageConfig{}, domain.RealSystemClock, StubChannelProvider, telemetry.NewEmptyTelemetry(t))
 	if !assert.NoError(t, err) {
 		return nil
 	}

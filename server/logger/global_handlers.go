@@ -3,6 +3,7 @@ package logger
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 )
 
@@ -25,7 +26,7 @@ func SetGlobalErrorHandler(f ErrorHandler) {
 func invokeGlobalErrorHandlers(ctx context.Context, msg string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Panic in logging GlobalErrorHandler", r)
+			fmt.Fprintln(os.Stderr, "Panic in logging GlobalErrorHandler", r)
 		}
 	}()
 

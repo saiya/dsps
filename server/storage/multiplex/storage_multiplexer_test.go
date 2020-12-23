@@ -16,6 +16,7 @@ import (
 	. "github.com/saiya/dsps/server/storage/multiplex"
 	"github.com/saiya/dsps/server/storage/onmemory"
 	. "github.com/saiya/dsps/server/storage/testing"
+	"github.com/saiya/dsps/server/telemetry"
 	. "github.com/saiya/dsps/server/testing"
 )
 
@@ -23,10 +24,11 @@ func TestLongPollingEarlyReturn(t *testing.T) {
 	ctx := context.Background()
 	clock := domain.RealSystemClock
 	cp := StubChannelProvider
+	telemetry := telemetry.NewEmptyTelemetry(t)
 
-	s1, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp)
+	s1, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp, telemetry)
 	assert.NoError(t, err)
-	s2, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp)
+	s2, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp, telemetry)
 	assert.NoError(t, err)
 	s, err := NewStorageMultiplexer(map[domain.StorageID]domain.Storage{"s1": s1, "s2": s2})
 	assert.NoError(t, err)
@@ -63,12 +65,13 @@ func TestAckHandleDurability(t *testing.T) {
 	ctx := context.Background()
 	clock := domain.RealSystemClock
 	cp := StubChannelProvider
+	telemetry := telemetry.NewEmptyTelemetry(t)
 
-	s1, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp)
+	s1, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp, telemetry)
 	assert.NoError(t, err)
-	s2, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp)
+	s2, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp, telemetry)
 	assert.NoError(t, err)
-	s3, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp)
+	s3, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp, telemetry)
 	assert.NoError(t, err)
 
 	// Generate AckHandle of s1 + s2
@@ -112,10 +115,11 @@ func TestSubscriptionDurability(t *testing.T) {
 	ctx := context.Background()
 	clock := domain.RealSystemClock
 	cp := StubChannelProvider
+	telemetry := telemetry.NewEmptyTelemetry(t)
 
-	s1, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp)
+	s1, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp, telemetry)
 	assert.NoError(t, err)
-	s2, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp)
+	s2, err := onmemory.NewOnmemoryStorage(ctx, &config.OnmemoryStorageConfig{}, clock, cp, telemetry)
 	assert.NoError(t, err)
 	s, err := NewStorageMultiplexer(map[domain.StorageID]domain.Storage{"s1": s1, "s2": s2})
 	assert.NoError(t, err)
@@ -210,15 +214,16 @@ func TestOldMessageDurability(t *testing.T) {
 
 func TestInsufficientStorages(t *testing.T) {
 	ctx := context.Background()
+	telemetry := telemetry.NewEmptyTelemetry(t)
 	_, err := NewStorageMultiplexer(map[domain.StorageID]domain.Storage{})
 	assert.EqualError(t, err, "List of storages must not be empty")
 
 	pubSubDisabledCfg := config.OnmemoryStorageConfig{
 		DisablePubSub: true,
 	}
-	pubSubDisabled1, err := onmemory.NewOnmemoryStorage(ctx, &pubSubDisabledCfg, domain.RealSystemClock, StubChannelProvider)
+	pubSubDisabled1, err := onmemory.NewOnmemoryStorage(ctx, &pubSubDisabledCfg, domain.RealSystemClock, StubChannelProvider, telemetry)
 	assert.NoError(t, err)
-	pubSubDisabled2, err := onmemory.NewOnmemoryStorage(ctx, &pubSubDisabledCfg, domain.RealSystemClock, StubChannelProvider)
+	pubSubDisabled2, err := onmemory.NewOnmemoryStorage(ctx, &pubSubDisabledCfg, domain.RealSystemClock, StubChannelProvider, telemetry)
 	assert.NoError(t, err)
 	multiWithoutPubSub, err := NewStorageMultiplexer(map[domain.StorageID]domain.Storage{
 		"test1": pubSubDisabled1,
@@ -231,9 +236,9 @@ func TestInsufficientStorages(t *testing.T) {
 	jwtDisabledCfg := config.OnmemoryStorageConfig{
 		DisableJwt: true,
 	}
-	jwtDisabled1, err := onmemory.NewOnmemoryStorage(ctx, &jwtDisabledCfg, domain.RealSystemClock, StubChannelProvider)
+	jwtDisabled1, err := onmemory.NewOnmemoryStorage(ctx, &jwtDisabledCfg, domain.RealSystemClock, StubChannelProvider, telemetry)
 	assert.NoError(t, err)
-	jwtDisabled2, err := onmemory.NewOnmemoryStorage(ctx, &jwtDisabledCfg, domain.RealSystemClock, StubChannelProvider)
+	jwtDisabled2, err := onmemory.NewOnmemoryStorage(ctx, &jwtDisabledCfg, domain.RealSystemClock, StubChannelProvider, telemetry)
 	assert.NoError(t, err)
 	multiWithoutJwt, err := NewStorageMultiplexer(map[domain.StorageID]domain.Storage{
 		"test1": jwtDisabled1,

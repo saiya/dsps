@@ -8,9 +8,9 @@ issues:
 
 linters:
   enable:
+    - godox
     - goimports
     - golint
-    # - godox  # TODO: Enable before release!
     - gosec
     - noctx
     - nolintlint
