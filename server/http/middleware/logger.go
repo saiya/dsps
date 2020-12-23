@@ -11,11 +11,13 @@ import (
 )
 
 // LoggingMiddleware is middleware for logging
-func LoggingMiddleware(realIPDeps RealIPDependency) router.MiddlewareFunc {
+func LoggingMiddleware(realIPDeps RealIPDependency, tracingDeps TracingDependency) router.MiddlewareFunc {
 	return router.AsMiddlewareFunc(func(ctx context.Context, args router.MiddlewareArgs, next func(context.Context, router.MiddlewareArgs)) {
 		defer func() {
 			if err := recover(); err != nil {
-				utils.SendInternalServerError(ctx, args.W, panicAsError(err))
+				err := panicAsError(err)
+				utils.SendInternalServerError(ctx, args.W, err)
+				tracingDeps.GetTelemetry().RecordError(ctx, err)
 			}
 		}()
 

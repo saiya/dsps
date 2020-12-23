@@ -30,40 +30,40 @@ func TestPubSubTrace(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, pubsub.RemoveSubscriber(ctx, sl))
 	})
-	tr.OT.AssertSpan(0, trace.SpanKindInternal, "DSPS storage NewSubscriber", map[string]interface{}{
+	tr.OT.AssertSpanBy(trace.SpanKindInternal, "DSPS storage NewSubscriber", map[string]interface{}{
 		"dsps.storage.id":       "test",
 		"messaging.system":      "dsps",
 		"messaging.destination": chID,
 		"dsps.subscriber_id":    sbscID,
 	})
-	tr.OT.AssertSpan(1, trace.SpanKindInternal, "DSPS storage PublishMessages", map[string]interface{}{
+	tr.OT.AssertSpanBy(trace.SpanKindInternal, "DSPS storage PublishMessages", map[string]interface{}{
 		"dsps.storage.id": "test",
 	})
-	tr.OT.AssertSpan(2, trace.SpanKindInternal, "DSPS storage FetchMessages", map[string]interface{}{
+	tr.OT.AssertSpanBy(trace.SpanKindInternal, "DSPS storage FetchMessages", map[string]interface{}{
 		"dsps.storage.id":       "test",
 		"messaging.system":      "dsps",
 		"messaging.destination": chID,
 		"dsps.subscriber_id":    sbscID,
 	})
-	tr.OT.AssertSpan(3, trace.SpanKindInternal, "DSPS storage AcknowledgeMessages", map[string]interface{}{
+	tr.OT.AssertSpanBy(trace.SpanKindInternal, "DSPS storage AcknowledgeMessages", map[string]interface{}{
 		"dsps.storage.id":       "test",
 		"messaging.system":      "dsps",
 		"messaging.destination": chID,
 		"dsps.subscriber_id":    sbscID,
 	})
-	tr.OT.AssertSpan(4, trace.SpanKindInternal, "DSPS storage IsOldMessages", map[string]interface{}{
+	tr.OT.AssertSpanBy(trace.SpanKindInternal, "DSPS storage IsOldMessages", map[string]interface{}{
 		"dsps.storage.id":       "test",
 		"messaging.system":      "dsps",
 		"messaging.destination": chID,
 		"dsps.subscriber_id":    sbscID,
 	})
-	tr.OT.AssertSpan(5, trace.SpanKindInternal, "DSPS storage RemoveSubscriber", map[string]interface{}{
+	tr.OT.AssertSpanBy(trace.SpanKindInternal, "DSPS storage RemoveSubscriber", map[string]interface{}{
 		"dsps.storage.id":       "test",
 		"messaging.system":      "dsps",
 		"messaging.destination": chID,
 		"dsps.subscriber_id":    sbscID,
 	})
-	tr.OT.AssertSpan(6, trace.SpanKindInternal, "DSPS storage Shutdown", map[string]interface{}{
+	tr.OT.AssertSpanBy(trace.SpanKindInternal, "DSPS storage Shutdown", map[string]interface{}{
 		"dsps.storage.id": "test",
 	})
 }

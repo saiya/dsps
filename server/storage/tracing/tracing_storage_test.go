@@ -16,7 +16,7 @@ import (
 
 var onmemoryTracingCtor = func(telemetry *telemetry.Telemetry, onmemConfig config.OnmemoryStorageConfig) StorageCtor {
 	return func(ctx context.Context, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
-		storage, err := onmemory.NewOnmemoryStorage(context.Background(), &onmemConfig, systemClock, channelProvider)
+		storage, err := onmemory.NewOnmemoryStorage(context.Background(), &onmemConfig, systemClock, channelProvider, telemetry)
 		if err != nil {
 			return nil, err
 		}
@@ -45,13 +45,13 @@ func TestCoreFunctionsTrace(t *testing.T) {
 		_, err = s.Readiness(context.Background())
 		assert.NoError(t, err)
 	})
-	tr.OT.AssertSpan(0, trace.SpanKindInternal, "DSPS storage Liveness Probe", map[string]interface{}{
+	tr.OT.AssertSpanBy(trace.SpanKindInternal, "DSPS storage Liveness Probe", map[string]interface{}{
 		"dsps.storage.id": "test",
 	})
-	tr.OT.AssertSpan(1, trace.SpanKindInternal, "DSPS storage Readiness Probe", map[string]interface{}{
+	tr.OT.AssertSpanBy(trace.SpanKindInternal, "DSPS storage Readiness Probe", map[string]interface{}{
 		"dsps.storage.id": "test",
 	})
-	tr.OT.AssertSpan(2, trace.SpanKindInternal, "DSPS storage Shutdown", map[string]interface{}{
+	tr.OT.AssertSpanBy(trace.SpanKindInternal, "DSPS storage Shutdown", map[string]interface{}{
 		"dsps.storage.id": "test",
 	})
 }

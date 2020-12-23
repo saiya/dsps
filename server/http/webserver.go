@@ -40,7 +40,7 @@ func CreateServer(mainContext context.Context, deps *ServerDependencies) http.Ha
 		deps.Config.HTTPServer.PathPrefix,
 		middleware.RealIPMiddleware(deps), // Must take precedence over logging, tracing, auth, ...
 		middleware.TracingMiddleware(deps, deps),
-		middleware.LoggingMiddleware(deps),
+		middleware.LoggingMiddleware(deps, deps), // Must after tracing middleware to capture panics.
 		middleware.DefaultHeadersMiddleware(deps),
 	)
 	InitEndpoints(mainContext, rt, deps)

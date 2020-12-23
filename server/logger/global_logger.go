@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"sync"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -10,6 +11,7 @@ import (
 	"github.com/saiya/dsps/server/config"
 )
 
+var rootLoggerLock sync.RWMutex
 var rootLogger *loggerImpl
 
 func init() {
@@ -28,6 +30,8 @@ func initImpl() {
 		panic(xerrors.Errorf("Failed to initialize zap logger: %w", err))
 	}
 
+	rootLoggerLock.Lock()
+	defer rootLoggerLock.Unlock()
 	rootLogger = &loggerImpl{
 		ctx:    context.Background(),
 		zap:    zap,
@@ -47,6 +51,8 @@ func InitLogger(config *config.LoggingConfig) (*Filter, error) {
 		fields = append(fields, zap.String(key, value))
 	}
 
+	rootLoggerLock.Lock()
+	defer rootLoggerLock.Unlock()
 	rootLogger = rootLogger.withFilter(filter).withAttributes(fields)
 	return filter, nil
 }

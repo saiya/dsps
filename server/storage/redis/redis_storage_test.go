@@ -10,56 +10,62 @@ import (
 	"github.com/saiya/dsps/server/storage/multiplex"
 	. "github.com/saiya/dsps/server/storage/redis"
 	. "github.com/saiya/dsps/server/storage/testing"
+	"github.com/saiya/dsps/server/telemetry"
 )
 
-var storageCtor StorageCtor = func(ctx context.Context, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
-	cfg, err := config.ParseConfig(context.Background(), config.Overrides{}, fmt.Sprintf(`storages: { myRedis: { redis: { singleNode: "%s", timeout: { connect: 500ms }, connection: { max: 10 } } } }`, GetRedisAddr(nil)))
-	if err != nil {
-		return nil, err
+var storageCtor func(t *testing.T) StorageCtor = func(t *testing.T) StorageCtor {
+	return func(ctx context.Context, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
+		cfg, err := config.ParseConfig(context.Background(), config.Overrides{}, fmt.Sprintf(`storages: { myRedis: { redis: { singleNode: "%s", timeout: { connect: 500ms }, connection: { max: 10 } } } }`, GetRedisAddr(nil)))
+		if err != nil {
+			return nil, err
+		}
+		return NewRedisStorage(
+			context.Background(),
+			cfg.Storages["myRedis"].Redis,
+			systemClock,
+			channelProvider,
+			telemetry.NewEmptyTelemetry(t),
+		)
 	}
-	return NewRedisStorage(
-		context.Background(),
-		cfg.Storages["myRedis"].Redis,
-		systemClock,
-		channelProvider,
-	)
 }
 
-var storageMultiplexCtor StorageCtor = func(ctx context.Context, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
-	redis1, err := storageCtor(ctx, systemClock, channelProvider)
-	if err != nil {
-		return nil, err
+var storageMultiplexCtor func(t *testing.T) StorageCtor = func(t *testing.T) StorageCtor {
+	return func(ctx context.Context, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
+		redis1, err := storageCtor(t)(ctx, systemClock, channelProvider)
+		if err != nil {
+			return nil, err
+		}
+		redis2, err := storageCtor(t)(ctx, systemClock, channelProvider)
+		if err != nil {
+			return nil, err
+		}
+		return multiplex.NewStorageMultiplexer(map[domain.StorageID]domain.Storage{
+			"redis1": redis1,
+			"redis2": redis2,
+		})
 	}
-	redis2, err := storageCtor(ctx, systemClock, channelProvider)
-	if err != nil {
-		return nil, err
-	}
-	return multiplex.NewStorageMultiplexer(map[domain.StorageID]domain.Storage{
-		"redis1": redis1,
-		"redis2": redis2,
-	})
 }
 
 func TestCoreFunction(t *testing.T) {
-	CoreFunctionTest(t, storageCtor)
+	CoreFunctionTest(t, storageCtor(t))
 }
 
 func TestPubSub(t *testing.T) {
-	PubSubTest(t, storageCtor)
+	PubSubTest(t, storageCtor(t))
 }
 
 func TestPubSubMultiplex(t *testing.T) {
 	// Test with two duplicate storages.
 	// It behaves as single storage because operations are idempotent.
-	PubSubTest(t, storageMultiplexCtor)
+	PubSubTest(t, storageMultiplexCtor(t))
 }
 
 func TestJwt(t *testing.T) {
-	JwtTest(t, storageCtor)
+	JwtTest(t, storageCtor(t))
 }
 
 func TestJwtMultiplex(t *testing.T) {
 	// Test with two duplicate storages.
 	// It behaves as single storage because operations are idempotent.
-	JwtTest(t, storageMultiplexCtor)
+	JwtTest(t, storageMultiplexCtor(t))
 }

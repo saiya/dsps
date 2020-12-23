@@ -64,23 +64,35 @@ func (log CapturedLog) FindStringField(key string) string {
 
 // WithTestLogger swaps global logger for testing only.
 func WithTestLogger(t *testing.T, filter *Filter, f func(lc *LogCapture)) {
-	prev := rootLogger
-	defer func() { rootLogger = prev }()
-
-	if filter == nil {
-		filter = rootLogger.filter
-	}
+	var prev *loggerImpl
+	defer func() {
+		rootLoggerLock.Lock()
+		defer rootLoggerLock.Unlock()
+		rootLogger = prev
+	}()
 
 	lc := LogCapture{}
-	// based on uber-go/fx Sentry example: https://github.com/uber-go/zap/issues/418#issuecomment-438323524
-	logger := zaptest.NewLogger(t).WithOptions(zap.WrapCore(func(z zapcore.Core) zapcore.Core {
-		return zapcore.NewTee(z, lc.createZapCore())
-	}))
-	rootLogger = &loggerImpl{
-		ctx:    context.Background(),
-		zap:    logger,
-		filter: filter,
-	}
+	func() {
+		rootLoggerLock.Lock()
+		defer rootLoggerLock.Unlock()
+
+		prev = rootLogger
+
+		if filter == nil {
+			filter = rootLogger.filter
+		}
+
+		// based on uber-go/fx Sentry example: https://github.com/uber-go/zap/issues/418#issuecomment-438323524
+		logger := zaptest.NewLogger(t).WithOptions(zap.WrapCore(func(z zapcore.Core) zapcore.Core {
+			return zapcore.NewTee(z, lc.createZapCore())
+		}))
+		rootLogger = &loggerImpl{
+			ctx:    context.Background(),
+			zap:    logger,
+			filter: filter,
+		}
+	}()
+
 	f(&lc)
 }
 

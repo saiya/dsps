@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
+	"github.com/saiya/dsps/server/telemetry"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -17,6 +19,8 @@ type DaemonSystem struct {
 
 	daemonsLock sync.Mutex
 	daemons     map[string]*Daemon
+
+	telemetry *telemetry.Telemetry
 }
 
 // DaemonErrorHandler catch error of daemons
@@ -36,11 +40,12 @@ type DaemonNextRun struct {
 var ErrDaemonClosed = errors.New("dsps.daemon.closed")
 
 // NewDaemonSystem create new runtime for daemons
-func NewDaemonSystem(name string, errorHandler DaemonErrorHandler) *DaemonSystem {
+func NewDaemonSystem(name string, telemetry *telemetry.Telemetry, errorHandler DaemonErrorHandler) *DaemonSystem {
 	return &DaemonSystem{
 		name:         name,
 		errorHandler: errorHandler,
 		daemons:      make(map[string]*Daemon, 16),
+		telemetry:    telemetry,
 	}
 }
 
@@ -162,11 +167,40 @@ func (d *Daemon) cycle() bool {
 	case <-timer:
 	}
 
-	ctx := d.createContext()
-	nextRun, err := d.f(ctx)
-	if err != nil && !errors.Is(err, context.Canceled) {
-		d.system.errorHandler(ctx, d.name, err)
-	}
+	fCtx, end := d.system.telemetry.StartDaemonSpan(d.shutdownCtx, d.system.name, d.name)
+	defer end()
+
+	var nextRun DaemonNextRun
+	var fErr error
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				nextRun = DaemonNextRun{
+					Abort:    false,
+					Interval: 500 * time.Millisecond, // Retry with some delay...
+				}
+
+				panicAsError, isErr := r.(error)
+				if !isErr {
+					panicAsError = fmt.Errorf("panic in background job: %v", r)
+				}
+				fErr = panicAsError
+			}
+		}()
+		nextRun, fErr = d.f(fCtx)
+	}()
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Avoid using logger/tracer because it may cause panic again.
+				fmt.Fprintf(os.Stderr, "Panic in background job system: %v\n", r)
+			}
+		}()
+		if fErr != nil && !errors.Is(fErr, context.Canceled) {
+			d.system.telemetry.RecordError(fCtx, fErr)
+			d.system.errorHandler(fCtx, d.name, fErr)
+		}
+	}()
 
 	d.timerUpdateLock.Lock()
 	defer d.timerUpdateLock.Unlock()
@@ -223,9 +257,4 @@ func (d *Daemon) WaitUntilShutdown(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-}
-
-func (d *Daemon) createContext() context.Context {
-	// TODO: Support tracing
-	return d.shutdownCtx
 }

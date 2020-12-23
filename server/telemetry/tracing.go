@@ -113,6 +113,19 @@ func (t *Telemetry) SetJTI(ctx context.Context, jti domain.JwtJti) {
 	)
 }
 
+// StartDaemonSpan starts background task span
+func (t *Telemetry) StartDaemonSpan(ctx context.Context, systemName, daemonName string) (context.Context, context.CancelFunc) {
+	return t.startSpan(
+		ctx,
+		fmt.Sprintf("BackgroundJob %s %s", systemName, daemonName),
+		ottrace.WithSpanKind(ottrace.SpanKindInternal),
+		ottrace.WithAttributes(
+			label.String("dsps.daemon.system", systemName),
+			label.String("dsps.daemon.name", daemonName),
+		),
+	)
+}
+
 func (t *Telemetry) startSpan(ctx context.Context, name string, opts ...ottrace.SpanOption) (context.Context, context.CancelFunc) {
 	var otSpan ottrace.Span
 	ctx, otSpan = t.ot.Tracing.Tracer.Start(ctx, name, opts...)
@@ -122,4 +135,9 @@ func (t *Telemetry) startSpan(ctx context.Context, name string, opts ...ottrace.
 			otSpan.End()
 		}
 	}
+}
+
+// RecordError add error event to current span.
+func (t *Telemetry) RecordError(ctx context.Context, err error) {
+	ottrace.SpanFromContext(ctx).RecordError(err)
 }

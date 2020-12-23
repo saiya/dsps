@@ -10,13 +10,14 @@ import (
 	. "github.com/saiya/dsps/server/storage/multiplex"
 	"github.com/saiya/dsps/server/storage/onmemory"
 	. "github.com/saiya/dsps/server/storage/testing"
+	"github.com/saiya/dsps/server/telemetry"
 )
 
-var onmemoryMultiplexCtor = func(onmemConfigs ...config.OnmemoryStorageConfig) StorageCtor {
+var onmemoryMultiplexCtor = func(t *testing.T, onmemConfigs ...config.OnmemoryStorageConfig) StorageCtor {
 	return func(ctx context.Context, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
 		storages := map[domain.StorageID]domain.Storage{}
 		for i := range onmemConfigs {
-			storage, err := onmemory.NewOnmemoryStorage(context.Background(), &(onmemConfigs[i]), systemClock, channelProvider)
+			storage, err := onmemory.NewOnmemoryStorage(context.Background(), &(onmemConfigs[i]), systemClock, channelProvider, telemetry.NewEmptyTelemetry(t))
 			if err != nil {
 				return nil, err
 			}
@@ -28,6 +29,7 @@ var onmemoryMultiplexCtor = func(onmemConfigs ...config.OnmemoryStorageConfig) S
 
 func TestCoreFunction(t *testing.T) {
 	CoreFunctionTest(t, onmemoryMultiplexCtor(
+		t,
 		config.OnmemoryStorageConfig{
 			DisablePubSub: true,
 			DisableJwt:    true,
@@ -41,6 +43,7 @@ func TestCoreFunction(t *testing.T) {
 
 func TestPubSub(t *testing.T) {
 	PubSubTest(t, onmemoryMultiplexCtor(
+		t,
 		config.OnmemoryStorageConfig{
 			DisableJwt: true,
 		},
@@ -56,6 +59,7 @@ func TestPubSub(t *testing.T) {
 
 func TestJwt(t *testing.T) {
 	JwtTest(t, onmemoryMultiplexCtor(
+		t,
 		config.OnmemoryStorageConfig{
 			DisablePubSub: true,
 		},

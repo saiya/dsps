@@ -126,3 +126,14 @@ func TestJTIAttrs(t *testing.T) {
 		"jwt.jti":         "jti-value",
 	})
 }
+
+func TestDaemonSpan(t *testing.T) {
+	result := WithStubTracing(t, func(t *Telemetry) {
+		_, close := t.StartDaemonSpan(context.Background(), "test.daemon", "doSomething")
+		close()
+	})
+	result.OT.AssertSpan(0, ottrace.SpanKindInternal, "BackgroundJob test.daemon doSomething", map[string]interface{}{
+		"dsps.daemon.system": "test.daemon",
+		"dsps.daemon.name":   "doSomething",
+	})
+}

@@ -16,15 +16,15 @@ func TestJWTTrace(t *testing.T) {
 		_, err := s.AsJwtStorage().IsRevokedJwt(context.Background(), "jti-value")
 		assert.NoError(t, err)
 	})
-	tr.OT.AssertSpan(0, trace.SpanKindInternal, "DSPS storage RevokeJwt", map[string]interface{}{
+	tr.OT.AssertSpanBy(trace.SpanKindInternal, "DSPS storage RevokeJwt", map[string]interface{}{
 		"dsps.storage.id": "test",
 		"jwt.jti":         "jti-value",
 	})
-	tr.OT.AssertSpan(1, trace.SpanKindInternal, "DSPS storage IsRevokedJwt", map[string]interface{}{
+	tr.OT.AssertSpanBy(trace.SpanKindInternal, "DSPS storage IsRevokedJwt", map[string]interface{}{
 		"dsps.storage.id": "test",
 		"jwt.jti":         "jti-value",
 	})
-	tr.OT.AssertSpan(2, trace.SpanKindInternal, "DSPS storage Shutdown", map[string]interface{}{
+	tr.OT.AssertSpanBy(trace.SpanKindInternal, "DSPS storage Shutdown", map[string]interface{}{
 		"dsps.storage.id": "test",
 	})
 }
