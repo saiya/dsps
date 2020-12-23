@@ -1,4 +1,5 @@
-/dsps.zip
-/dsps
-!/dsps/README.md
-/coverage*
+dsps.zip
+dsps
+!dsps/README.md
+coverage*
+pprof
