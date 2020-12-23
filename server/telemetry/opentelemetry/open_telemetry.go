@@ -58,10 +58,7 @@ func newOTFacility(config *config.OpenTelemetryConfig, injection injection) (fac
 		return
 	}
 	injection.tracing.exporters = append(injection.tracing.exporters, facility.spanExporters...)
-	if facility.Tracing, err = newTracing(config.Tracing, injection.tracing); err != nil {
-		err = fmt.Errorf("failed to initialize OpenTelemetry tracer: %w", err)
-		return
-	}
+	facility.Tracing = newTracing(config.Tracing, injection.tracing)
 	return
 }
 

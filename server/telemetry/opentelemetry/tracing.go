@@ -27,8 +27,8 @@ type tracingInjection struct {
 	exporters []exporttrace.SpanExporter
 }
 
-func newTracing(config *config.OpenTelemetryTracingConfig, injection tracingInjection) (setup *Tracing, err error) {
-	setup = &Tracing{}
+func newTracing(config *config.OpenTelemetryTracingConfig, injection tracingInjection) *Tracing {
+	setup := &Tracing{}
 	if !config.Enable {
 		setup.Tracer = &emptyTracer{}
 	} else {
@@ -44,7 +44,7 @@ func newTracing(config *config.OpenTelemetryTracingConfig, injection tracingInje
 		// Set global settings
 		otel.SetTracerProvider(setup.traceProvider)
 	}
-	return
+	return setup
 }
 
 // Shutdown OT tracer

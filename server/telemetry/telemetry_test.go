@@ -9,6 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestEmptyTelemetry(t *testing.T) {
+	telemetry := NewEmptyTelemetry(t)
+	_, end := telemetry.StartStorageSpan(context.Background(), "test", "test")
+	end()
+	telemetry.Shutdown(context.Background())
+}
+
 func TestTelemetryInitFailure(t *testing.T) {
 	cfg := defaultTelemetryConfig()
 	cfg.OT.Exporters.Stdout.Enable = true

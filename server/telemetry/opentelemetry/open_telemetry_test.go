@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/saiya/dsps/server/config"
 	ottesting "github.com/saiya/dsps/server/telemetry/opentelemetry/testing"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel"
@@ -13,6 +14,34 @@ import (
 
 	"github.com/saiya/dsps/server/logger"
 )
+
+func TestOTInitFailure(t *testing.T) {
+	_, err := newOTFacility(&config.OpenTelemetryConfig{
+		Tracing: &config.OpenTelemetryTracingConfig{},
+		Exporters: config.OpenTelemetryExportersConfig{
+			Stdout: config.OpenTelemetryExporterStdoutConfig{
+				Enable:    true,
+				Quantiles: []float64{-1},
+			},
+		},
+	}, injection{})
+	assert.Regexp(t, `failed to initialize OpenTelemetry exporters: failed to initialize OpenTelemetry stdout trace exporter: the requested quantile is out of range`, err.Error())
+}
+
+func TestGCPExporter(t *testing.T) {
+	_, err := newExporters(&config.OpenTelemetryConfig{
+		Exporters: config.OpenTelemetryExportersConfig{
+			GCP: config.OpenTelemetryExporterGCPConfig{
+				EnableTrace: true,
+				// Without GOOGLE_APPLICATION_CREDENTIALS, it fails to find default project ID due to lack of default credentials.
+				// https://cloud.google.com/trace/docs/setup/go-ot
+				// https://cloud.google.com/docs/authentication/production
+				ProjectID: "",
+			},
+		},
+	})
+	assert.Regexp(t, `failed to initialize OpenTelemetry GCP Cloud Trace exporter.+stackdriver`, err.Error())
+}
 
 func TestGlobalErrorHandler(t *testing.T) {
 	exporter := ottesting.NewStubExporter(t)
