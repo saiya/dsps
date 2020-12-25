@@ -14,28 +14,6 @@ import (
 	"github.com/saiya/dsps/server/http/utils"
 )
 
-func TestRouterMiddlewares(t *testing.T) {
-	r := httprouter.New()
-	rt := NewRouter(func(r *http.Request, f func(context.Context)) {
-		f(context.Background())
-	}, r, "/", AsMiddlewareFunc(func(ctx context.Context, args MiddlewareArgs, next func(context.Context, MiddlewareArgs)) {
-		args.W.Header().Add("middleware", "1")
-		next(ctx, args)
-	}), AsMiddlewareFunc(func(ctx context.Context, args MiddlewareArgs, next func(context.Context, MiddlewareArgs)) {
-		args.W.Header().Add("middleware", "2")
-		next(ctx, args)
-	}))
-	rt.GET("/", func(ctx context.Context, args HandlerArgs) {
-		utils.SendJSON(ctx, args.W, 200, map[string]interface{}{"ok": "/"})
-	})
-	server := httptest.NewServer(r)
-	defer server.Close()
-
-	res := DoHTTPRequest(t, "GET", server.URL+"/", ``)
-	assert.Equal(t, []string{"1", "2"}, res.Header.Values("middleware"))
-	AssertResponseJSON(t, res, 200, map[string]interface{}{"ok": "/"})
-}
-
 func TestRouterHTTPMethods(t *testing.T) {
 	r := httprouter.New()
 	rt := NewRouter(func(r *http.Request, f func(context.Context)) { f(context.Background()) }, r, "/")

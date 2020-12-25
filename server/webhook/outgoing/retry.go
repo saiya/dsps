@@ -2,6 +2,7 @@ package outgoing
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
@@ -10,9 +11,12 @@ import (
 	"sync"
 	"time"
 
+	sentrygo "github.com/getsentry/sentry-go"
+	"golang.org/x/xerrors"
+
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/logger"
-	"golang.org/x/xerrors"
+	"github.com/saiya/dsps/server/sentry"
 )
 
 type retry struct {
@@ -36,11 +40,27 @@ func newRetry(cfg *config.OutgoingWebhookRetryConfig) retry {
 
 // Do wraps given operation with retry handling.
 // Callback function should not close response body stream, this method closes it.
-func (r *retry) Do(ctx context.Context, description string, f func() (*http.Response, error)) error {
+func (r *retry) Do(ctx context.Context, sentryInstance sentry.Sentry, description string, f func() (*http.Request, *http.Response, error)) error {
 	attempt := 0
 	for {
-		res, err := f()
-
+		req, res, err := f()
+		{
+			// for "http" type, see https://github.com/getsentry/sentry-docs/issues/1709#issue-624545593
+			sentryData := make(map[string]interface{})
+			if req != nil {
+				sentryData["method"] = req.Method
+				sentryData["url"] = res.Request.URL
+			}
+			if res != nil {
+				sentryData["status_code"] = res.StatusCode
+			}
+			sentry.AddBreadcrumb(ctx, &sentrygo.Breadcrumb{
+				Type:    "http",
+				Level:   sentrygo.LevelInfo,
+				Message: "Outgoing webhook",
+				Data:    sentryData,
+			})
+		}
 		if res != nil {
 			// Should read all response body otherwise disrupts keep-alive.
 			if _, copyErr := io.Copy(ioutil.Discard, res.Body); copyErr != nil {
@@ -60,6 +80,7 @@ func (r *retry) Do(ctx context.Context, description string, f func() (*http.Resp
 		shouldRetry, err = r.postprocess(res, err) // always returns non-nil error object
 		if attempt > r.count || !shouldRetry {
 			logger.Of(ctx).Warnf(logger.CatOutgoingWebhook, "outgoing webhook failed: %w", err)
+			sentry.RecordError(ctx, fmt.Errorf("outgoing webhook failed: %w", err))
 			return err
 		}
 

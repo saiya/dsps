@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/sentry"
 	"github.com/saiya/dsps/server/telemetry"
 )
 
@@ -159,6 +160,7 @@ func TestClientRetry(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NoError(t, json.Unmarshal(body, &received))
 	}
+	sentry := sentry.NewStubSentry()
 	newClientAndServerByConfig(
 		t,
 		handler,
@@ -172,11 +174,20 @@ func TestClientRetry(t *testing.T) {
 			}
 		}`,
 		func(client *clientImpl) {
-			assert.NoError(t, client.Send(context.Background(), msg))
+			ctx := sentry.WrapContext(context.Background())
+			assert.NoError(t, client.Send(ctx, msg))
 		},
 	)
 	assert.EqualValues(t, msg, received)
 	assert.Equal(t, 1+3, handlerCalled)
+
+	breadcrumbs := sentry.GetBreadcrumbs()
+	assert.Equal(t, 4, len(breadcrumbs))
+	assert.Equal(t, "http", breadcrumbs[0].Type)
+	assert.Equal(t, "Outgoing webhook", breadcrumbs[0].Message)
+	assert.Equal(t, "PUT", breadcrumbs[0].Data["method"])
+	assert.Equal(t, 500, breadcrumbs[0].Data["status_code"])
+	assert.Regexp(t, "http://127.0.0.1:[0-9]+/you-got-message/room/1234", breadcrumbs[0].Data["url"].(fmt.Stringer).String())
 }
 
 func TestClientRetryFailure(t *testing.T) {
@@ -192,6 +203,7 @@ func TestClientRetryFailure(t *testing.T) {
 		handlerCalled++
 		rw.WriteHeader(500)
 	}
+	sentry := sentry.NewStubSentry()
 	newClientAndServerByConfig(
 		t,
 		handler,
@@ -205,10 +217,12 @@ func TestClientRetryFailure(t *testing.T) {
 			}
 		}`,
 		func(client *clientImpl) {
-			assert.Regexp(t, `status code 500 returned`, client.Send(context.Background(), msg).Error())
+			ctx := sentry.WrapContext(context.Background())
+			assert.Regexp(t, `status code 500 returned`, client.Send(ctx, msg).Error())
 		},
 	)
 	assert.Equal(t, 1+3, handlerCalled)
+	assert.Regexp(t, `outgoing webhook failed: status code 500 returned`, sentry.GetLastError())
 }
 
 func TestClientInvalidUrl(t *testing.T) {

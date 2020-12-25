@@ -13,12 +13,18 @@ import (
 	"github.com/saiya/dsps/server/http"
 	httplifecycle "github.com/saiya/dsps/server/http/lifecycle"
 	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/sentry"
 	"github.com/saiya/dsps/server/storage"
+	"github.com/saiya/dsps/server/storage/deps"
 	"github.com/saiya/dsps/server/telemetry"
 	"github.com/saiya/dsps/server/unix"
 )
 
+// Git commit hash or tag
 var buildVersion string
+
+// Distribution name of the build
+var buildDist string
 
 // UNIX epoch (e.g. 1605633588)
 var buildAt string
@@ -50,6 +56,7 @@ func mainImpl(ctx context.Context, args []string, clock domain.SystemClock) erro
 	configFile := flag.Arg(0)
 	configOverrides := config.Overrides{
 		BuildVersion: buildVersion,
+		BuildDist:    buildDist,
 		BuildAt:      buildAt,
 		Port:         *port,
 		Listen:       *listen,
@@ -71,19 +78,32 @@ func mainImpl(ctx context.Context, args []string, clock domain.SystemClock) erro
 		return err
 	}
 
+	sentry, err := sentry.NewSentry(config.Sentry)
+	if err != nil {
+		return err
+	}
+	defer sentry.Shutdown(ctx)
+
 	telemetry, err := telemetry.InitTelemetry(config.Telemetry)
 	if err != nil {
 		return err
 	}
 	defer telemetry.Shutdown(ctx)
 
-	channelProvider, err := channel.NewChannelProvider(ctx, &config, clock, telemetry)
+	channelProvider, err := channel.NewChannelProvider(ctx, &config, channel.ProviderDeps{
+		Clock:     clock,
+		Telemetry: telemetry,
+		Sentry:    sentry,
+	})
 	if err != nil {
 		return err
 	}
 	defer channelProvider.Shutdown(ctx)
 
-	storage, err := storage.NewStorage(ctx, &config.Storages, clock, channelProvider, telemetry)
+	storage, err := storage.NewStorage(ctx, &config.Storages, clock, channelProvider, deps.StorageDeps{
+		Telemetry: telemetry,
+		Sentry:    sentry,
+	})
 	if err != nil {
 		return err
 	}
@@ -103,6 +123,7 @@ func mainImpl(ctx context.Context, args []string, clock domain.SystemClock) erro
 		Storage:         storage,
 
 		Telemetry:   telemetry,
+		Sentry:      sentry,
 		LogFilter:   logFilter,
 		ServerClose: httplifecycle.NewServerClose(),
 	})

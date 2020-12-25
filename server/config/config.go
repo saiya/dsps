@@ -20,6 +20,7 @@ import (
 // Overrides is to override configuration file.
 type Overrides struct {
 	BuildVersion string // Supplied by compiler
+	BuildDist    string // Supplied by compiler
 	BuildAt      string // UNIX epoch, supplied by compiler
 
 	Port   int
@@ -35,6 +36,7 @@ type ServerConfig struct {
 	HTTPServer *HTTPServerConfig `json:"http"`
 	Logging    *LoggingConfig    `json:"logging"`
 	Telemetry  *TelemetryConfig  `json:"telemetry"`
+	Sentry     *SentryConfig     `json:"sentry"`
 	Channels   ChannelsConfig    `json:"channels"`
 	Admin      *AdminConfig      `json:"admin"`
 }
@@ -72,6 +74,7 @@ func ParseConfig(ctx context.Context, overrides Overrides, yaml string) (ServerC
 		Storages:   DefaultStoragesConfig(),
 		Logging:    loggingConfigDefault(),
 		Telemetry:  tracingConfigDefault(),
+		Sentry:     DefaultSentryConfig(),
 		HTTPServer: httpServerConfigDefault(),
 		Admin:      adminConfigDefault(),
 	}
@@ -97,6 +100,9 @@ func ParseConfig(ctx context.Context, overrides Overrides, yaml string) (ServerC
 	}
 	if err := PostprocessTelemetryConfig(config.Telemetry); err != nil {
 		return config, fmt.Errorf("Tracing configration problem: %w", err)
+	}
+	if err := PostprocessSentryConfig(config.Sentry, overrides); err != nil {
+		return config, fmt.Errorf("Sentry configration problem: %w", err)
 	}
 	if err := PostprocessChannelsConfig(&config.Channels); err != nil {
 		return config, fmt.Errorf("Channel configration problem: %w", err)

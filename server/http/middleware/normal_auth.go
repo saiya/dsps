@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 
+	sentrygo "github.com/getsentry/sentry-go"
+
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/http/router"
 	"github.com/saiya/dsps/server/http/utils"
 	"github.com/saiya/dsps/server/jwt"
 	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/sentry"
 )
 
 // NormalAuthDependency is to inject required objects to the middleware
@@ -34,6 +37,9 @@ func NewNormalAuth(mainCtx context.Context, deps NormalAuthDependency, channelOf
 			// If bearerToken is not JWT, channel.ValidateJwt() rejects it if JWT validation configured.
 			// If JWT validation not configured, it is okay to pass non-JWT or empty bearerToken.
 			jti, jwtParseError := jwt.ExtractJti(bearerToken)
+			if jti != nil {
+				sentry.AddTag(ctx, "jti", string(*jti))
+			}
 			if authErr == nil && jwtParseError == nil && jti != nil {
 				var revoked bool
 				revoked, authErr = jwtStorage.IsRevokedJwt(ctx, *jti)
@@ -44,6 +50,11 @@ func NewNormalAuth(mainCtx context.Context, deps NormalAuthDependency, channelOf
 		}
 		if authErr != nil {
 			logger.Of(ctx).Infof(logger.CatAuth, `JWT verification failure: %v`, authErr)
+			sentry.AddBreadcrumb(ctx, &sentrygo.Breadcrumb{
+				Level:    sentrygo.LevelWarning,
+				Category: "auth",
+				Message:  fmt.Sprintf(`JWT verification failure: %v`, authErr),
+			})
 
 			body := map[string]interface{}{
 				"code":  ErrAuthRejection.Code(),

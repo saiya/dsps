@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/storage/deps"
 	"github.com/saiya/dsps/server/telemetry"
 )
 
@@ -17,10 +18,10 @@ type tracingStorage struct {
 }
 
 // NewTracingStorage wraps given Storage to trace calls
-func NewTracingStorage(s domain.Storage, id domain.StorageID, telemetry *telemetry.Telemetry) domain.Storage {
+func NewTracingStorage(s domain.Storage, id domain.StorageID, deps deps.StorageDeps) domain.Storage {
 	return &tracingStorage{
 		id: id,
-		t:  telemetry,
+		t:  deps.Telemetry,
 
 		s:      s,
 		pubsub: s.AsPubSubStorage(),

@@ -8,15 +8,24 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/saiya/dsps/server/sentry"
 	. "github.com/saiya/dsps/server/sync"
 	"github.com/saiya/dsps/server/telemetry"
 	"github.com/stretchr/testify/assert"
-	"go.opentelemetry.io/otel/trace"
 )
+
+func newEmptyDaemonSystemDeps(t *testing.T) DaemonSystemDeps {
+	return DaemonSystemDeps{
+		Telemetry: telemetry.NewEmptyTelemetry(t),
+		Sentry:    sentry.NewEmptySentry(),
+	}
+}
 
 func TestDaemonSystem(t *testing.T) {
 	testWithTimeout(t, 1*time.Second, func() {
-		ds := NewDaemonSystem("test", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
+		ds := NewDaemonSystem("test", newEmptyDaemonSystemDeps(t), ensureNoDaemonError(t))
 		defer closeDaemon(t, ds)
 		defer closeDaemon(t, ds) // double close should success
 
@@ -77,7 +86,9 @@ func TestDaemonSystem(t *testing.T) {
 func TestDaemonTelemetry(t *testing.T) {
 	invoked := make(chan interface{})
 	tr := telemetry.WithStubTracing(t, func(telemetry *telemetry.Telemetry) {
-		ds := NewDaemonSystem("test.system", telemetry, func(ctx context.Context, name string, err error) {
+		deps := newEmptyDaemonSystemDeps(t)
+		deps.Telemetry = telemetry
+		ds := NewDaemonSystem("test.system", deps, func(ctx context.Context, name string, err error) {
 			assert.NoError(t, err)
 		})
 		ds.Start("test.job", func(c context.Context) (DaemonNextRun, error) {
@@ -93,9 +104,26 @@ func TestDaemonTelemetry(t *testing.T) {
 	})
 }
 
+func TestDaemonDepsError(t *testing.T) {
+	telemetry := telemetry.NewEmptyTelemetry(t)
+	sentry := sentry.NewEmptySentry()
+	assert.PanicsWithError(t, "invalid DaemonSystemDeps: Telemetry should not be nil", func() {
+		NewDaemonSystem("test", DaemonSystemDeps{
+			Telemetry: nil,
+			Sentry:    sentry,
+		}, func(context.Context, string, error) {})
+	})
+	assert.PanicsWithError(t, "invalid DaemonSystemDeps: Sentry should not be nil", func() {
+		NewDaemonSystem("test", DaemonSystemDeps{
+			Telemetry: telemetry,
+			Sentry:    nil,
+		}, func(context.Context, string, error) {})
+	})
+}
+
 func TestErrorHandler(t *testing.T) {
 	receivedErrors := make(chan error)
-	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), func(ctx context.Context, name string, err error) {
+	ds := NewDaemonSystem("test system", newEmptyDaemonSystemDeps(t), func(ctx context.Context, name string, err error) {
 		assert.Equal(t, "test1", name)
 		receivedErrors <- err
 	})
@@ -111,34 +139,43 @@ func TestErrorHandler(t *testing.T) {
 
 func TestPanicHandling(t *testing.T) {
 	errorHandlerCalled := int32(0)
-	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), func(ctx context.Context, name string, err error) {
-		atomic.AddInt32(&errorHandlerCalled, 1)
-		panic("test error") // Should not stop system
-	})
-	defer closeDaemon(t, ds)
-
 	invoked := int32(0)
-	fulfilled := make(chan interface{})
-	ds.Start("test1", func(c context.Context) (DaemonNextRun, error) {
-		switch atomic.AddInt32(&invoked, 1) {
-		case 1:
+	sentry := sentry.NewStubSentry()
+	tr := telemetry.WithStubTracing(t, func(telemetry *telemetry.Telemetry) {
+		ds := NewDaemonSystem("testSystem", DaemonSystemDeps{Telemetry: telemetry, Sentry: sentry}, func(ctx context.Context, name string, err error) {
+			atomic.AddInt32(&errorHandlerCalled, 1)
 			panic("test error") // Should not stop system
-		case 2:
-			panic(errors.New("test error")) // Should not stop system
-		case 3:
-			close(fulfilled)
-			return DaemonNextRun{Abort: true}, nil
-		}
-		panic("Unreachable code")
-	})
+		})
+		defer closeDaemon(t, ds)
 
-	<-fulfilled
-	assert.Equal(t, int32(2), atomic.LoadInt32(&errorHandlerCalled))
-	assert.Equal(t, int32(3), atomic.LoadInt32(&invoked))
+		fulfilled := make(chan interface{})
+		ds.Start("test1", func(c context.Context) (DaemonNextRun, error) {
+			switch atomic.AddInt32(&invoked, 1) {
+			case 1:
+				panic("test error 1") // Should not stop system
+			case 2:
+				panic(errors.New("test error 2")) // Should not stop system
+			case 3:
+				close(fulfilled)
+				return DaemonNextRun{Abort: true}, nil
+			}
+			panic("Unreachable code")
+		})
+
+		<-fulfilled
+		assert.Equal(t, int32(2), atomic.LoadInt32(&errorHandlerCalled))
+		assert.Equal(t, int32(3), atomic.LoadInt32(&invoked))
+	})
+	span := tr.OT.AssertSpanBy(trace.SpanKindInternal, "BackgroundJob testSystem test1", map[string]interface{}{
+		"dsps.daemon.name":   "test1",
+		"dsps.daemon.system": "testSystem",
+	})
+	assert.Equal(t, "error", span.MessageEvents[0].Name)
+	assert.Equal(t, "test error 2", sentry.GetLastError().Error())
 }
 
 func TestDaemonSelfShutdown(t *testing.T) {
-	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
+	ds := NewDaemonSystem("test system", newEmptyDaemonSystemDeps(t), ensureNoDaemonError(t))
 	defer closeDaemon(t, ds)
 
 	test1 := ds.Start("test1", func(c context.Context) (DaemonNextRun, error) {
@@ -149,7 +186,7 @@ func TestDaemonSelfShutdown(t *testing.T) {
 }
 
 func TestDaemonShutdownWaitShouldBlock(t *testing.T) { // regression test case
-	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
+	ds := NewDaemonSystem("test system", newEmptyDaemonSystemDeps(t), ensureNoDaemonError(t))
 	defer closeDaemon(t, ds)
 
 	test1 := ds.Start("test1", func(c context.Context) (DaemonNextRun, error) {
@@ -164,7 +201,7 @@ func TestDaemonShutdownWaitShouldBlock(t *testing.T) { // regression test case
 
 func TestDaemonShutdownShouldCancelTasks(t *testing.T) {
 	testWithTimeout(t, 1*time.Second, func() {
-		ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
+		ds := NewDaemonSystem("test system", newEmptyDaemonSystemDeps(t), ensureNoDaemonError(t))
 		defer closeDaemon(t, ds)
 
 		test1invoked := make(chan interface{})
@@ -183,7 +220,7 @@ func TestDaemonShutdownShouldCancelTasks(t *testing.T) {
 }
 
 func TestDaemonWaitCanceled(t *testing.T) {
-	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
+	ds := NewDaemonSystem("test system", newEmptyDaemonSystemDeps(t), ensureNoDaemonError(t))
 	defer closeDaemon(t, ds)
 
 	test1 := ds.Start("test1", func(c context.Context) (DaemonNextRun, error) {
@@ -198,7 +235,7 @@ func TestDaemonWaitCanceled(t *testing.T) {
 }
 
 func TestGetDaemon(t *testing.T) {
-	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
+	ds := NewDaemonSystem("test system", newEmptyDaemonSystemDeps(t), ensureNoDaemonError(t))
 	defer closeDaemon(t, ds)
 
 	assert.Nil(t, ds.Get("test1"))
@@ -209,7 +246,7 @@ func TestGetDaemon(t *testing.T) {
 }
 
 func TestDaemonStringer(t *testing.T) {
-	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
+	ds := NewDaemonSystem("test system", newEmptyDaemonSystemDeps(t), ensureNoDaemonError(t))
 	defer closeDaemon(t, ds)
 	assert.Equal(t, "DaemonSystem(test system)", ds.String())
 
@@ -220,7 +257,7 @@ func TestDaemonStringer(t *testing.T) {
 }
 
 func TestDaemonNameDuplicated(t *testing.T) {
-	ds := NewDaemonSystem("test system", telemetry.NewEmptyTelemetry(t), ensureNoDaemonError(t))
+	ds := NewDaemonSystem("test system", newEmptyDaemonSystemDeps(t), ensureNoDaemonError(t))
 	defer closeDaemon(t, ds)
 
 	ds.Start("test daemon", func(c context.Context) (DaemonNextRun, error) {

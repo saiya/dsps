@@ -10,8 +10,8 @@ import (
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
+	. "github.com/saiya/dsps/server/storage/deps/testing"
 	storagetesting "github.com/saiya/dsps/server/storage/testing"
-	"github.com/saiya/dsps/server/telemetry"
 )
 
 func TestInitialConnectFailure(t *testing.T) {
@@ -23,7 +23,7 @@ func TestInitialConnectFailure(t *testing.T) {
 		cfg.Storages["myRedis"].Redis,
 		domain.RealSystemClock,
 		storagetesting.StubChannelProvider,
-		telemetry.NewEmptyTelemetry(t),
+		EmptyDeps(t),
 	)
 	assert.Regexp(t, `dial tcp 127.0.0.1:9999: connect: connection refused`, err.Error())
 }
@@ -41,7 +41,7 @@ func TestInitialLoadScriptFailure(t *testing.T) {
 		cfg.Storages["myRedis"].Redis,
 		domain.RealSystemClock,
 		storagetesting.StubChannelProvider,
-		telemetry.NewEmptyTelemetry(t),
+		EmptyDeps(t),
 	)
 	assert.Regexp(t, `Error compiling script \(new function\)`, err.Error())
 }

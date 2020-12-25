@@ -7,10 +7,10 @@ import (
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
+	. "github.com/saiya/dsps/server/storage/deps/testing"
 	"github.com/saiya/dsps/server/storage/multiplex"
 	. "github.com/saiya/dsps/server/storage/redis"
 	. "github.com/saiya/dsps/server/storage/testing"
-	"github.com/saiya/dsps/server/telemetry"
 )
 
 var storageCtor func(t *testing.T) StorageCtor = func(t *testing.T) StorageCtor {
@@ -24,7 +24,7 @@ var storageCtor func(t *testing.T) StorageCtor = func(t *testing.T) StorageCtor 
 			cfg.Storages["myRedis"].Redis,
 			systemClock,
 			channelProvider,
-			telemetry.NewEmptyTelemetry(t),
+			EmptyDeps(t),
 		)
 	}
 }

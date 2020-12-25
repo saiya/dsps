@@ -8,6 +8,7 @@ import (
 	"github.com/saiya/dsps/server/http/router"
 	"github.com/saiya/dsps/server/http/utils"
 	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/sentry"
 )
 
 // LoggingMiddleware is middleware for logging
@@ -18,6 +19,7 @@ func LoggingMiddleware(realIPDeps RealIPDependency, tracingDeps TracingDependenc
 				err := panicAsError(err)
 				utils.SendInternalServerError(ctx, args.W, err)
 				tracingDeps.GetTelemetry().RecordError(ctx, err)
+				sentry.RecordError(ctx, err)
 			}
 		}()
 

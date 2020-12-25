@@ -8,15 +8,15 @@ import (
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/storage/deps"
 	"github.com/saiya/dsps/server/sync"
-	"github.com/saiya/dsps/server/telemetry"
 )
 
 // In case of clock drift
 const ttlMargin = 15 * time.Second
 
 // NewRedisStorage creates Storage instance
-func NewRedisStorage(ctx context.Context, config *config.RedisStorageConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider, telemetry *telemetry.Telemetry) (domain.Storage, error) {
+func NewRedisStorage(ctx context.Context, config *config.RedisStorageConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider, deps deps.StorageDeps) (domain.Storage, error) {
 	conn, err := connect(ctx, config)
 	if err != nil {
 		return nil, err
@@ -29,7 +29,10 @@ func NewRedisStorage(ctx context.Context, config *config.RedisStorageConfig, sys
 		jwtEnabled:    !config.DisableJwt,
 
 		redisConnection: conn,
-		daemonSystem: sync.NewDaemonSystem("dsps.storage.redis", telemetry, func(ctx context.Context, name string, err error) {
+		daemonSystem: sync.NewDaemonSystem("dsps.storage.redis", sync.DaemonSystemDeps{
+			Telemetry: deps.Telemetry,
+			Sentry:    deps.Sentry,
+		}, func(ctx context.Context, name string, err error) {
 			logger.Of(ctx).Error(fmt.Sprintf(`error in background routine "%s"`, name), err)
 		}),
 	}

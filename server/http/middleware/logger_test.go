@@ -20,6 +20,7 @@ import (
 	. "github.com/saiya/dsps/server/http/testing"
 	"github.com/saiya/dsps/server/http/utils"
 	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/sentry"
 )
 
 func TestLoggerMiddleware(t *testing.T) {
@@ -77,10 +78,13 @@ func TestPanicHandling(t *testing.T) {
 		trustedProxyRanges: domain.PrivateCIDRs,
 	}
 	WithServerDeps(t, `logging: { category: "*": ERROR }`, func(deps *ServerDependencies) {
+		sentry := sentry.NewStubSentry()
+		deps.Sentry = sentry
+
 		r := httprouter.New()
 		rt := NewRouter(func(r *http.Request, f func(context.Context)) {
 			f(context.Background())
-		}, r, "/", LoggingMiddleware(realIPDeps, deps))
+		}, r, "/", SentryMiddleware(deps), LoggingMiddleware(realIPDeps, deps))
 		server := httptest.NewServer(r)
 		defer server.Close()
 
@@ -106,6 +110,7 @@ func TestPanicHandling(t *testing.T) {
 			assert.NoError(t, res.Body.Close())
 			assert.Equal(t, 500, res.StatusCode)
 
+			assert.Regexp(t, `test panic error`, sentry.GetLastError().Error())
 			errorLog := lc.LastLog(0)
 			assert.Equal(t, zapcore.ErrorLevel, errorLog.Level)
 			assert.Equal(t, "internal server error on HTTP endpoint", errorLog.Message)
@@ -117,6 +122,7 @@ func TestPanicHandling(t *testing.T) {
 			assert.NoError(t, res.Body.Close())
 			assert.Equal(t, 500, res.StatusCode)
 
+			assert.Regexp(t, `test panic string`, sentry.GetLastError().Error())
 			errorLog := lc.LastLog(0)
 			assert.Equal(t, zapcore.ErrorLevel, errorLog.Level)
 			assert.Equal(t, "internal server error on HTTP endpoint", errorLog.Message)
@@ -131,6 +137,7 @@ func TestPanicHandling(t *testing.T) {
 			assert.Equal(t, `{"hi":"hello"}`+"\n", string(body))
 			assert.NoError(t, res.Body.Close())
 
+			assert.Regexp(t, `test panic string`, sentry.GetLastError().Error())
 			errorLog := lc.LastLog(0)
 			assert.Equal(t, zapcore.ErrorLevel, errorLog.Level)
 			assert.Equal(t, "internal server error on HTTP endpoint", errorLog.Message)
@@ -142,6 +149,7 @@ func TestPanicHandling(t *testing.T) {
 			assert.NoError(t, res.Body.Close())
 			assert.Equal(t, 204, res.StatusCode) // After response sent.
 
+			assert.Regexp(t, `test panic string`, sentry.GetLastError().Error())
 			errorLog := lc.LastLog(0)
 			assert.Equal(t, zapcore.ErrorLevel, errorLog.Level)
 			assert.Equal(t, "internal server error on HTTP endpoint", errorLog.Message)

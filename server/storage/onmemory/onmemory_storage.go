@@ -7,12 +7,12 @@ import (
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/storage/deps"
 	"github.com/saiya/dsps/server/sync"
-	"github.com/saiya/dsps/server/telemetry"
 )
 
 // NewOnmemoryStorage creates Storage instance
-func NewOnmemoryStorage(ctx context.Context, config *config.OnmemoryStorageConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider, telemetry *telemetry.Telemetry) (domain.Storage, error) {
+func NewOnmemoryStorage(ctx context.Context, config *config.OnmemoryStorageConfig, systemClock domain.SystemClock, channelProvider domain.ChannelProvider, deps deps.StorageDeps) (domain.Storage, error) {
 	s := &onmemoryStorage{
 		lock: sync.NewLock(),
 
@@ -23,7 +23,10 @@ func NewOnmemoryStorage(ctx context.Context, config *config.OnmemoryStorageConfi
 		jwtEnabled:    !config.DisableJwt,
 
 		runGcOnShutdown: config.RunGCOnShutdown,
-		daemonSystem: sync.NewDaemonSystem("dsps.storage.onmemory", telemetry, func(ctx context.Context, name string, err error) {
+		daemonSystem: sync.NewDaemonSystem("dsps.storage.onmemory", sync.DaemonSystemDeps{
+			Telemetry: deps.Telemetry,
+			Sentry:    deps.Sentry,
+		}, func(ctx context.Context, name string, err error) {
 			logger.Of(ctx).Error(fmt.Sprintf(`error in background routine "%s"`, name), err)
 		}),
 

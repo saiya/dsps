@@ -48,13 +48,13 @@ $(release_dir)/CREDITS: $(go_module_files) | $(release_dir)
 	gocredits -skip-missing . > $@
 
 $(release_dir)/dsps-Linux-x86_64: $(build_deps)
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ -ldflags $(ldflags) main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ -ldflags "-X main.BuildDist=linux-amd64" -ldflags $(ldflags) main.go
 
 $(release_dir)/dsps-Linux-aarch64: $(build_deps)
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o $@ -ldflags $(ldflags) main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o $@ -ldflags "-X main.BuildDist=linux-arm64" -ldflags $(ldflags) main.go
 
 $(release_dir)/dsps-Windows-x86_64.exe: $(build_deps)
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o $@ -ldflags $(ldflags) main.go
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o $@ -ldflags "-X main.BuildDist=windows-amd64" -ldflags $(ldflags) main.go
 
 $(release_dir)/dsps-Darwin-x86_64: $(build_deps)
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o $@ -ldflags $(ldflags) main.go
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o $@ -ldflags "-X main.BuildDist=darwin-amd64" -ldflags $(ldflags) main.go

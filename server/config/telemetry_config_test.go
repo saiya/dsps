@@ -72,5 +72,5 @@ telemetry:
 
 func TestTracingConfigError(t *testing.T) {
 	_, err := ParseConfig(context.Background(), Overrides{}, `telemetry: { ot: { tracing: { enable: true, sampling: -2.0 } } }`)
-	assert.Regexp(t, `sampling ration must be within \[0.0, 1.0\]`, err.Error())
+	assert.Regexp(t, `sampling ratio must be within \[0.0, 1.0\]`, err.Error())
 }
