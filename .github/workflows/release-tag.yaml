@@ -33,7 +33,7 @@ jobs:
           push: true
           tags: saiya/dsps:${{ steps.get-tag.outputs.tag }}
           build-args: |
-              DSPS_VERSION_ID=${{ github.sha }}
+              DSPS_VERSION_ID=${{ steps.get-tag.outputs.tag }}
 
   js-client-npm-release:
     name: Publish JS client
@@ -71,6 +71,8 @@ jobs:
           go get
           make build
         working-directory: server
+        env:
+          DSPS_VERSION_ID=${{ steps.get-tag.outputs.tag }}
 
       # https://zenn.dev/seita/articles/d1dba77043be8fd50eeb
       - name: Get the version
