@@ -33,7 +33,7 @@ jobs:
           push: true
           tags: saiya/dsps:${{ steps.get-tag.outputs.tag }}
           build-args: |
-              DSPS_VERSION_ID=${{ github.sha }}
+              DSPS_VERSION_ID=${{ steps.get-tag.outputs.tag }}
 
   js-client-npm-release:
     name: Publish JS client
@@ -62,6 +62,10 @@ jobs:
     name: Create GitHub release
     runs-on: ubuntu-latest
     steps:
+      - id: get-tag
+        run: |
+          tag=$(echo "${{github.ref}}" | sed 's/^refs\/tags\/v//')
+          echo "::set-output name=tag::$tag"
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
@@ -71,6 +75,8 @@ jobs:
           go get
           make build
         working-directory: server
+        env:
+          DSPS_VERSION_ID: ${{ steps.get-tag.outputs.tag }}
 
       # https://zenn.dev/seita/articles/d1dba77043be8fd50eeb
       - name: Get the version
