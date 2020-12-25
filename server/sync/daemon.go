@@ -8,8 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/saiya/dsps/server/telemetry"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/saiya/dsps/server/sentry"
+	"github.com/saiya/dsps/server/telemetry"
 )
 
 // DaemonSystem represents controller of daemons
@@ -21,6 +23,7 @@ type DaemonSystem struct {
 	daemons     map[string]*Daemon
 
 	telemetry *telemetry.Telemetry
+	sentry    sentry.Sentry
 }
 
 // DaemonErrorHandler catch error of daemons
@@ -39,13 +42,33 @@ type DaemonNextRun struct {
 // ErrDaemonClosed means daemon has been shutdown
 var ErrDaemonClosed = errors.New("dsps.daemon.closed")
 
+// DaemonSystemDeps is dependencies of daemon system.
+type DaemonSystemDeps struct {
+	Telemetry *telemetry.Telemetry
+	Sentry    sentry.Sentry
+}
+
+func (deps DaemonSystemDeps) assertValid() error {
+	if deps.Telemetry == nil {
+		return fmt.Errorf("invalid DaemonSystemDeps: Telemetry should not be nil")
+	}
+	if deps.Sentry == nil {
+		return fmt.Errorf("invalid DaemonSystemDeps: Sentry should not be nil")
+	}
+	return nil
+}
+
 // NewDaemonSystem create new runtime for daemons
-func NewDaemonSystem(name string, telemetry *telemetry.Telemetry, errorHandler DaemonErrorHandler) *DaemonSystem {
+func NewDaemonSystem(name string, deps DaemonSystemDeps, errorHandler DaemonErrorHandler) *DaemonSystem {
+	if err := deps.assertValid(); err != nil {
+		panic(err)
+	}
 	return &DaemonSystem{
 		name:         name,
 		errorHandler: errorHandler,
 		daemons:      make(map[string]*Daemon, 16),
-		telemetry:    telemetry,
+		telemetry:    deps.Telemetry,
+		sentry:       deps.Sentry,
 	}
 }
 
@@ -167,7 +190,7 @@ func (d *Daemon) cycle() bool {
 	case <-timer:
 	}
 
-	fCtx, end := d.system.telemetry.StartDaemonSpan(d.shutdownCtx, d.system.name, d.name)
+	fCtx, end := d.system.telemetry.StartDaemonSpan(d.system.sentry.WrapContext(d.shutdownCtx), d.system.name, d.name)
 	defer end()
 
 	var nextRun DaemonNextRun
@@ -192,11 +215,12 @@ func (d *Daemon) cycle() bool {
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				// Avoid using logger/tracer because it may cause panic again.
-				fmt.Fprintf(os.Stderr, "Panic in background job system: %v\n", r)
+				// Avoid using logger/tracer/sentry because it may cause panic again.
+				fmt.Fprintf(os.Stderr, "panic in background job system: %v\n", r)
 			}
 		}()
 		if fErr != nil && !errors.Is(fErr, context.Canceled) {
+			sentry.RecordError(fCtx, fErr)
 			d.system.telemetry.RecordError(fCtx, fErr)
 			d.system.errorHandler(fCtx, d.name, fErr)
 		}

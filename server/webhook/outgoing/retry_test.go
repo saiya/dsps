@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/saiya/dsps/server/sentry"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,9 +22,9 @@ func TestRetryResponseHandling(t *testing.T) {
 	responses[1].body.ErrOnClose = errors.New("error while closing")
 	for _, res := range responses {
 		attempts := 0
-		assert.NoError(t, (&retry{}).Do(context.Background(), "test", func() (*http.Response, error) {
+		assert.NoError(t, (&retry{}).Do(context.Background(), sentry.NewEmptySentry(), "test", func() (*http.Request, *http.Response, error) {
 			attempts++
-			return &res.Response, nil
+			return nil, &res.Response, nil
 		}))
 		assert.Equal(t, 1, attempts)
 		res.assertProperlyClosed(t)
@@ -40,9 +41,9 @@ func TestRetrySuccessForUnexpectedHttpStatus(t *testing.T) {
 	attempts := 0
 	assert.NoError(t, (&retry{
 		count: 2,
-	}).Do(context.Background(), "test", func() (*http.Response, error) {
+	}).Do(context.Background(), sentry.NewEmptySentry(), "test", func() (*http.Request, *http.Response, error) {
 		attempts++
-		return &resQueue[attempts-1].Response, nil
+		return nil, &resQueue[attempts-1].Response, nil
 	}))
 	assert.Equal(t, 3, attempts)
 }
@@ -58,9 +59,9 @@ func TestRetryFailureForUnexpectedHttpStatus(t *testing.T) {
 	attempts := 0
 	err := (&retry{
 		count: 2, // Give up after 2nd retry
-	}).Do(context.Background(), "test", func() (*http.Response, error) {
+	}).Do(context.Background(), sentry.NewEmptySentry(), "test", func() (*http.Request, *http.Response, error) {
 		attempts++
-		return &resQueue[attempts-1].Response, nil
+		return nil, &resQueue[attempts-1].Response, nil
 	})
 	assert.Error(t, err)
 	assert.Regexp(t, `status code 404 returned`, err.Error())
@@ -71,12 +72,12 @@ func TestRetrySuccessForError(t *testing.T) {
 	attempts := 0
 	assert.NoError(t, (&retry{
 		count: 2,
-	}).Do(context.Background(), "test", func() (*http.Response, error) {
+	}).Do(context.Background(), sentry.NewEmptySentry(), "test", func() (*http.Request, *http.Response, error) {
 		attempts++
 		if attempts <= 2 {
-			return nil, errors.New("test error")
+			return nil, nil, errors.New("test error")
 		}
-		return &newMockResponse(200, []byte{}).Response, nil
+		return nil, &newMockResponse(200, []byte{}).Response, nil
 	}))
 	assert.Equal(t, 3, attempts)
 }
@@ -86,9 +87,9 @@ func TestRetryFailureForError(t *testing.T) {
 	attempts := 0
 	err := (&retry{
 		count: 2,
-	}).Do(context.Background(), "test", func() (*http.Response, error) {
+	}).Do(context.Background(), sentry.NewStubSentry(), "test", func() (*http.Request, *http.Response, error) {
 		attempts++
-		return nil, testError
+		return nil, nil, testError
 	})
 	assert.Equal(t, testError, err)
 	assert.Equal(t, 3, attempts)

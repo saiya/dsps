@@ -18,6 +18,7 @@ import (
 	"github.com/saiya/dsps/server/http/router"
 	. "github.com/saiya/dsps/server/http/testing"
 	. "github.com/saiya/dsps/server/jwt/testing"
+	"github.com/saiya/dsps/server/sentry"
 )
 
 const jwtDir = "../../jwt"
@@ -109,6 +110,55 @@ func TestNormalAuthFilter(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 403, res.StatusCode)
 	})
+}
+
+func TestNormalAuthSentry(t *testing.T) {
+	sentry := sentry.NewStubSentry()
+	WithServer(t, configRequiresJWT, func(deps *ServerDependencies) {
+		deps.Sentry = sentry
+	}, func(deps *ServerDependencies, baseURL string) {
+		putURL := fmt.Sprintf("%s/channel/%s/message/%s", baseURL, "auth-test-channel", "msg-1")
+		assert.NoError(t, deps.Storage.AsJwtStorage().RevokeJwt(context.Background(), JwtExp(time.Now().Add(3*time.Hour)), "revoked-92BFB148-43D0-43B7-9DBE-C7006B4DFB13"))
+
+		// With JWT (without "jti" claim, invalid issuer)
+		req, err := http.NewRequestWithContext(context.Background(), "PUT", putURL, strings.NewReader(`{}`))
+		assert.NoError(t, err)
+		req.Header.Add("Authorization", "Bearer "+GenerateJwt(t, JwtProps{
+			Alg:     "RS256",
+			Keyname: "RS256-2048bit",
+			JwtDir:  jwtDir,
+			Iss:     "https://invalid-issuer.example.com/",
+			Aud:     []JwtAud{"https://my-service.example.com/"},
+		}))
+		res, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, 403, res.StatusCode)
+
+		// With JWT (with revoked "jti")
+		req, err = http.NewRequestWithContext(context.Background(), "PUT", putURL, strings.NewReader(`{}`))
+		assert.NoError(t, err)
+		req.Header.Add("Authorization", "Bearer "+GenerateJwt(t, JwtProps{
+			Alg:     "RS256",
+			Keyname: "RS256-2048bit",
+			JwtDir:  jwtDir,
+			Jti:     "revoked-92BFB148-43D0-43B7-9DBE-C7006B4DFB13",
+			Iss:     "https://issuer.example.com/issuer-url",
+			Aud:     []JwtAud{"https://my-service.example.com/"},
+		}))
+		res, err = http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.Equal(t, 403, res.StatusCode)
+	})
+
+	breadcrumbs := sentry.GetBreadcrumbs()
+	assert.Equal(t, 2, len(breadcrumbs))
+	issUnmatch := breadcrumbs[0]
+	assert.Equal(t, "auth", issUnmatch.Category)
+	assert.Regexp(t, `JWT verification failure.+"iss" claim of the presented JWT.+does not match with any of expected values`, issUnmatch.Message)
+	revoked := breadcrumbs[1]
+	assert.Equal(t, "auth", revoked.Category)
+	assert.Regexp(t, `JWT verification failure: presented JWT has been revoked`, revoked.Message)
+	assert.Equal(t, "revoked-92BFB148-43D0-43B7-9DBE-C7006B4DFB13", sentry.GetTags()["jti"])
 }
 
 func TestNormalAuthFilterPassThrough(t *testing.T) {

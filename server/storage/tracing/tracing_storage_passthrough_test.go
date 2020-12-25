@@ -10,6 +10,7 @@ import (
 
 	"github.com/saiya/dsps/server/domain"
 	. "github.com/saiya/dsps/server/domain/mock"
+	. "github.com/saiya/dsps/server/storage/deps/testing"
 	. "github.com/saiya/dsps/server/storage/tracing"
 	"github.com/saiya/dsps/server/telemetry"
 )
@@ -20,7 +21,9 @@ func withMockedStorage(t *testing.T, ctrl *gomock.Controller, f func(st domain.S
 		s.EXPECT().AsPubSubStorage().Return(nil).Times(1)
 		s.EXPECT().AsJwtStorage().Return(nil).Times(1)
 
-		st := NewTracingStorage(s, "test", telemetry)
+		deps := EmptyDeps(t)
+		deps.Telemetry = telemetry
+		st := NewTracingStorage(s, "test", deps)
 		f(st, s)
 	})
 }

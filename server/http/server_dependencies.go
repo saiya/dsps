@@ -5,6 +5,7 @@ import (
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/http/lifecycle"
 	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/sentry"
 	"github.com/saiya/dsps/server/telemetry"
 )
 
@@ -15,6 +16,7 @@ type ServerDependencies struct {
 	Storage         domain.Storage
 
 	Telemetry   *telemetry.Telemetry
+	Sentry      sentry.Sentry
 	LogFilter   *logger.Filter
 	ServerClose lifecycle.ServerClose
 }
@@ -62,6 +64,11 @@ func (deps *ServerDependencies) GetAdminAuthConfig() *config.AdminAuthConfig {
 // GetTelemetry returns telemetry facility
 func (deps *ServerDependencies) GetTelemetry() *telemetry.Telemetry {
 	return deps.Telemetry
+}
+
+// GetSentry returns sentry facility
+func (deps *ServerDependencies) GetSentry() sentry.Sentry {
+	return deps.Sentry
 }
 
 // GetLogFilter returns log filter instance

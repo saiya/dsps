@@ -1,10 +1,16 @@
 package channel
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestChannelAtomInvalidDeps(t *testing.T) {
+	_, err := newChannelAtom(context.Background(), nil, ProviderDeps{}, false)
+	assert.Regexp(t, `invalid ProviderDeps`, err.Error())
+}
 
 func TestChannelAtomStringer(t *testing.T) {
 	assert.Equal(t, `chat-room-(?P<id>\d+)`, newChannelAtomByYaml(t, `{ regex: 'chat-room-(?P<id>\d+)' }`, true).String())

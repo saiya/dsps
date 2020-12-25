@@ -142,6 +142,38 @@ Configuration items under `telemetry.ot.exporters.gcp`:
 - `enableTrace` (boolean, default `false`): true to output traces to GCP Cloud Trace
 - `projectID` (string, default `""`): Set non-empty string to specify GCP Project ID
 
+## <a name="sentry"></a> sentry configuration block
+
+Configure `sentry` block to enable [Sentry](https://sentry.io/welcome/) error monitoring tool.
+
+DSPS server sends events such as outgoing webhook failure to the Sentry when you enable it.
+
+```yaml
+# To enable Sentry, you need to set SENTRY_DSN environment variable.
+
+sentry:  # Fine-tuning configuration example
+  serverName: my-server-name
+  environment: my-production
+
+  sampleRate: 1.0
+  ignoreErrors:
+    - "something .+"
+  disableStacktrace: false
+
+  flushTimeout: 15s
+```
+
+To enable sentry, you must set `SENTRY_DSN` environment variable. It's value should be [DSN string of the Sentry server](https://docs.sentry.io/product/sentry-basics/dsn-explainer/).
+
+Configuration items under `telemetry.ot.tracing` ([OpenTelemetry](https://opentelemetry.io/) tracing):
+
+- `serverName` (string, default is hostname): Server name attribute to send to sentry
+- `environment` (string, optional): [Environment name](https://docs.sentry.io/product/sentry-basics/environments/) send to sentry
+- `sampleRate` (number, default `1.0`): Ratio of the sampling, between `0.0` to `1.0`.
+- `ignoreErrors` (list of regex string): If an event matches to one or more of the regex, ignore them
+- `disableStacktrace` (boolean, default `false`): If true, omit stacktrace.
+- `flushTimeout` (duration string, default `15s`): Timeout to flush sentry events on application shutdown.
+
 ## <a name="channels"></a> channels configuration block
 
 You can configure channels under `channels` block.

@@ -17,27 +17,11 @@ type Router struct {
 	middlewareFuncs []MiddlewareFunc
 }
 
-// Middleware is a filter that request passes
-type Middleware func(ctx context.Context, args MiddlewareArgs, next func(context.Context, MiddlewareArgs))
-
-// MiddlewareFunc is a function to dynamically create Middleware
-type MiddlewareFunc func(method string, path string) Middleware
-
-// AsMiddlewareFunc is to wrap Middleware as MiddlewareFunc
-func AsMiddlewareFunc(m Middleware) MiddlewareFunc {
-	return func(method, path string) Middleware { return m }
-}
-
 // Handler is a implementation of a endpoint
 type Handler func(ctx context.Context, args HandlerArgs)
 
 // ContextProvider is a function to create Context for each request
 type ContextProvider func(r *http.Request, f func(context.Context))
-
-// MiddlewareArgs holds arguments of middleware invoke
-type MiddlewareArgs struct {
-	HandlerArgs
-}
 
 // NewRouter creates new router (root node of router tree)
 func NewRouter(cp ContextProvider, r *httprouter.Router, pathPrefix string, middlewareFuncs ...MiddlewareFunc) *Router {

@@ -38,6 +38,7 @@ func CreateServer(mainContext context.Context, deps *ServerDependencies) http.Ha
 		},
 		r,
 		deps.Config.HTTPServer.PathPrefix,
+		middleware.SentryMiddleware(deps), // Must take precedence over realIP, it modifies Sentry span
 		middleware.RealIPMiddleware(deps), // Must take precedence over logging, tracing, auth, ...
 		middleware.TracingMiddleware(deps, deps),
 		middleware.LoggingMiddleware(deps, deps), // Must after tracing middleware to capture panics.

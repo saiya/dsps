@@ -6,6 +6,7 @@ import (
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
+	. "github.com/saiya/dsps/server/storage/deps/testing"
 	"github.com/saiya/dsps/server/storage/onmemory"
 	. "github.com/saiya/dsps/server/storage/testing"
 	. "github.com/saiya/dsps/server/storage/tracing"
@@ -14,19 +15,23 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-var onmemoryTracingCtor = func(telemetry *telemetry.Telemetry, onmemConfig config.OnmemoryStorageConfig) StorageCtor {
-	return func(ctx context.Context, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
-		storage, err := onmemory.NewOnmemoryStorage(context.Background(), &onmemConfig, systemClock, channelProvider, telemetry)
-		if err != nil {
-			return nil, err
+var onmemoryTracingCtor = func(t *testing.T) func(telemetry *telemetry.Telemetry, onmemConfig config.OnmemoryStorageConfig) StorageCtor {
+	return func(telemetry *telemetry.Telemetry, onmemConfig config.OnmemoryStorageConfig) StorageCtor {
+		deps := EmptyDeps(t)
+		deps.Telemetry = telemetry
+		return func(ctx context.Context, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
+			storage, err := onmemory.NewOnmemoryStorage(context.Background(), &onmemConfig, systemClock, channelProvider, deps)
+			if err != nil {
+				return nil, err
+			}
+			return NewTracingStorage(storage, "test", deps), nil
 		}
-		return NewTracingStorage(storage, "test", telemetry), nil
 	}
 }
 
 func testTracing(t *testing.T, f func(domain.Storage)) *telemetry.TraceResult {
 	return telemetry.WithStubTracing(t, func(telemetry *telemetry.Telemetry) {
-		s, err := onmemoryTracingCtor(telemetry, config.OnmemoryStorageConfig{})(
+		s, err := onmemoryTracingCtor(t)(telemetry, config.OnmemoryStorageConfig{})(
 			context.Background(),
 			domain.RealSystemClock,
 			StubChannelProvider,
@@ -58,7 +63,7 @@ func TestCoreFunctionsTrace(t *testing.T) {
 
 func TestCoreFunction(t *testing.T) {
 	telemetry.WithStubTracing(t, func(telemetry *telemetry.Telemetry) {
-		CoreFunctionTest(t, onmemoryTracingCtor(telemetry, config.OnmemoryStorageConfig{
+		CoreFunctionTest(t, onmemoryTracingCtor(t)(telemetry, config.OnmemoryStorageConfig{
 			DisableJwt:    true,
 			DisablePubSub: true,
 		}))
@@ -67,7 +72,7 @@ func TestCoreFunction(t *testing.T) {
 
 func TestPubSub(t *testing.T) {
 	telemetry.WithStubTracing(t, func(telemetry *telemetry.Telemetry) {
-		PubSubTest(t, onmemoryTracingCtor(telemetry, config.OnmemoryStorageConfig{
+		PubSubTest(t, onmemoryTracingCtor(t)(telemetry, config.OnmemoryStorageConfig{
 			DisableJwt: true,
 		}))
 	})
@@ -75,7 +80,7 @@ func TestPubSub(t *testing.T) {
 
 func TestJwt(t *testing.T) {
 	telemetry.WithStubTracing(t, func(telemetry *telemetry.Telemetry) {
-		JwtTest(t, onmemoryTracingCtor(telemetry, config.OnmemoryStorageConfig{
+		JwtTest(t, onmemoryTracingCtor(t)(telemetry, config.OnmemoryStorageConfig{
 			DisablePubSub: true,
 		}))
 	})

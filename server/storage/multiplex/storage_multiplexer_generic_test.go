@@ -7,17 +7,17 @@ import (
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
+	. "github.com/saiya/dsps/server/storage/deps/testing"
 	. "github.com/saiya/dsps/server/storage/multiplex"
 	"github.com/saiya/dsps/server/storage/onmemory"
 	. "github.com/saiya/dsps/server/storage/testing"
-	"github.com/saiya/dsps/server/telemetry"
 )
 
 var onmemoryMultiplexCtor = func(t *testing.T, onmemConfigs ...config.OnmemoryStorageConfig) StorageCtor {
 	return func(ctx context.Context, systemClock domain.SystemClock, channelProvider domain.ChannelProvider) (domain.Storage, error) {
 		storages := map[domain.StorageID]domain.Storage{}
 		for i := range onmemConfigs {
-			storage, err := onmemory.NewOnmemoryStorage(context.Background(), &(onmemConfigs[i]), systemClock, channelProvider, telemetry.NewEmptyTelemetry(t))
+			storage, err := onmemory.NewOnmemoryStorage(context.Background(), &(onmemConfigs[i]), systemClock, channelProvider, EmptyDeps(t))
 			if err != nil {
 				return nil, err
 			}

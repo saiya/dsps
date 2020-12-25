@@ -12,6 +12,7 @@ import (
 
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/sentry"
 	"github.com/saiya/dsps/server/telemetry"
 )
 
@@ -38,6 +39,7 @@ type clientImpl struct {
 
 	h         *http.Client // Note that Client does not own this object, ClientTemplate owns.
 	telemetry *telemetry.Telemetry
+	sentry    sentry.Sentry
 }
 
 func newClientImpl(tpl *clientTemplate, tplEnv domain.TemplateStringEnv) (Client, error) {
@@ -52,6 +54,7 @@ func newClientImpl(tpl *clientTemplate, tplEnv domain.TemplateStringEnv) (Client
 
 		h:         tpl.h,
 		telemetry: tpl.telemetry,
+		sentry:    tpl.sentry,
 	}
 
 	var err error
@@ -83,10 +86,10 @@ func (c *clientImpl) Send(ctx context.Context, msg domain.Message) error {
 		return xerrors.Errorf("failed to generate outgoing webhook body: %w", err)
 	}
 
-	return c.retry.Do(ctx, fmt.Sprintf("outgoing-webhook to %s", c.url), func() (*http.Response, error) {
+	return c.retry.Do(ctx, c.sentry, fmt.Sprintf("outgoing-webhook to %s", c.url), func() (*http.Request, *http.Response, error) {
 		req, err := http.NewRequestWithContext(ctx, c.method, c.url, strings.NewReader(body))
 		if err != nil {
-			return nil, err
+			return req, nil, err
 		}
 		req.Header.Set("Content-Type", "application/json")
 		for name, value := range c.headers {
@@ -101,7 +104,7 @@ func (c *clientImpl) Send(ctx context.Context, msg domain.Message) error {
 			logger.Of(ctx).Debugf(logger.CatOutgoingWebhook, "received outgoing webhook response (%s %d, contentLength: %d)", res.Proto, res.StatusCode, res.ContentLength)
 			c.telemetry.SetHTTPResponseAttributes(ctx, res.StatusCode, res.ContentLength)
 		}
-		return res, err
+		return req, res, err
 	})
 }
 

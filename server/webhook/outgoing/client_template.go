@@ -6,6 +6,7 @@ import (
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/sentry"
 	"github.com/saiya/dsps/server/telemetry"
 )
 
@@ -24,10 +25,11 @@ type clientTemplate struct {
 	maxConns int
 
 	telemetry *telemetry.Telemetry
+	sentry    sentry.Sentry
 }
 
 // NewClientTemplate returns ClientTemplate instalce
-func NewClientTemplate(ctx context.Context, cfg *config.OutgoingWebhookConfig, telemetry *telemetry.Telemetry) (ClientTemplate, error) {
+func NewClientTemplate(ctx context.Context, cfg *config.OutgoingWebhookConfig, telemetry *telemetry.Telemetry, sentry sentry.Sentry) (ClientTemplate, error) {
 	return &clientTemplate{
 		OutgoingWebhookConfig: cfg,
 
@@ -35,6 +37,7 @@ func NewClientTemplate(ctx context.Context, cfg *config.OutgoingWebhookConfig, t
 		maxConns: *cfg.Connection.Max,
 
 		telemetry: telemetry,
+		sentry:    sentry,
 	}, nil
 }
 

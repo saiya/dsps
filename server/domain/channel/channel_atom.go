@@ -9,7 +9,6 @@ import (
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
 	jwtv "github.com/saiya/dsps/server/jwt/validator"
-	"github.com/saiya/dsps/server/telemetry"
 	"github.com/saiya/dsps/server/webhook/outgoing"
 )
 
@@ -22,7 +21,11 @@ type channelAtom struct {
 	OutgoingWebHookTemplates []outgoing.ClientTemplate
 }
 
-func newChannelAtom(ctx context.Context, config *config.ChannelConfig, clock domain.SystemClock, telemetry *telemetry.Telemetry, validate bool) (*channelAtom, error) {
+func newChannelAtom(ctx context.Context, config *config.ChannelConfig, deps ProviderDeps, validate bool) (*channelAtom, error) {
+	if err := deps.validateProviderDeps(); err != nil {
+		return nil, err
+	}
+
 	atom := &channelAtom{
 		config: config,
 	}
@@ -33,7 +36,7 @@ func newChannelAtom(ctx context.Context, config *config.ChannelConfig, clock dom
 	}
 
 	if config.Jwt != nil {
-		jvt, err := jwtv.NewTemplate(ctx, config.Jwt, clock)
+		jvt, err := jwtv.NewTemplate(ctx, config.Jwt, deps.Clock)
 		if err != nil {
 			return nil, err
 		}
@@ -42,7 +45,7 @@ func newChannelAtom(ctx context.Context, config *config.ChannelConfig, clock dom
 
 	atom.OutgoingWebHookTemplates = make([]outgoing.ClientTemplate, 0, len(config.Webhooks))
 	for i := range config.Webhooks {
-		tpl, err := outgoing.NewClientTemplate(ctx, &config.Webhooks[i], telemetry)
+		tpl, err := outgoing.NewClientTemplate(ctx, &config.Webhooks[i], deps.Telemetry, deps.Sentry)
 		if err != nil {
 			return nil, err
 		}

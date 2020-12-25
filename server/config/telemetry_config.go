@@ -86,7 +86,7 @@ func postprocessOTTracingConfig(config *OpenTelemetryTracingConfig) error {
 	}
 
 	if config.Sampling < 0 || 1 < config.Sampling {
-		return fmt.Errorf(`sampling ration must be within [0.0, 1.0]`)
+		return fmt.Errorf(`sampling ratio must be within [0.0, 1.0]`)
 	}
 
 	return nil

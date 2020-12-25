@@ -7,6 +7,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v0.13.1-0.20201210214614-d8551be9a708
 	github.com/Songmu/gocredits v0.2.0
 	github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
+	github.com/getsentry/sentry-go v0.9.0
 	github.com/go-playground/validator/v10 v10.4.1
 	github.com/go-redis/redis/extra/redisotel v0.2.0
 	github.com/go-redis/redis/v8 v8.4.0

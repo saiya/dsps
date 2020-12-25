@@ -7,20 +7,45 @@ import (
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/domain"
+	"github.com/saiya/dsps/server/sentry"
 	"github.com/saiya/dsps/server/telemetry"
 )
 
+// ProviderDeps contains objects required by ChannelProvider
+type ProviderDeps struct {
+	Clock     domain.SystemClock
+	Telemetry *telemetry.Telemetry
+	Sentry    sentry.Sentry
+}
+
+func (deps ProviderDeps) validateProviderDeps() error {
+	if deps.Clock == nil {
+		return xerrors.Errorf("invalid ProviderDeps: Clock should not be nil")
+	}
+	if deps.Telemetry == nil {
+		return xerrors.Errorf("invalid ProviderDeps: Telemetry should not be nil")
+	}
+	if deps.Sentry == nil {
+		return xerrors.Errorf("invalid ProviderDeps: Sentry should not be nil")
+	}
+	return nil
+}
+
 // NewChannelProvider initializes ChannelProvider
-func NewChannelProvider(ctx context.Context, config *config.ServerConfig, clock domain.SystemClock, telemetry *telemetry.Telemetry) (domain.ChannelProvider, error) {
+func NewChannelProvider(ctx context.Context, config *config.ServerConfig, deps ProviderDeps) (domain.ChannelProvider, error) {
+	if err := deps.validateProviderDeps(); err != nil {
+		return nil, err
+	}
+
 	atoms := make([]*channelAtom, 0, len(config.Channels))
 	for i := range config.Channels {
-		atom, err := newChannelAtom(ctx, &config.Channels[i], clock, telemetry, true)
+		atom, err := newChannelAtom(ctx, &config.Channels[i], deps, true)
 		if err != nil {
 			return nil, xerrors.Errorf("channels[%d] configuration error: %w", i, err)
 		}
 		atoms = append(atoms, atom)
 	}
-	return newCachedChannelProvider(&channelProvider{atoms: atoms}, clock), nil
+	return newCachedChannelProvider(&channelProvider{atoms: atoms}, deps.Clock), nil
 }
 
 type channelProvider struct {
