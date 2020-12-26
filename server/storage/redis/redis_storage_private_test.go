@@ -10,7 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/saiya/dsps/server/domain"
-	"github.com/saiya/dsps/server/storage/redis/mock"
+	. "github.com/saiya/dsps/server/storage/redis/internal"
+	. "github.com/saiya/dsps/server/storage/redis/internal/mock"
 	storagetesting "github.com/saiya/dsps/server/storage/testing"
 )
 
@@ -22,17 +23,17 @@ func GetRedisAddr(_ *testing.T) string {
 	return addr
 }
 
-func WithRedisClient(t *testing.T, f func(redisCmd redisCmd)) {
+func WithRedisClient(t *testing.T, f func(redisCmd RedisCmd)) {
 	client := redis.NewClient(&redis.Options{Addr: GetRedisAddr(t)})
 	defer func() { assert.NoError(t, client.Close()) }()
 
-	f(newRedisCmd(client, func(ctx context.Context, channel string) *redis.PubSub {
-		return client.Subscribe(ctx, channel)
+	f(NewRedisCmd(client, func(ctx context.Context, channel RedisChannelID) *redis.PubSub {
+		return client.PSubscribe(ctx, string(channel))
 	}))
 }
 
-func newMockedRedisStorage(ctrl *gomock.Controller) (*redisStorage, *mock.MockredisCmd) {
-	redisCmd := mock.NewMockredisCmd(ctrl)
+func newMockedRedisStorage(ctrl *gomock.Controller) (*redisStorage, *MockRedisCmd) {
+	redisCmd := NewMockRedisCmd(ctrl)
 	return &redisStorage{
 		clock:           domain.RealSystemClock,
 		channelProvider: storagetesting.StubChannelProvider,
@@ -40,12 +41,12 @@ func newMockedRedisStorage(ctrl *gomock.Controller) (*redisStorage, *mock.Mockre
 		pubsubEnabled: true,
 		jwtEnabled:    true,
 
-		redisConnection: redisConnection{
-			redisCmd:       redisCmd,
-			close:          func() error { return nil },
-			isSingleNode:   false,
-			isCluster:      false,
-			maxConnections: 1024,
+		RedisConnection: RedisConnection{
+			RedisCmd:       redisCmd,
+			Close:          func() error { return nil },
+			IsSingleNode:   false,
+			IsCluster:      false,
+			MaxConnections: 1024,
 		},
 	}, redisCmd
 }
@@ -73,6 +74,6 @@ func TestGetFileDescriptorPressure(t *testing.T) {
 
 	s, _ := newMockedRedisStorage(ctrl)
 
-	s.maxConnections = 1234
+	s.MaxConnections = 1234
 	assert.Equal(t, 1234, s.GetFileDescriptorPressure())
 }

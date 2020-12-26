@@ -1,4 +1,4 @@
-package redis
+package internal
 
 import (
 	"context"
@@ -14,11 +14,12 @@ import (
 )
 
 //go:generate mockgen -source=${GOFILE} -package=mock -destination=./mock/${GOFILE}
-type redisCmd interface {
+// RedisCmd wraps Redis command system
+type RedisCmd interface {
 	Ping(ctx context.Context) error
 
-	Publish(ctx context.Context, channel string, message interface{}) error
-	Subscribe(ctx context.Context, channel string) (c chan string, close func() error, err error)
+	Publish(ctx context.Context, channel RedisChannelID, message interface{}) error
+	PSubscribe(ctx context.Context, pattern RedisChannelID) (c chan string, close func() error, err error)
 
 	Get(ctx context.Context, key string) (*string, error)
 	MGet(ctx context.Context, keys ...string) ([]*string, error)
@@ -31,14 +32,19 @@ type redisCmd interface {
 	RunScript(ctx context.Context, script *redis.Script, keys []string, args ...interface{}) (interface{}, error)
 }
 
-func newRedisCmd(raw redis.Cmdable, subscribeFunc redisSubscribeRawFunc) redisCmd {
-	return &redisCmdImpl{raw: raw, subscribeFunc: subscribeFunc}
+// RedisChannelID represents channel ID of Redis Pub/Sub
+type RedisChannelID string
+
+// NewRedisCmd creates new RedisCmd instance.
+func NewRedisCmd(raw redis.Cmdable, psubscribeFunc RedisSubscribeRawFunc) RedisCmd {
+	return &redisCmdImpl{raw: raw, psubscribeFunc: psubscribeFunc}
 }
 
-type redisSubscribeRawFunc func(ctx context.Context, channel string) *redis.PubSub
+// RedisSubscribeRawFunc represents (P)SUBSCRIBE command implementation.
+type RedisSubscribeRawFunc func(ctx context.Context, channel RedisChannelID) *redis.PubSub
 type redisCmdImpl struct {
-	raw           redis.Cmdable
-	subscribeFunc redisSubscribeRawFunc
+	raw            redis.Cmdable
+	psubscribeFunc RedisSubscribeRawFunc
 }
 
 func (impl *redisCmdImpl) Ping(ctx context.Context) error {
@@ -46,12 +52,12 @@ func (impl *redisCmdImpl) Ping(ctx context.Context) error {
 	return err
 }
 
-func (impl *redisCmdImpl) Publish(ctx context.Context, channel string, message interface{}) error {
-	return impl.raw.Publish(ctx, channel, message).Err()
+func (impl *redisCmdImpl) Publish(ctx context.Context, channel RedisChannelID, message interface{}) error {
+	return impl.raw.Publish(ctx, string(channel), message).Err()
 }
 
-func (impl *redisCmdImpl) Subscribe(ctx context.Context, channel string) (c chan string, closer func() error, err error) {
-	redisPubSub := impl.subscribeFunc(ctx, channel)
+func (impl *redisCmdImpl) PSubscribe(ctx context.Context, channel RedisChannelID) (c chan string, closer func() error, err error) {
+	redisPubSub := impl.psubscribeFunc(ctx, channel)
 	subscribeResult, err := redisPubSub.Receive(ctx)
 	if err != nil {
 		err = xerrors.Errorf("Failed to make Redis Pub/Sub subscription: %w", err)

@@ -22,7 +22,7 @@ func TestFetchMessagesRedisSubscribeError(t *testing.T) {
 	errToReturn := errors.New("Mocked redis error")
 
 	s, redisCmd := newMockedRedisStorage(ctrl)
-	redisCmd.EXPECT().Subscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(nil, nil, errToReturn)
+	redisCmd.EXPECT().PSubscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(nil, nil, errToReturn)
 
 	_, _, _, err := s.FetchMessages(context.Background(), sl, 100, domain.Duration{Duration: 30 * time.Second})
 	dspstesting.IsError(t, errToReturn, err)
@@ -41,7 +41,7 @@ func TestFetchMessagesFirstPollingClockGetError(t *testing.T) {
 	// Redis SUBSCRIBE
 	redisSubscChan := make(chan string, 1)
 	redisSubscClose := func() error { return nil }
-	redisCmd.EXPECT().Subscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
+	redisCmd.EXPECT().PSubscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	errToReturn := errors.New(`Mocked Redis error`)
@@ -65,7 +65,7 @@ func TestFetchMessagesFirstPollingClockGetInvalidValues(t *testing.T) {
 	// Redis SUBSCRIBE
 	redisSubscChan := make(chan string, 1)
 	redisSubscClose := func() error { return nil }
-	redisCmd.EXPECT().Subscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
+	redisCmd.EXPECT().PSubscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "INVALID", "INVALID"), nil)
@@ -87,7 +87,7 @@ func TestFetchMessagesFirstPollingGetMsgBodyError(t *testing.T) {
 	// Redis SUBSCRIBE
 	redisSubscChan := make(chan string, 1)
 	redisSubscClose := func() error { return nil }
-	redisCmd.EXPECT().Subscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
+	redisCmd.EXPECT().PSubscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	clocksMget := redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "12", "10"), nil)
@@ -113,7 +113,7 @@ func TestFetchMessagesFirstPollingCorruptedMsgBody(t *testing.T) {
 	// Redis SUBSCRIBE
 	redisSubscChan := make(chan string, 1)
 	redisSubscClose := func() error { return nil }
-	redisCmd.EXPECT().Subscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
+	redisCmd.EXPECT().PSubscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	clocksMget := redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "13", "10"), nil)
@@ -143,7 +143,7 @@ func TestFetchMessagesSecondPollingError(t *testing.T) {
 	// Redis SUBSCRIBE
 	redisSubscChan := make(chan string, 1)
 	redisSubscClose := func() error { return nil }
-	redisCmd.EXPECT().Subscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
+	redisCmd.EXPECT().PSubscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	clocksMget1 := redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "10", "10"), nil)
@@ -175,7 +175,7 @@ func TestFetchRedisPubSubCloseError(t *testing.T) {
 	redisSubscChan := make(chan string, 1)
 	errToReturn := errors.New("Close failure")
 	redisSubscClose := func() error { return errToReturn }
-	redisCmd.EXPECT().Subscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
+	redisCmd.EXPECT().PSubscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	clocksMget1 := redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "10", "10"), nil)

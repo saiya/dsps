@@ -9,13 +9,14 @@ import (
 
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/logger"
+	internal "github.com/saiya/dsps/server/storage/redis/internal"
 )
 
 func (s *redisStorage) loadPubSubMessagingScripts(ctx context.Context) error {
-	if err := s.redisCmd.LoadScript(ctx, publishMessageScript); err != nil {
+	if err := s.RedisCmd.LoadScript(ctx, publishMessageScript); err != nil {
 		return xerrors.Errorf("Failed to load publishMessageScript: %w", err)
 	}
-	if err := s.redisCmd.LoadScript(ctx, ackScript); err != nil {
+	if err := s.RedisCmd.LoadScript(ctx, ackScript); err != nil {
 		return xerrors.Errorf("Failed to load ackScript: %w", err)
 	}
 	return nil
@@ -50,7 +51,7 @@ var publishMessageScript = redis.NewScript(`
 	return redis.status_reply("OK")
 `)
 
-func runPublishMessageScript(ctx context.Context, redisCmd redisCmd, ttl channelTTLSec, msg domain.Message) error {
+func runPublishMessageScript(ctx context.Context, redisCmd internal.RedisCmd, ttl channelTTLSec, msg domain.Message) error {
 	wrapped, err := wrapMessage(msg)
 	if err != nil {
 		return xerrors.Errorf("Unable to encode message \"%s\": %w", msg.MessageID, err)
@@ -106,7 +107,7 @@ var ackScript = redis.NewScript(`
 	return redis.status_reply("OK")
 `)
 
-func runAckScript(ctx context.Context, redisCmd redisCmd, channelID domain.ChannelID, ttl channelTTLSec, sbscID domain.SubscriberID, acknowledgedClock channelClock) (string, error) {
+func runAckScript(ctx context.Context, redisCmd internal.RedisCmd, channelID domain.ChannelID, ttl channelTTLSec, sbscID domain.SubscriberID, acknowledgedClock channelClock) (string, error) {
 	keys := keyOfChannel(channelID)
 	result, err := redisCmd.RunScript(
 		ctx, ackScript,
