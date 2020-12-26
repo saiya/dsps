@@ -1,0 +1,173 @@
+import http from 'k6/http';
+import { group, sleep, check } from 'k6';
+import { Counter, Trend } from 'k6/metrics';
+
+//
+// To run in local, run followings:
+// (any directory)          docker run --ulimit nofile=100000:100000 --rm -p 6379:6379 redis
+// (../server directory)    echo '{ storages: { redis1: { redis: { singleNode: "127.0.0.1:6379" } } } }' | go run main.go --port 3000 -
+// (in this directory)      k6 run --summary-export=summary.json --out json=test.json loadtest.k6.js 
+//
+
+
+//
+// --- Compute client role & parameter ---
+//
+
+const settings = {
+    BASE_URL: __ENV.BASE_URL || "http://localhost:3000",
+
+    TEST_RAMPUP_SEC: __ENV.TEST_RAMPUP_SEC || 1,
+    TEST_DURATION_SEC: __ENV.TEST_DURATION_SEC || 3,
+    TEST_RAMPDOWN_SEC: __ENV.TEST_RAMPUP_SEC || 0,
+
+    CHANNELS: +(__ENV.CHANNELS) || 50,
+    PUBLISHER_PER_CHANEL: +(__ENV.PUBLISHER_PER_CHANEL) || 1,
+    SUBSCRIBER_PER_PUBLISHER: +(__ENV.SUBSCRIBER_PER_PUBLISHER) || 3,
+
+    PUBLISH_MESSAGES_PER_ITERATION: +(__ENV.PUBLISH_MESSAGES_PER_ITERATION) || 3,
+
+    PUBLISH_INTERVAL_SEC: +(__ENV.PUBLISH_INTERVAL_SEC) || 1,
+    SUBSCRIBE_ACK_WAIT_SEC: +(__ENV.SUBSCRIBE_INERVAL_SEC) || 0.01,
+    SUBSCRIBE_INERVAL_SEC: +(__ENV.SUBSCRIBE_INERVAL_SEC) || 0.01,
+}
+const clientsPerChannel = (1 + settings.SUBSCRIBER_PER_PUBLISHER) * settings.PUBLISHER_PER_CHANEL;
+const targetVU = settings.CHANNELS * clientsPerChannel;
+if (__VU === 1) console.log(`clientsPerChannel: ${clientsPerChannel}, targetVU: ${targetVU}, settings: ${JSON.stringify(settings, null, 2)}`);
+
+const channelNumber = Math.floor((__VU - 1) / clientsPerChannel);
+const isPublisher = (((__VU - 1) % clientsPerChannel) < settings.PUBLISHER_PER_CHANEL);
+
+//
+// --- Custom metrics ---
+//
+const fetchedMessagesCounter = new Counter('dsps_fetched_messages');
+const ttfbTrends = { // TTFB = time to first byte
+    publish: new Trend('dsps_ttfb_ms_publish'),
+    ack: new Trend('dsps_ttfb_ms_ack'),
+};
+const messageDelayTrends = new Trend('dsps_msg_delay_ms');
+
+//
+// --- k6 config ---
+//
+export const options = {
+    stages: [
+        { duration: `${settings.TEST_RAMPUP_SEC}s`, target: targetVU },
+        { duration: `${settings.TEST_DURATION_SEC}s`, target: targetVU },
+        { duration: `${settings.TEST_RAMPDOWN_SEC}s`, target: 0 },
+    ],
+    thresholds: {  // https://k6.io/docs/using-k6/thresholds
+        checks: ['rate >= 1.0'],
+        dsps_fetched_messages: [`count >= ${0.9 * (targetVU * settings.TEST_DURATION_SEC) / settings.PUBLISH_INTERVAL_SEC}`],
+    },
+};
+
+//
+// --- Load test implementation ---
+//
+export function setup() {
+    const chars = "abcdefghijklmnopqrstuvwxyz".split("");
+    let randomID = "";
+    for (let i = 0; i < 16; i++) {
+        randomID += chars[Math.floor(chars.length * Math.random())];
+    }
+
+    const data = {
+        randomID: randomID,
+    };
+    console.log(`data: ${JSON.stringify(data)}`);
+    return data;
+}
+
+export default function (data) {
+    const { randomID } = data;
+    const channelID = `${randomID}-${channelNumber}`;
+    const subscriberID = `sbsc-${__VU}`;
+
+    if (isPublisher) {
+        group("publisher", () => {
+            publisherScenario(channelID);
+        });
+    } else {
+        group("subscriber", () => {
+            subscriberScenario(channelID, subscriberID);
+        });
+    }
+}
+
+function publisherScenario(channelID) {
+    for (let i = 0; i < settings.PUBLISH_MESSAGES_PER_ITERATION; i++) {
+        publishMessage(channelID, `${__VU}-${__ITER}-${i}`);
+    }
+    sleep(settings.PUBLISH_INTERVAL_SEC);
+}
+
+function subscriberScenario(channelID, subscriberID) {
+    if (__ITER === 0) {
+        createSubscription(channelID, subscriberID);
+    }
+
+    let ackHandle;
+    group("fetch", () => {
+        ackHandle = fetchMessages(channelID, subscriberID);
+    });
+    group("ack", () => {
+        if (ackHandle) {
+            sleep(settings.SUBSCRIBE_ACK_WAIT_SEC);
+            consumeAckHandle(channelID, subscriberID, ackHandle);
+        }
+    });
+
+    sleep(settings.SUBSCRIBE_INERVAL_SEC);
+}
+
+function publishMessage(channelID, messageID) {
+    const message = createMessage();
+    const res = http.put(`${settings.BASE_URL}/channel/${channelID}/message/${messageID}`, message, { tags: { endpoint: "publish" } });
+    check(res, {
+        "is status 200": (r) => r.status === 200,
+    });
+    ttfbTrends.publish.add(res.timings.waiting);
+}
+
+function createSubscription(channelID, subscriberID) {
+    const res = http.put(`${settings.BASE_URL}/channel/${channelID}/subscription/polling/${subscriberID}`, undefined, { tags: { endpoint: "createSubscription" } });
+    check(res, {
+        "is status 200": (r) => r.status === 200,
+    });
+}
+
+function fetchMessages(channelID, subscriberID) {
+    const res = http.get(`${settings.BASE_URL}/channel/${channelID}/subscription/polling/${subscriberID}?timeout=3s`, undefined, { tags: { endpoint: "fetch" } });
+    const receivedAt = new Date();
+
+    const body = res.json();
+    check(res, {
+        "is status 200": (r) => r.status === 200,
+        "has messages array": (r) => (typeof (body.messages) === "object" && typeof (body.messages.length) === "number"),
+    });
+    fetchedMessagesCounter.add(body.messages.length);
+    for (let i = 0; i < body.messages.length; i++) {
+        readMessage(receivedAt, body.messages[i]);
+    }
+    return body.ackHandle;
+}
+
+function consumeAckHandle(channelID, subscriberID, ackHandle) {
+    const res = http.del(`${settings.BASE_URL}/channel/${channelID}/subscription/polling/${subscriberID}/message?ackHandle=${ackHandle}`, undefined, { tags: { endpoint: "ack" } });
+    check(res, {
+        "is status 204": (r) => r.status === 204,
+    });
+    ttfbTrends.ack.add(res.timings.waiting);
+}
+
+function createMessage() {
+    return JSON.stringify({
+        at: (new Date()).getTime(),
+    });
+}
+
+function readMessage(receivedAt, msg) {
+    messageDelayTrends.add(receivedAt.getTime() - msg.content.at);
+}

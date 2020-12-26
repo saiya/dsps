@@ -1,0 +1,17 @@
+logging:
+  category:
+    http: WARN
+
+storages:
+  redis1:
+    redis:
+      singleNode: "127.0.0.1:16379"
+      connection:
+        max: 2048
+        min: 2048
+  redis2:
+    redis:
+      singleNode: "127.0.0.1:26379"
+      connection:
+        max: 2048
+        min: 2048
