@@ -19,15 +19,20 @@ For detail, see [../../loadtest.k6.js](../../loadtest.k6.js).
 
 ## Key results
 
-Unit of `ww/xx/yy/zz` is `med/90 percentile/95 percentile/99 percentile` in milliseconds.
+| #              | Msg/sec  | Msg delay [ms]<br />(incl. 20ms sleep *1) | Publish API TTFB [ms]    | Acknowledge API TTFB [ms] |
+| -------------- | -------- | ----------------------------------------- | ------------------------ | ------------------------- |
+| ` 50` ( `150`) | ` 406.7` | `22,  27,  29,   37`                      | `1.2,  2.9,  3.9,  10.7` | `0.8,  2.2,  3.0,   5.6`  |
+| `100` ( `300`) | ` 811.6` | `22,  26,  29,   64`                      | `0.9,  2.8,  4.2,  30.3` | `0.7,  2.0,  2.9,   9.4`  |
+| `200` ( `600`) | `1608.1` | `22,  33,  42,  329`                      | `2.0,  6.8, 10.3, 179.4` | `1.0,  4.1,  7.1,  16.6`  |
+| `300` ( `900`) | `2278.2` | `23,  41,  62, 1470.3`                    | `1.6,  7.5, 12.3, 450.7` | `1.1,  5.3,  9.2,  22.9`  |
+| `400` (`1200`) | `2636.6` | `36, 215, 326, 2616.1`                    | `7.9, 61.2, 90.3, 830.4` | `5.2, 49.5, 70.5, 115.9`  |
 
-`#` column shows total number of `channels (subscribers)`.
+- `#` column shows total number of `channels (subscribers)`.
+- `Msg/sec` column shows average count of received messages per second.
+- Values of 4-tuple are `median, 90 percentile, 95 percentile, 99 percentile`.
+- `TTFB` = [Time to first byte](https://en.wikipedia.org/wiki/Time_to_first_byte)
 
-| #        | Msg delay | Publish API TTFB |
-| -------- | --------- | ---------------- |
-| 50 (150) | ...       | ...              |
-
-Note that subscribers sleep `2 * 0.01` sec between cycles in this scenario. Message delay contains the sleep durations.
+`*1`: Note that subscribers sleep `20` ms (`2 * 0.01` sec) for each API cycles in this scenario. `Msg delay` (duration from messsage JSON creation to received) contains the sleep durations.
 
 ## Raw data
 
