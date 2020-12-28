@@ -7,26 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/golang/mock/gomock"
 	"github.com/saiya/dsps/server/domain"
 	dspstesting "github.com/saiya/dsps/server/testing"
-	"github.com/stretchr/testify/assert"
 )
-
-func TestFetchMessagesRedisSubscribeError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	ch := randomChannelID(t)
-	sl := domain.SubscriberLocator{ChannelID: ch, SubscriberID: "sbsc-1"}
-	errToReturn := errors.New("Mocked redis error")
-
-	s, redisCmd := newMockedRedisStorage(ctrl)
-	redisCmd.EXPECT().PSubscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(nil, nil, errToReturn)
-
-	_, _, _, err := s.FetchMessages(context.Background(), sl, 100, domain.Duration{Duration: 30 * time.Second})
-	dspstesting.IsError(t, errToReturn, err)
-}
 
 func TestFetchMessagesFirstPollingClockGetError(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -36,12 +22,7 @@ func TestFetchMessagesFirstPollingClockGetError(t *testing.T) {
 	keys := keyOfChannel(ch)
 	sl := domain.SubscriberLocator{ChannelID: ch, SubscriberID: "sbsc-1"}
 
-	s, redisCmd := newMockedRedisStorage(ctrl)
-
-	// Redis SUBSCRIBE
-	redisSubscChan := make(chan string, 1)
-	redisSubscClose := func() error { return nil }
-	redisCmd.EXPECT().PSubscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
+	s, redisCmd, _ := newMockedRedisStorageAndPubSubDispatcher(ctrl)
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	errToReturn := errors.New(`Mocked Redis error`)
@@ -60,12 +41,7 @@ func TestFetchMessagesFirstPollingClockGetInvalidValues(t *testing.T) {
 	keys := keyOfChannel(ch)
 	sl := domain.SubscriberLocator{ChannelID: ch, SubscriberID: "sbsc-1"}
 
-	s, redisCmd := newMockedRedisStorage(ctrl)
-
-	// Redis SUBSCRIBE
-	redisSubscChan := make(chan string, 1)
-	redisSubscClose := func() error { return nil }
-	redisCmd.EXPECT().PSubscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
+	s, redisCmd, _ := newMockedRedisStorageAndPubSubDispatcher(ctrl)
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "INVALID", "INVALID"), nil)
@@ -82,12 +58,7 @@ func TestFetchMessagesFirstPollingGetMsgBodyError(t *testing.T) {
 	keys := keyOfChannel(ch)
 	sl := domain.SubscriberLocator{ChannelID: ch, SubscriberID: "sbsc-1"}
 
-	s, redisCmd := newMockedRedisStorage(ctrl)
-
-	// Redis SUBSCRIBE
-	redisSubscChan := make(chan string, 1)
-	redisSubscClose := func() error { return nil }
-	redisCmd.EXPECT().PSubscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
+	s, redisCmd, _ := newMockedRedisStorageAndPubSubDispatcher(ctrl)
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	clocksMget := redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "12", "10"), nil)
@@ -108,12 +79,7 @@ func TestFetchMessagesFirstPollingCorruptedMsgBody(t *testing.T) {
 	keys := keyOfChannel(ch)
 	sl := domain.SubscriberLocator{ChannelID: ch, SubscriberID: "sbsc-1"}
 
-	s, redisCmd := newMockedRedisStorage(ctrl)
-
-	// Redis SUBSCRIBE
-	redisSubscChan := make(chan string, 1)
-	redisSubscClose := func() error { return nil }
-	redisCmd.EXPECT().PSubscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
+	s, redisCmd, _ := newMockedRedisStorageAndPubSubDispatcher(ctrl)
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	clocksMget := redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "13", "10"), nil)
@@ -138,18 +104,13 @@ func TestFetchMessagesSecondPollingError(t *testing.T) {
 	keys := keyOfChannel(ch)
 	sl := domain.SubscriberLocator{ChannelID: ch, SubscriberID: "sbsc-1"}
 
-	s, redisCmd := newMockedRedisStorage(ctrl)
-
-	// Redis SUBSCRIBE
-	redisSubscChan := make(chan string, 1)
-	redisSubscClose := func() error { return nil }
-	redisCmd.EXPECT().PSubscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
+	s, redisCmd, dispatcher := newMockedRedisStorageAndPubSubDispatcher(ctrl)
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	clocksMget1 := redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "10", "10"), nil)
 	// (1st fetchMessagesNow) MGET (no messages)
 	bodyMget1 := redisCmd.EXPECT().MGet(gomock.Any()).Return(nil, nil).Do(func(ctx context.Context, keys ...string) {
-		redisSubscChan <- "message sent"
+		dispatcher.Resolve(s.redisPubSubKeyOf(ch))
 	}).After(clocksMget1)
 
 	// (2nd fetchMessagesNow) MGET clock cursor
@@ -161,7 +122,7 @@ func TestFetchMessagesSecondPollingError(t *testing.T) {
 	assert.Contains(t, err.Error(), "FetchMessages failed due to Redis error (cursor MGET error)")
 }
 
-func TestFetchRedisPubSubCloseError(t *testing.T) {
+func TestFetchSpuriousWakeup(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -169,19 +130,13 @@ func TestFetchRedisPubSubCloseError(t *testing.T) {
 	keys := keyOfChannel(ch)
 	sl := domain.SubscriberLocator{ChannelID: ch, SubscriberID: "sbsc-1"}
 
-	s, redisCmd := newMockedRedisStorage(ctrl)
-
-	// Redis SUBSCRIBE
-	redisSubscChan := make(chan string, 1)
-	errToReturn := errors.New("Close failure")
-	redisSubscClose := func() error { return errToReturn }
-	redisCmd.EXPECT().PSubscribe(gomock.Any(), s.redisPubSubKeyOf(ch)).Return(redisSubscChan, redisSubscClose, nil)
+	s, redisCmd, dispatcher := newMockedRedisStorageAndPubSubDispatcher(ctrl)
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	clocksMget1 := redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "10", "10"), nil)
 	// (1st fetchMessagesNow) MGET (no messages)
 	bodyMget1 := redisCmd.EXPECT().MGet(gomock.Any()).Return(nil, nil).Do(func(ctx context.Context, keys ...string) {
-		redisSubscChan <- "spurious wakeup"
+		dispatcher.Resolve(s.redisPubSubKeyOf(ch)) // spurious wakeup
 	}).After(clocksMget1)
 
 	// (2nd fetchMessagesNow) MGET clock cursor

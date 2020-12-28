@@ -10,6 +10,7 @@ import (
 	"github.com/saiya/dsps/server/logger"
 	"github.com/saiya/dsps/server/storage/deps"
 	"github.com/saiya/dsps/server/storage/redis/internal"
+	"github.com/saiya/dsps/server/storage/redis/internal/pubsub"
 	"github.com/saiya/dsps/server/sync"
 )
 
@@ -37,6 +38,7 @@ func NewRedisStorage(ctx context.Context, config *config.RedisStorageConfig, sys
 			logger.Of(ctx).Error(fmt.Sprintf(`error in background routine "%s"`, name), err)
 		}),
 	}
+	s.pubsubDispatcher = pubsub.NewDispatcher(ctx, deps, conn.RedisCmd.PSubscribeFunc(), s.redisPubSubKeyPattern())
 	if err := s.loadScripts(ctx); err != nil {
 		return nil, err
 	}
@@ -57,7 +59,8 @@ type redisStorage struct {
 	jwtEnabled    bool
 
 	internal.RedisConnection
-	daemonSystem *sync.DaemonSystem
+	daemonSystem     *sync.DaemonSystem
+	pubsubDispatcher pubsub.RedisPubSubDispatcher
 }
 
 func (s *redisStorage) AsPubSubStorage() domain.PubSubStorage {
@@ -84,6 +87,8 @@ func (s *redisStorage) Shutdown(ctx context.Context) error {
 	if err := s.daemonSystem.Shutdown(ctx); err != nil {
 		logger.Of(ctx).WarnError(logger.CatStorage, `Failed to stop background routines`, err)
 	}
+
+	s.pubsubDispatcher.Shutdown(ctx)
 
 	logger.Of(ctx).Debugf(logger.CatStorage, "Closing Redis storage connections...")
 	return s.RedisConnection.Close()

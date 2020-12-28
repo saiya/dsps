@@ -12,6 +12,7 @@ import (
 	"github.com/saiya/dsps/server/domain"
 	. "github.com/saiya/dsps/server/storage/redis/internal"
 	. "github.com/saiya/dsps/server/storage/redis/internal/mock"
+	. "github.com/saiya/dsps/server/storage/redis/internal/pubsub/stub"
 	storagetesting "github.com/saiya/dsps/server/storage/testing"
 )
 
@@ -33,10 +34,17 @@ func WithRedisClient(t *testing.T, f func(redisCmd RedisCmd)) {
 }
 
 func newMockedRedisStorage(ctrl *gomock.Controller) (*redisStorage, *MockRedisCmd) {
+	s, redisCmd, _ := newMockedRedisStorageAndPubSubDispatcher(ctrl)
+	return s, redisCmd
+}
+
+func newMockedRedisStorageAndPubSubDispatcher(ctrl *gomock.Controller) (*redisStorage, *MockRedisCmd, *RedisPubSubDispatcherStub) {
 	redisCmd := NewMockRedisCmd(ctrl)
+	dispatcher := NewRedisPubSubDispatcherStub()
 	return &redisStorage{
-		clock:           domain.RealSystemClock,
-		channelProvider: storagetesting.StubChannelProvider,
+		clock:            domain.RealSystemClock,
+		channelProvider:  storagetesting.StubChannelProvider,
+		pubsubDispatcher: dispatcher,
 
 		pubsubEnabled: true,
 		jwtEnabled:    true,
@@ -48,7 +56,7 @@ func newMockedRedisStorage(ctrl *gomock.Controller) (*redisStorage, *MockRedisCm
 			IsCluster:      false,
 			MaxConnections: 1024,
 		},
-	}, redisCmd
+	}, redisCmd, dispatcher
 }
 
 func TestRedisStorageFeatureFlag(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/logger"
 	"github.com/saiya/dsps/server/storage/redis/internal"
+	"github.com/saiya/dsps/server/storage/redis/internal/pubsub"
 )
 
 func (s *redisStorage) PublishMessages(ctx context.Context, msgs []domain.Message) error {
@@ -42,18 +43,15 @@ func (s *redisStorage) PublishMessages(ctx context.Context, msgs []domain.Messag
 }
 
 func (s *redisStorage) FetchMessages(ctx context.Context, sl domain.SubscriberLocator, max int, waituntil domain.Duration) (messages []domain.Message, moreMessages bool, ackHandle domain.AckHandle, err error) {
-	var c chan string
-	if waituntil.Duration > 0 {
-		var close func() error
-		c, close, err = s.RedisCmd.PSubscribe(ctx, s.redisPubSubKeyOf(sl.ChannelID))
-		if err != nil {
-			return
+	var await pubsub.RedisPubSubAwaiter
+	var awaitCancel func(error)
+	defer func() {
+		if awaitCancel != nil {
+			awaitCancel(context.Canceled)
 		}
-		defer func() {
-			if err := close(); err != nil {
-				logger.Of(ctx).Error("Failed to close Redis Pub/Sub subscription, may left occupied Redis connection: %w", err)
-			}
-		}()
+	}()
+	if waituntil.Duration > 0 {
+		await, awaitCancel = s.pubsubDispatcher.Await(ctx, s.redisPubSubKeyOf(sl.ChannelID))
 	}
 
 	if messages, moreMessages, ackHandle, err = s.fetchMessagesNow(ctx, sl, max, waituntil); err != nil || len(messages) > 0 {
@@ -63,6 +61,10 @@ func (s *redisStorage) FetchMessages(ctx context.Context, sl domain.SubscriberLo
 	timeout := time.NewTimer(waituntil.Duration)
 	defer timeout.Stop()
 	for {
+		var c chan interface{}
+		if await != nil {
+			c = await.Chan()
+		}
 		select {
 		case <-timeout.C:
 			return
@@ -70,9 +72,15 @@ func (s *redisStorage) FetchMessages(ctx context.Context, sl domain.SubscriberLo
 			err = ctx.Err()
 			return
 		case <-c:
+			if await != nil && await.Err() != nil {
+				err = await.Err()
+				return
+			}
 			if messages, moreMessages, ackHandle, err = s.fetchMessagesNow(ctx, sl, max, waituntil); err != nil || len(messages) > 0 {
 				return
 			}
+			// Await again because no messages found (spurious wakeup)
+			await, awaitCancel = s.pubsubDispatcher.Await(ctx, s.redisPubSubKeyOf(sl.ChannelID))
 		}
 	}
 }
@@ -193,4 +201,8 @@ func (s *redisStorage) IsOldMessages(ctx context.Context, sl domain.SubscriberLo
 
 func (s *redisStorage) redisPubSubKeyOf(channelID domain.ChannelID) internal.RedisChannelID {
 	return internal.RedisChannelID(fmt.Sprintf("dsps.c.{%s}", channelID))
+}
+
+func (s *redisStorage) redisPubSubKeyPattern() internal.RedisChannelID {
+	return internal.RedisChannelID("dsps.c.*")
 }
