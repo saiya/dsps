@@ -11,13 +11,14 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/saiya/dsps/server/domain"
+	. "github.com/saiya/dsps/server/storage/redis/internal"
 	dspstesting "github.com/saiya/dsps/server/testing"
 )
 
 func TestPublishMessageScript(t *testing.T) {
 	ctx := context.Background()
 
-	WithRedisClient(t, func(redisCmd redisCmd) {
+	WithRedisClient(t, func(redisCmd RedisCmd) {
 		for _, testcase := range []struct {
 			newChannel       bool
 			clockBefore      channelClock
@@ -90,7 +91,7 @@ func TestPublishMessageScriptAbormalResults(t *testing.T) {
 	}
 
 	// Test error
-	WithRedisClient(t, func(redisCmd redisCmd) {
+	WithRedisClient(t, func(redisCmd RedisCmd) {
 		originalScript := publishMessageScript
 		defer func() { publishMessageScript = originalScript }()
 
@@ -112,7 +113,7 @@ func TestPublishMessageScriptAbormalResults(t *testing.T) {
 
 func TestAckScript(t *testing.T) {
 	ctx := context.Background()
-	WithRedisClient(t, func(redisCmd redisCmd) {
+	WithRedisClient(t, func(redisCmd RedisCmd) {
 		for _, testcase := range []struct {
 			result       string
 			channelClock channelClock
@@ -180,7 +181,7 @@ func TestAckScript(t *testing.T) {
 
 func TestAckScriptNotFoundCase(t *testing.T) {
 	ctx := context.Background()
-	WithRedisClient(t, func(redisCmd redisCmd) {
+	WithRedisClient(t, func(redisCmd RedisCmd) {
 		channelID := randomChannelID(t)
 		keys := keyOfChannel(channelID)
 		ttl := channelTTLSec(3)
@@ -208,7 +209,7 @@ func TestAckScriptAbormalResults(t *testing.T) {
 	sbscID := domain.SubscriberID("sbsc-1")
 
 	// Test error
-	WithRedisClient(t, func(redisCmd redisCmd) {
+	WithRedisClient(t, func(redisCmd RedisCmd) {
 		originalScript := ackScript
 		defer func() { ackScript = originalScript }()
 

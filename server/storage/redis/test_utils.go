@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/saiya/dsps/server/domain"
+	internal "github.com/saiya/dsps/server/storage/redis/internal"
 )
 
 func randomChannelID(_ *testing.T) domain.ChannelID {
@@ -20,13 +21,13 @@ func randomChannelID(_ *testing.T) domain.ChannelID {
 	return domain.ChannelID(fmt.Sprintf("ch-%s", uuid))
 }
 
-func assertValueAndTTL(t *testing.T, redisCmd redisCmd, key string, value string, ttl time.Duration) bool {
+func assertValueAndTTL(t *testing.T, redisCmd internal.RedisCmd, key string, value string, ttl time.Duration) bool {
 	actual, err := redisCmd.Get(context.Background(), key)
 	assert.NoError(t, err)
 	return assert.Equal(t, &value, actual) && assertTTL(t, redisCmd, key, ttl)
 }
 
-func assertTTL(t *testing.T, redisCmd redisCmd, key string, ttl time.Duration) bool {
+func assertTTL(t *testing.T, redisCmd internal.RedisCmd, key string, ttl time.Duration) bool {
 	ctx := context.Background()
 	actual, err := redisCmd.TTL(ctx, key)
 	assert.NoError(t, err)
