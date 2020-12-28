@@ -3,10 +3,8 @@ import { group, sleep, check } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
 
 //
-// To run in local, run followings:
-// (any directory)          docker run --ulimit nofile=100000:100000 --rm -p 6379:6379 redis
-// (../server directory)    echo '{ storages: { redis1: { redis: { singleNode: "127.0.0.1:6379" } } } }' | go run main.go --port 3000 -
-// (in this directory)      k6 run --summary-export=summary.json --out json=test.json loadtest.k6.js 
+// To run in local, use ./experiment-local.sh
+// See experiment logbook (e.g. ./experiments/20201229-on-macbook/README.md) for steps to reproduce.
 //
 
 
