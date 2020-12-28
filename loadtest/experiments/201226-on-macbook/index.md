@@ -4,7 +4,7 @@
 
 - MacBook Pro (mac OS 10.15.7, mem 16 GB, Core i7-8557U 8 threads)
   - [k6 (load test tool)](https://k6.io/) v0.29.0
-  - DSPS server (Darwin/amd64 build, source code revision `?????`)
+  - DSPS server (Darwin/amd64 build, source code revision `804907ea773b8cbeba55fee4594be2bf79b68a43`)
   - 2x [redis:6.0.9](https://hub.docker.com/_/redis) server processes
 
 ## Test scenario
