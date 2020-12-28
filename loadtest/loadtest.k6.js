@@ -147,9 +147,11 @@ function fetchMessages(channelID, subscriberID) {
         "is status 200": (r) => r.status === 200,
         "has messages array": (r) => (typeof (body.messages) === "object" && typeof (body.messages.length) === "number"),
     });
-    fetchedMessagesCounter.add(body.messages.length);
-    for (let i = 0; i < body.messages.length; i++) {
-        readMessage(receivedAt, body.messages[i]);
+    if (body.messages) {
+        fetchedMessagesCounter.add(body.messages.length);
+        for (let i = 0; i < body.messages.length; i++) {
+            readMessage(receivedAt, body.messages[i]);
+        }
     }
     return body.ackHandle;
 }

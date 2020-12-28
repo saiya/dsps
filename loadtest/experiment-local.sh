@@ -16,22 +16,29 @@ if [ ! -f "${EXPERIMENT_DIR}/dsps.config.yaml" ]; then
   exit 2
 fi
 
-REDIS1_PORT=16379
-REDIS2_PORT=26379
-DSPS_PORT=13000
+# Show some limits
+ulimit -a
+sysctl kern.ipc.somaxconn || true
+
+export REDIS1_PORT=$(($(($RANDOM%1000))+10000))
+export REDIS2_PORT=$(($(($RANDOM%1000))+11000))
+DSPS_PORT=$(($(($RANDOM%1000))+12000))
 
 LOG_DIR="${OUTPUT_DIR}/logs"
 RESULT_DIR="${OUTPUT_DIR}/result"
+test -d "${LOG_DIR}" && rm -r "${LOG_DIR}"
 mkdir -p "${LOG_DIR}"
+test -d "${RESULT_DIR}" && rm -r "${RESULT_DIR}"
 mkdir -p "${RESULT_DIR}"
 
-echo "Starting redis servers..."
+echo "Starting redis servers... (port: ${REDIS1_PORT}, ${REDIS2_PORT})"
 redis-server --port ${REDIS1_PORT} > "${LOG_DIR}/redis1.log" 2>&1 &
 redis-server --port ${REDIS2_PORT} > "${LOG_DIR}/redis2.log" 2>&1 &
 
-echo "Starting DSPS server..."
+echo "Starting DSPS server... (port: ${DSPS_PORT})"
 pushd ../server
-go run main.go --port ${DSPS_PORT} "${EXPERIMENT_DIR}/dsps.config.yaml" > "${LOG_DIR}/dsps.log" 2>&1 &
+cat "${EXPERIMENT_DIR}/dsps.config.yaml" | envsubst '${REDIS1_PORT} ${REDIS2_PORT}' | \
+  go run main.go --port ${DSPS_PORT} --dump-config - > "${LOG_DIR}/dsps.log" 2>&1 &
 popd
 
 echo "Check DSPS server readiness..."
@@ -45,9 +52,13 @@ echo "Starting loadtest..."
 BASE_URL="http://localhost:${DSPS_PORT}" \
     k6 run \
       "--summary-export=${RESULT_DIR}/summary.json" \
-      --out "json=${RESULT_DIR}/test.json" \
+      --out "json=${RESULT_DIR}/data.json" \
       --summary-trend-stats="min,avg,med,max,p(90),p(95),p(99)" \
       ./loadtest.k6.js \
     | tee "${LOG_DIR}/k6.log"
 
 echo "Experiment completed."
+
+echo "Compressing logs..."
+gzip "${LOG_DIR}"/*.log
+gzip "${RESULT_DIR}/data.json"

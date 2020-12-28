@@ -5,13 +5,13 @@ logging:
 storages:
   redis1:
     redis:
-      singleNode: "127.0.0.1:16379"
+      singleNode: "127.0.0.1:${REDIS1_PORT}"
       connection:
         max: 2048
         min: 2048
   redis2:
     redis:
-      singleNode: "127.0.0.1:26379"
+      singleNode: "127.0.0.1:${REDIS2_PORT}"
       connection:
         max: 2048
         min: 2048
