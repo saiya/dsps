@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+
+	"github.com/saiya/dsps/server/storage/redis/internal/pubsub"
 )
 
 //go:generate mockgen -source=${GOFILE} -package=mock -destination=./mock/${GOFILE}
@@ -14,8 +16,8 @@ import (
 type RedisCmd interface {
 	Ping(ctx context.Context) error
 
-	Publish(ctx context.Context, channel RedisChannelID, message interface{}) error
-	PSubscribeFunc() RedisSubscribeRawFunc
+	Publish(ctx context.Context, channel pubsub.RedisChannelID, message interface{}) error
+	PSubscribeFunc() pubsub.RedisSubscribeRawFunc
 
 	Get(ctx context.Context, key string) (*string, error)
 	MGet(ctx context.Context, keys ...string) ([]*string, error)
@@ -29,15 +31,13 @@ type RedisCmd interface {
 }
 
 // NewRedisCmd creates new RedisCmd instance.
-func NewRedisCmd(raw redis.Cmdable, psubscribeFunc RedisSubscribeRawFunc) RedisCmd {
+func NewRedisCmd(raw redis.Cmdable, psubscribeFunc pubsub.RedisSubscribeRawFunc) RedisCmd {
 	return &redisCmdImpl{raw: raw, psubscribeFunc: psubscribeFunc}
 }
 
-// RedisSubscribeRawFunc represents (P)SUBSCRIBE command implementation.
-type RedisSubscribeRawFunc func(ctx context.Context, channel RedisChannelID) *redis.PubSub
 type redisCmdImpl struct {
 	raw            redis.Cmdable
-	psubscribeFunc RedisSubscribeRawFunc
+	psubscribeFunc pubsub.RedisSubscribeRawFunc
 }
 
 func (impl *redisCmdImpl) Ping(ctx context.Context) error {
@@ -45,11 +45,11 @@ func (impl *redisCmdImpl) Ping(ctx context.Context) error {
 	return err
 }
 
-func (impl *redisCmdImpl) Publish(ctx context.Context, channel RedisChannelID, message interface{}) error {
+func (impl *redisCmdImpl) Publish(ctx context.Context, channel pubsub.RedisChannelID, message interface{}) error {
 	return impl.raw.Publish(ctx, string(channel), message).Err()
 }
 
-func (impl *redisCmdImpl) PSubscribeFunc() RedisSubscribeRawFunc {
+func (impl *redisCmdImpl) PSubscribeFunc() pubsub.RedisSubscribeRawFunc {
 	return impl.psubscribeFunc
 }
 

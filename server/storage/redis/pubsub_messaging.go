@@ -9,7 +9,6 @@ import (
 
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/logger"
-	"github.com/saiya/dsps/server/storage/redis/internal"
 	"github.com/saiya/dsps/server/storage/redis/internal/pubsub"
 )
 
@@ -199,10 +198,10 @@ func (s *redisStorage) IsOldMessages(ctx context.Context, sl domain.SubscriberLo
 	return result, nil
 }
 
-func (s *redisStorage) redisPubSubKeyOf(channelID domain.ChannelID) internal.RedisChannelID {
-	return internal.RedisChannelID(fmt.Sprintf("dsps.c.{%s}", channelID))
+func (s *redisStorage) redisPubSubKeyOf(channelID domain.ChannelID) pubsub.RedisChannelID {
+	return pubsub.RedisChannelID(fmt.Sprintf("dsps.c.{%s}", channelID))
 }
 
-func (s *redisStorage) redisPubSubKeyPattern() internal.RedisChannelID {
-	return internal.RedisChannelID("dsps.c.*")
+func (s *redisStorage) redisPubSubKeyPattern() pubsub.RedisChannelID {
+	return pubsub.RedisChannelID("dsps.c.*")
 }
