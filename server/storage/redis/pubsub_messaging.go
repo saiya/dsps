@@ -9,6 +9,7 @@ import (
 
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/storage/redis/internal/pubsub"
 )
 
 func (s *redisStorage) PublishMessages(ctx context.Context, msgs []domain.Message) error {
@@ -22,7 +23,7 @@ func (s *redisStorage) PublishMessages(ctx context.Context, msgs []domain.Messag
 	sentMsgs := 0
 	defer func() {
 		if sentMsgs > 0 {
-			if err := s.redisCmd.Publish(ctx, s.redisPubSubKeyOf(msgs[0].ChannelID), "new message"); err != nil {
+			if err := s.RedisCmd.Publish(ctx, s.redisPubSubKeyOf(msgs[0].ChannelID), "new message"); err != nil {
 				logger.Of(ctx).WarnError(logger.CatStorage, "Redis Pub/Sub publish failed. Subscribers could not receive messages immediately.", err)
 			}
 		}
@@ -32,7 +33,7 @@ func (s *redisStorage) PublishMessages(ctx context.Context, msgs []domain.Messag
 		if err != nil {
 			return xerrors.Errorf("Unable to calcurate TTL of channel: %w", err)
 		}
-		if err := runPublishMessageScript(ctx, s.redisCmd, ttl, msg); err != nil {
+		if err := runPublishMessageScript(ctx, s.RedisCmd, ttl, msg); err != nil {
 			return err
 		}
 		sentMsgs++
@@ -41,18 +42,15 @@ func (s *redisStorage) PublishMessages(ctx context.Context, msgs []domain.Messag
 }
 
 func (s *redisStorage) FetchMessages(ctx context.Context, sl domain.SubscriberLocator, max int, waituntil domain.Duration) (messages []domain.Message, moreMessages bool, ackHandle domain.AckHandle, err error) {
-	var c chan string
-	if waituntil.Duration > 0 {
-		var close func() error
-		c, close, err = s.redisCmd.Subscribe(ctx, s.redisPubSubKeyOf(sl.ChannelID))
-		if err != nil {
-			return
+	var await pubsub.RedisPubSubAwaiter
+	var awaitCancel func(error)
+	defer func() {
+		if awaitCancel != nil {
+			awaitCancel(context.Canceled)
 		}
-		defer func() {
-			if err := close(); err != nil {
-				logger.Of(ctx).Error("Failed to close Redis Pub/Sub subscription, may left occupied Redis connection: %w", err)
-			}
-		}()
+	}()
+	if waituntil.Duration > 0 {
+		await, awaitCancel = s.pubsubDispatcher.Await(ctx, s.redisPubSubKeyOf(sl.ChannelID))
 	}
 
 	if messages, moreMessages, ackHandle, err = s.fetchMessagesNow(ctx, sl, max, waituntil); err != nil || len(messages) > 0 {
@@ -62,6 +60,10 @@ func (s *redisStorage) FetchMessages(ctx context.Context, sl domain.SubscriberLo
 	timeout := time.NewTimer(waituntil.Duration)
 	defer timeout.Stop()
 	for {
+		var c chan interface{}
+		if await != nil {
+			c = await.Chan()
+		}
 		select {
 		case <-timeout.C:
 			return
@@ -69,16 +71,22 @@ func (s *redisStorage) FetchMessages(ctx context.Context, sl domain.SubscriberLo
 			err = ctx.Err()
 			return
 		case <-c:
+			if await != nil && await.Err() != nil {
+				err = await.Err()
+				return
+			}
 			if messages, moreMessages, ackHandle, err = s.fetchMessagesNow(ctx, sl, max, waituntil); err != nil || len(messages) > 0 {
 				return
 			}
+			// Await again because no messages found (spurious wakeup)
+			await, awaitCancel = s.pubsubDispatcher.Await(ctx, s.redisPubSubKeyOf(sl.ChannelID))
 		}
 	}
 }
 
 func (s *redisStorage) fetchMessagesNow(ctx context.Context, sl domain.SubscriberLocator, max int, waituntil domain.Duration) (messages []domain.Message, moreMessages bool, ackHandle domain.AckHandle, err error) {
 	keys := keyOfChannel(sl.ChannelID)
-	clocks, err := s.redisCmd.MGet(ctx, keys.Clock(), keys.SubscriberCursor(sl.SubscriberID))
+	clocks, err := s.RedisCmd.MGet(ctx, keys.Clock(), keys.SubscriberCursor(sl.SubscriberID))
 	if err != nil {
 		err = xerrors.Errorf("FetchMessages failed due to Redis error (cursor MGET error): %w", err)
 		return
@@ -104,7 +112,7 @@ func (s *redisStorage) fetchMessagesNow(ctx context.Context, sl domain.Subscribe
 			moreMessages = false
 		}
 	}
-	rawMsgs, err := s.redisCmd.MGet(ctx, msgKeys...)
+	rawMsgs, err := s.RedisCmd.MGet(ctx, msgKeys...)
 	if err != nil {
 		err = xerrors.Errorf("FetchMessages failed due to Redis error (msg MGET error): %w", err)
 		return
@@ -147,7 +155,7 @@ func (s *redisStorage) AcknowledgeMessages(ctx context.Context, handle domain.Ac
 	if err != nil {
 		return err
 	}
-	_, err = runAckScript(ctx, s.redisCmd, handle.ChannelID, ttl, handle.SubscriberID, h.LastMessageClock)
+	_, err = runAckScript(ctx, s.RedisCmd, handle.ChannelID, ttl, handle.SubscriberID, h.LastMessageClock)
 	return err
 }
 
@@ -162,7 +170,7 @@ func (s *redisStorage) IsOldMessages(ctx context.Context, sl domain.SubscriberLo
 		mGetKeys[i+mGetOffset] = keys.MessageDedup(msg.MessageID)
 	}
 
-	clocks, err := s.redisCmd.MGet(ctx, mGetKeys...)
+	clocks, err := s.RedisCmd.MGet(ctx, mGetKeys...)
 	if err != nil {
 		return nil, xerrors.Errorf("IsOldMessages failed due to Redis error (MGET error): %w", err)
 	}
@@ -190,6 +198,10 @@ func (s *redisStorage) IsOldMessages(ctx context.Context, sl domain.SubscriberLo
 	return result, nil
 }
 
-func (s *redisStorage) redisPubSubKeyOf(channelID domain.ChannelID) string {
-	return fmt.Sprintf("dsps.c.{%s}", channelID)
+func (s *redisStorage) redisPubSubKeyOf(channelID domain.ChannelID) pubsub.RedisChannelID {
+	return pubsub.RedisChannelID(fmt.Sprintf("dsps.c.{%s}", channelID))
+}
+
+func (s *redisStorage) redisPubSubKeyPattern() pubsub.RedisChannelID {
+	return pubsub.RedisChannelID("dsps.c.*")
 }

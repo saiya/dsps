@@ -11,11 +11,11 @@ func (s *redisStorage) RevokeJwt(ctx context.Context, exp domain.JwtExp, jti dom
 	if d <= 0 {
 		return nil
 	}
-	return s.redisCmd.SetEX(ctx, keyOfJti(jti).Revocation(), exp.String(), d)
+	return s.RedisCmd.SetEX(ctx, keyOfJti(jti).Revocation(), exp.String(), d)
 }
 
 func (s *redisStorage) IsRevokedJwt(ctx context.Context, jti domain.JwtJti) (bool, error) {
-	value, err := s.redisCmd.Get(ctx, keyOfJti(jti).Revocation())
+	value, err := s.RedisCmd.Get(ctx, keyOfJti(jti).Revocation())
 	if err != nil {
 		return false, err
 	}

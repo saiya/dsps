@@ -215,7 +215,8 @@ func _manyQueuesMessagesTest(t *testing.T, storageCtor StorageCtor) {
 }
 
 func _longPollingTest(t *testing.T, storageCtor StorageCtor) {
-	ctx := context.Background()
+	ctx, ctxCancel := context.WithTimeout(context.Background(), 5*time.Second) // Prevent test blocks
+	defer ctxCancel()
 	s, err := storageCtor(ctx, domain.RealSystemClock, StubChannelProvider)
 	if !assert.NoError(t, err) {
 		return
@@ -247,10 +248,14 @@ func _longPollingTest(t *testing.T, storageCtor StorageCtor) {
 			Content: []byte(fmt.Sprintf("{\"hi\":\"hello %d\"}", i)),
 		}
 	}
-	willPublishAt := time.Now().Add(dspstesting.MakeDuration("600ms").Duration)
+
+	willPublish := make(chan interface{})
+	publishedAt := make(chan time.Time, 1)
 	go func() {
-		time.Sleep(dspstesting.MakeDuration("500ms").Duration)
+		<-willPublish
+		time.Sleep(dspstesting.MakeDuration("1ms").Duration)
 		assert.NoError(t, storage.PublishMessages(ctx, messages))
+		publishedAt <- time.Now()
 	}()
 
 	// short polling (run before publish)
@@ -259,10 +264,14 @@ func _longPollingTest(t *testing.T, storageCtor StorageCtor) {
 	assert.False(t, more)
 
 	// long polling
-	received, more, _, _ := storage.FetchMessages(ctx, sl, len(messages), dspstesting.MakeDuration("120s")) // Must return immediately after publish
-	assert.True(t, time.Now().Before(willPublishAt.Add(dspstesting.MakeDuration("10s").Duration)))
-	dspstesting.MessagesEqual(t, messages, received)
-	assert.False(t, more)
+	close(willPublish)
+	received, more, _, err := storage.FetchMessages(ctx, sl, len(messages), dspstesting.MakeDuration("120s")) // Must return immediately after publish
+	if assert.NoError(t, err) {
+		receivedAt := time.Now()
+		dspstesting.MessagesEqual(t, messages, received)
+		assert.False(t, more)
+		assert.LessOrEqual(t, receivedAt.Sub(<-publishedAt).Seconds(), (3 * time.Second).Seconds())
+	}
 }
 
 func _longPollingCancelTest(t *testing.T, storageCtor StorageCtor) {

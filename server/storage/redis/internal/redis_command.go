@@ -1,24 +1,23 @@
-package redis
+package internal
 
 import (
 	"context"
 	"errors"
-	"sync"
 	"time"
-
-	"golang.org/x/xerrors"
 
 	"github.com/go-redis/redis/v8"
 
-	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/storage/redis/internal/pubsub"
 )
 
 //go:generate mockgen -source=${GOFILE} -package=mock -destination=./mock/${GOFILE}
-type redisCmd interface {
+
+// RedisCmd wraps Redis command system
+type RedisCmd interface {
 	Ping(ctx context.Context) error
 
-	Publish(ctx context.Context, channel string, message interface{}) error
-	Subscribe(ctx context.Context, channel string) (c chan string, close func() error, err error)
+	Publish(ctx context.Context, channel pubsub.RedisChannelID, message interface{}) error
+	PSubscribeFunc() pubsub.RedisSubscribeRawFunc
 
 	Get(ctx context.Context, key string) (*string, error)
 	MGet(ctx context.Context, keys ...string) ([]*string, error)
@@ -31,14 +30,14 @@ type redisCmd interface {
 	RunScript(ctx context.Context, script *redis.Script, keys []string, args ...interface{}) (interface{}, error)
 }
 
-func newRedisCmd(raw redis.Cmdable, subscribeFunc redisSubscribeRawFunc) redisCmd {
-	return &redisCmdImpl{raw: raw, subscribeFunc: subscribeFunc}
+// NewRedisCmd creates new RedisCmd instance.
+func NewRedisCmd(raw redis.Cmdable, psubscribeFunc pubsub.RedisSubscribeRawFunc) RedisCmd {
+	return &redisCmdImpl{raw: raw, psubscribeFunc: psubscribeFunc}
 }
 
-type redisSubscribeRawFunc func(ctx context.Context, channel string) *redis.PubSub
 type redisCmdImpl struct {
-	raw           redis.Cmdable
-	subscribeFunc redisSubscribeRawFunc
+	raw            redis.Cmdable
+	psubscribeFunc pubsub.RedisSubscribeRawFunc
 }
 
 func (impl *redisCmdImpl) Ping(ctx context.Context) error {
@@ -46,46 +45,12 @@ func (impl *redisCmdImpl) Ping(ctx context.Context) error {
 	return err
 }
 
-func (impl *redisCmdImpl) Publish(ctx context.Context, channel string, message interface{}) error {
-	return impl.raw.Publish(ctx, channel, message).Err()
+func (impl *redisCmdImpl) Publish(ctx context.Context, channel pubsub.RedisChannelID, message interface{}) error {
+	return impl.raw.Publish(ctx, string(channel), message).Err()
 }
 
-func (impl *redisCmdImpl) Subscribe(ctx context.Context, channel string) (c chan string, closer func() error, err error) {
-	redisPubSub := impl.subscribeFunc(ctx, channel)
-	subscribeResult, err := redisPubSub.Receive(ctx)
-	if err != nil {
-		err = xerrors.Errorf("Failed to make Redis Pub/Sub subscription: %w", err)
-		return
-	}
-	if _, ok := subscribeResult.(*redis.Subscription); !ok {
-		err = xerrors.Errorf("Unexpected response from Redis Pub/Sub subscription: %v", subscribeResult)
-		return
-	}
-
-	c = make(chan string, 16)
-	closeCh := make(chan interface{}, 1)
-	closeChOnce := sync.Once{}
-	closer = func() error {
-		closeChOnce.Do(func() { close(closeCh) })
-		if err := redisPubSub.Close(); err != nil {
-			logger.Of(ctx).WarnError(logger.CatStorage, "Failed to stop Redis Pub/Sub subscription", err)
-		}
-		return nil
-	}
-	go func() {
-		for {
-			select {
-			case <-closeCh:
-				return
-			case msg, alive := <-redisPubSub.Channel():
-				if !alive {
-					return
-				}
-				c <- msg.Payload
-			}
-		}
-	}()
-	return
+func (impl *redisCmdImpl) PSubscribeFunc() pubsub.RedisSubscribeRawFunc {
+	return impl.psubscribeFunc
 }
 
 func (impl *redisCmdImpl) Get(ctx context.Context, key string) (*string, error) {

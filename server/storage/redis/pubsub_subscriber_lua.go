@@ -9,10 +9,11 @@ import (
 
 	"github.com/saiya/dsps/server/domain"
 	"github.com/saiya/dsps/server/logger"
+	internal "github.com/saiya/dsps/server/storage/redis/internal"
 )
 
 func (s *redisStorage) loadPubSubSubscriberScripts(ctx context.Context) error {
-	if err := s.redisCmd.LoadScript(ctx, createSubscriberScript); err != nil {
+	if err := s.RedisCmd.LoadScript(ctx, createSubscriberScript); err != nil {
 		return xerrors.Errorf("Failed to load createSubscriberScript: %w", err)
 	}
 	return nil
@@ -37,7 +38,7 @@ var createSubscriberScript = redis.NewScript(`
 	return redis.call("set", subscriberKey, string.format("%d", chClock), "EX", ttlSec, "NX")
 `)
 
-func runCreateSubscriberScript(ctx context.Context, redisCmd redisCmd, channelID domain.ChannelID, ttl channelTTLSec, sbscID domain.SubscriberID) error {
+func runCreateSubscriberScript(ctx context.Context, redisCmd internal.RedisCmd, channelID domain.ChannelID, ttl channelTTLSec, sbscID domain.SubscriberID) error {
 	keys := keyOfChannel(channelID)
 	result, err := redisCmd.RunScript(
 		ctx, createSubscriberScript,

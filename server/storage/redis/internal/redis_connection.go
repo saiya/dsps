@@ -1,4 +1,4 @@
-package redis
+package internal
 
 import (
 	"context"
@@ -8,35 +8,38 @@ import (
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/storage/redis/internal/pubsub"
 )
 
-type redisConnection struct {
-	redisCmd redisCmd
-	close    func() error
+// RedisConnection represents Redis connection system
+type RedisConnection struct {
+	RedisCmd RedisCmd
+	Close    func() error
 
-	isSingleNode bool
-	isCluster    bool
+	IsSingleNode bool
+	IsCluster    bool
 
-	maxConnections int
+	MaxConnections int
 }
 
-func connect(ctx context.Context, config *config.RedisStorageConfig) (redisConnection, error) {
-	var conn redisConnection
+// NewRedisConnection establish connection pool to Redis server.
+func NewRedisConnection(ctx context.Context, config *config.RedisStorageConfig) (RedisConnection, error) {
+	var conn RedisConnection
 	if config.SingleNode != nil {
 		conn = createClientSingleNode(ctx, config)
 	} else {
 		conn = createClientCluster(ctx, config)
 	}
-	if err := conn.redisCmd.Ping(ctx); err != nil {
-		if err := conn.close(); err != nil {
+	if err := conn.RedisCmd.Ping(ctx); err != nil {
+		if err := conn.Close(); err != nil {
 			logger.Of(ctx).InfoError(logger.CatStorage, "Failed to close Redis connection after initial ping failure", err)
 		}
-		return redisConnection{}, err
+		return RedisConnection{}, err
 	}
 	return conn, nil
 }
 
-func createClientSingleNode(ctx context.Context, config *config.RedisStorageConfig) redisConnection {
+func createClientSingleNode(ctx context.Context, config *config.RedisStorageConfig) RedisConnection {
 	c := redis.NewClient(&redis.Options{
 		Addr: *config.SingleNode,
 
@@ -57,19 +60,19 @@ func createClientSingleNode(ctx context.Context, config *config.RedisStorageConf
 		IdleTimeout:  config.Connection.MaxIdleTime.Duration,
 	})
 	c.AddHook(redisotel.TracingHook{})
-	return redisConnection{
-		redisCmd: newRedisCmd(c, func(ctx context.Context, channel string) *redis.PubSub {
-			return c.Subscribe(ctx, channel)
+	return RedisConnection{
+		RedisCmd: NewRedisCmd(c, func(ctx context.Context, channel pubsub.RedisChannelID) pubsub.RedisRawPubSub {
+			return c.PSubscribe(ctx, string(channel))
 		}),
-		close: func() error {
+		Close: func() error {
 			return c.Close()
 		},
-		isSingleNode:   true,
-		maxConnections: *config.Connection.Max,
+		IsSingleNode:   true,
+		MaxConnections: *config.Connection.Max,
 	}
 }
 
-func createClientCluster(ctx context.Context, config *config.RedisStorageConfig) redisConnection {
+func createClientCluster(ctx context.Context, config *config.RedisStorageConfig) RedisConnection {
 	c := redis.NewClusterClient(&redis.ClusterOptions{
 		Addrs: *config.Cluster,
 
@@ -93,14 +96,14 @@ func createClientCluster(ctx context.Context, config *config.RedisStorageConfig)
 		ReadOnly:     false,
 	})
 	c.AddHook(redisotel.TracingHook{})
-	return redisConnection{
-		redisCmd: newRedisCmd(c, func(ctx context.Context, channel string) *redis.PubSub {
-			return c.Subscribe(ctx, channel)
+	return RedisConnection{
+		RedisCmd: NewRedisCmd(c, func(ctx context.Context, channel pubsub.RedisChannelID) pubsub.RedisRawPubSub {
+			return c.PSubscribe(ctx, string(channel))
 		}),
-		close: func() error {
+		Close: func() error {
 			return c.Close()
 		},
-		isCluster:      true,
-		maxConnections: *config.Connection.Max,
+		IsCluster:      true,
+		MaxConnections: *config.Connection.Max,
 	}
 }

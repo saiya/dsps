@@ -10,13 +10,14 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/saiya/dsps/server/domain"
+	. "github.com/saiya/dsps/server/storage/redis/internal"
 )
 
 func TestSubscriberScript(t *testing.T) {
 	ctx := context.Background()
 
 	// Test newly created channel
-	WithRedisClient(t, func(redisCmd redisCmd) {
+	WithRedisClient(t, func(redisCmd RedisCmd) {
 		channelID := randomChannelID(t)
 		keys := keyOfChannel(channelID)
 		ttl := channelTTLSec(3)
@@ -29,7 +30,7 @@ func TestSubscriberScript(t *testing.T) {
 	})
 
 	// Test existing channel
-	WithRedisClient(t, func(redisCmd redisCmd) {
+	WithRedisClient(t, func(redisCmd RedisCmd) {
 		channelID := randomChannelID(t)
 		keys := keyOfChannel(channelID)
 		ttl := channelTTLSec(3)
@@ -45,7 +46,7 @@ func TestSubscriberScript(t *testing.T) {
 	})
 
 	// Test Lua number format issue (large float format)
-	WithRedisClient(t, func(redisCmd redisCmd) {
+	WithRedisClient(t, func(redisCmd RedisCmd) {
 		channelID := randomChannelID(t)
 		keys := keyOfChannel(channelID)
 		ttl := channelTTLSec(3)
@@ -69,7 +70,7 @@ func TestSubscriberScriptAbormalResults(t *testing.T) {
 	sbscID := domain.SubscriberID("sbsc1")
 
 	// Test error
-	WithRedisClient(t, func(redisCmd redisCmd) {
+	WithRedisClient(t, func(redisCmd RedisCmd) {
 		originalScript := createSubscriberScript
 		defer func() { createSubscriberScript = originalScript }()
 
@@ -82,7 +83,7 @@ func TestSubscriberScriptAbormalResults(t *testing.T) {
 	})
 
 	// Test invalid result
-	WithRedisClient(t, func(redisCmd redisCmd) {
+	WithRedisClient(t, func(redisCmd RedisCmd) {
 		originalScript := createSubscriberScript
 		defer func() { createSubscriberScript = originalScript }()
 
