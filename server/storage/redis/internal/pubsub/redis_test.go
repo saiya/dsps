@@ -20,6 +20,7 @@ type redisRawPubSubStub struct {
 	closeResult     error
 
 	pingResultQueue chan error
+	fixedPingResult error
 	messageQueue    chan interface{}
 
 	channelInit  sync.Once
@@ -47,15 +48,8 @@ func (s *redisRawPubSubStub) EnqueuePingResult(nCalls int, result error) *redisR
 }
 
 func (s *redisRawPubSubStub) EnqueuePingResultForever(result error) *redisRawPubSubStub {
-	go func() {
-		for {
-			select {
-			case s.pingResultQueue <- result:
-			case <-s.closed:
-				return
-			}
-		}
-	}()
+	s.fixedPingResult = result
+	close(s.pingResultQueue)
 	return s
 }
 
@@ -63,7 +57,10 @@ func (s *redisRawPubSubStub) Ping(ctx context.Context, payload ...string) error 
 	select {
 	case <-s.closed:
 		return errors.New("stub RedisRawPubSub closed")
-	case result := <-s.pingResultQueue:
+	case result, open := <-s.pingResultQueue:
+		if !open {
+			return s.fixedPingResult
+		}
 		return result
 	default:
 		assert.FailNow(s.t, "Unexpected ping call")

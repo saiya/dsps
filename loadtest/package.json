@@ -1,0 +1,12 @@
+{
+  "name": "@dsps/load-test",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "DSPS load testing code",
+  "main": "loadtest.k6.js",
+  "devDependencies": {
+    "@types/k6": "^0.28.3",
+    "typescript": "^4.1.2"
+  }
+}

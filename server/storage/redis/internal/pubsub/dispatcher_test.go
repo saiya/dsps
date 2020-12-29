@@ -49,6 +49,7 @@ func TestDispatcherAwaitAfterShutdown(t *testing.T) {
 	pubsub := newRedisRawPubSubStub(t).EnqueueDefaultSubscribeMessage().EnqueuePingResultForever(nil)
 	dispatcher, pubsubActivated := newDispatcher(t, pubsub)
 	<-pubsubActivated
+	time.Sleep(10 * time.Millisecond) // Await reconcile completion
 
 	dispatcher.Shutdown(ctx)
 	await, cancel := dispatcher.Await(ctx, "ch-1")
