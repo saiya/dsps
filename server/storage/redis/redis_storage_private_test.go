@@ -12,6 +12,8 @@ import (
 	"github.com/saiya/dsps/server/domain"
 	. "github.com/saiya/dsps/server/storage/redis/internal"
 	. "github.com/saiya/dsps/server/storage/redis/internal/mock"
+	"github.com/saiya/dsps/server/storage/redis/internal/pubsub"
+	. "github.com/saiya/dsps/server/storage/redis/internal/pubsub"
 	. "github.com/saiya/dsps/server/storage/redis/internal/pubsub/stub"
 	storagetesting "github.com/saiya/dsps/server/storage/testing"
 )
@@ -28,7 +30,7 @@ func WithRedisClient(t *testing.T, f func(redisCmd RedisCmd)) {
 	client := redis.NewClient(&redis.Options{Addr: GetRedisAddr(t)})
 	defer func() { assert.NoError(t, client.Close()) }()
 
-	f(NewRedisCmd(client, func(ctx context.Context, channel RedisChannelID) *redis.PubSub {
+	f(NewRedisCmd(client, func(ctx context.Context, channel RedisChannelID) pubsub.RedisRawPubSub {
 		return client.PSubscribe(ctx, string(channel))
 	}))
 }

@@ -4,7 +4,7 @@ import "sync"
 
 // RedisPubSubAwaiter is Promise-like object repsresents Pub/Sub message await.
 type RedisPubSubAwaiter interface {
-	// Chan returns channel that will be closed when new message received or error occurred.
+	// Chan returns channel that will be closed when new message received or error occurred (fulfilled).
 	Chan() chan interface{}
 	// After Chan() has been closed, can obtain error object if error occurred.
 	Err() error

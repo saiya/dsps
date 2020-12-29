@@ -38,7 +38,7 @@ func NewRedisStorage(ctx context.Context, config *config.RedisStorageConfig, sys
 			logger.Of(ctx).Error(fmt.Sprintf(`error in background routine "%s"`, name), err)
 		}),
 	}
-	s.pubsubDispatcher = pubsub.NewDispatcher(ctx, deps, conn.RedisCmd.PSubscribeFunc(), s.redisPubSubKeyPattern())
+	s.pubsubDispatcher = pubsub.NewDispatcher(ctx, deps, pubsub.DispatcherParams{}, conn.RedisCmd.PSubscribeFunc(), s.redisPubSubKeyPattern())
 	if err := s.loadScripts(ctx); err != nil {
 		return nil, err
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/saiya/dsps/server/storage/redis/internal"
 	"github.com/saiya/dsps/server/storage/redis/internal/pubsub"
 )
 
@@ -13,15 +12,15 @@ type RedisPubSubDispatcherStub struct {
 	lock     sync.Mutex
 	isClosed bool
 
-	hooks    map[internal.RedisChannelID][]func(pubsub.RedisPubSubPromise)
-	promises map[internal.RedisChannelID][]pubsub.RedisPubSubPromise
+	hooks    map[pubsub.RedisChannelID][]func(pubsub.RedisPubSubPromise)
+	promises map[pubsub.RedisChannelID][]pubsub.RedisPubSubPromise
 }
 
 // NewRedisPubSubDispatcherStub returns new RedisPubSubDispatcherStub
 func NewRedisPubSubDispatcherStub() *RedisPubSubDispatcherStub {
 	return &RedisPubSubDispatcherStub{
-		hooks:    make(map[internal.RedisChannelID][]func(pubsub.RedisPubSubPromise)),
-		promises: make(map[internal.RedisChannelID][]pubsub.RedisPubSubPromise),
+		hooks:    make(map[pubsub.RedisChannelID][]func(pubsub.RedisPubSubPromise)),
+		promises: make(map[pubsub.RedisChannelID][]pubsub.RedisPubSubPromise),
 	}
 }
 
@@ -36,7 +35,7 @@ func (d *RedisPubSubDispatcherStub) Shutdown(ctx context.Context) {
 }
 
 // HookAwaitOnce is to register hook to future Await() call.
-func (d *RedisPubSubDispatcherStub) HookAwaitOnce(channel internal.RedisChannelID, f func(pubsub.RedisPubSubPromise)) {
+func (d *RedisPubSubDispatcherStub) HookAwaitOnce(channel pubsub.RedisChannelID, f func(pubsub.RedisPubSubPromise)) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
@@ -44,7 +43,7 @@ func (d *RedisPubSubDispatcherStub) HookAwaitOnce(channel internal.RedisChannelI
 }
 
 // Await implements RedisPubSubDispatcher
-func (d *RedisPubSubDispatcherStub) Await(ctx context.Context, channel internal.RedisChannelID) (pubsub.RedisPubSubAwaiter, pubsub.AwaitCancelFunc) {
+func (d *RedisPubSubDispatcherStub) Await(ctx context.Context, channel pubsub.RedisChannelID) (pubsub.RedisPubSubAwaiter, pubsub.AwaitCancelFunc) {
 	p := pubsub.NewPromise()
 	var hooks []func(pubsub.RedisPubSubPromise)
 	defer func() { // Make sure to call hooks on the end of function
@@ -86,7 +85,7 @@ func (d *RedisPubSubDispatcherStub) Reject(err error) {
 }
 
 // Resolve all promises of the channel
-func (d *RedisPubSubDispatcherStub) Resolve(channel internal.RedisChannelID) {
+func (d *RedisPubSubDispatcherStub) Resolve(channel pubsub.RedisChannelID) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 

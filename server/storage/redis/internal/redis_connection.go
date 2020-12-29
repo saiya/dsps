@@ -8,6 +8,7 @@ import (
 
 	"github.com/saiya/dsps/server/config"
 	"github.com/saiya/dsps/server/logger"
+	"github.com/saiya/dsps/server/storage/redis/internal/pubsub"
 )
 
 // RedisConnection represents Redis connection system
@@ -60,7 +61,7 @@ func createClientSingleNode(ctx context.Context, config *config.RedisStorageConf
 	})
 	c.AddHook(redisotel.TracingHook{})
 	return RedisConnection{
-		RedisCmd: NewRedisCmd(c, func(ctx context.Context, channel RedisChannelID) *redis.PubSub {
+		RedisCmd: NewRedisCmd(c, func(ctx context.Context, channel pubsub.RedisChannelID) pubsub.RedisRawPubSub {
 			return c.PSubscribe(ctx, string(channel))
 		}),
 		Close: func() error {
@@ -96,7 +97,7 @@ func createClientCluster(ctx context.Context, config *config.RedisStorageConfig)
 	})
 	c.AddHook(redisotel.TracingHook{})
 	return RedisConnection{
-		RedisCmd: NewRedisCmd(c, func(ctx context.Context, channel RedisChannelID) *redis.PubSub {
+		RedisCmd: NewRedisCmd(c, func(ctx context.Context, channel pubsub.RedisChannelID) pubsub.RedisRawPubSub {
 			return c.PSubscribe(ctx, string(channel))
 		}),
 		Close: func() error {

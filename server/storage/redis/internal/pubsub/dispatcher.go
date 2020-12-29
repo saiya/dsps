@@ -10,14 +10,13 @@ import (
 	"github.com/saiya/dsps/server/logger"
 	"github.com/saiya/dsps/server/sentry"
 	"github.com/saiya/dsps/server/storage/deps"
-	"github.com/saiya/dsps/server/storage/redis/internal"
 	"github.com/saiya/dsps/server/telemetry"
 )
 
 // RedisPubSubDispatcher subscribe Redis PubSub with PSUBSCRIBE (wildcard subscription), then broadcast message to redisPubsubAwaiter.
 // Because go-redis open/close underlying TCP connection for each subscription, it cause massive TCP CLOSE_WAIT connections if Storage.FetchMessage make SUBSCRIBE for each call.
 type RedisPubSubDispatcher interface {
-	Await(ctx context.Context, channel internal.RedisChannelID) (RedisPubSubAwaiter, AwaitCancelFunc)
+	Await(ctx context.Context, channel RedisChannelID) (RedisPubSubAwaiter, AwaitCancelFunc)
 	Shutdown(ctx context.Context)
 }
 
@@ -31,9 +30,10 @@ type dispatcher struct {
 	telemetry        *telemetry.Telemetry
 	sentry           sentry.Sentry
 	backgroundLogger logger.Logger
+	params           DispatcherParams
 
-	psubscribe internal.RedisSubscribeRawFunc
-	pattern    internal.RedisChannelID
+	psubscribe RedisSubscribeRawFunc
+	pattern    RedisChannelID
 
 	shutdownOnce sync.Once
 	shutdownCh   chan interface{}
@@ -41,48 +41,58 @@ type dispatcher struct {
 	workerLock sync.Mutex
 	worker     worker
 
+	reconcileImmediatelyLock sync.Mutex
+	reconcileImmediatelyOnce sync.Once
+	reconcileImmediately     chan interface{}
+
 	awaitersLock  sync.Mutex
 	nextAwaiterID awaiterID
-	awaiters      map[internal.RedisChannelID]map[awaiterID]RedisPubSubPromise
+	awaiters      map[RedisChannelID]map[awaiterID]RedisPubSubPromise
 }
 
 type awaiterID uint64
 
-const reconcileInterval = 1 * time.Minute
-const reconcileRetryInterval = 5 * time.Second
+// DispatcherParams tunes Dispatcher
+type DispatcherParams struct {
+	ReconcileInterval        time.Duration
+	ReconcileRetryInterval   time.Duration
+	ReconcileMinimumInterval time.Duration
+}
+
+var dispatcherParamsDefault = DispatcherParams{
+	ReconcileInterval:        1 * time.Minute,
+	ReconcileRetryInterval:   5 * time.Second,
+	ReconcileMinimumInterval: 5 * time.Second,
+}
+
+func (p DispatcherParams) fillDefaults() DispatcherParams {
+	if p.ReconcileInterval == 0 {
+		p.ReconcileInterval = dispatcherParamsDefault.ReconcileInterval
+	}
+	if p.ReconcileRetryInterval == 0 {
+		p.ReconcileRetryInterval = dispatcherParamsDefault.ReconcileRetryInterval
+	}
+	if p.ReconcileMinimumInterval == 0 {
+		p.ReconcileMinimumInterval = dispatcherParamsDefault.ReconcileMinimumInterval
+	}
+	return p
+}
 
 // NewDispatcher creates instance
-func NewDispatcher(ctx context.Context, deps deps.StorageDeps, psubscribe internal.RedisSubscribeRawFunc, pattern internal.RedisChannelID) RedisPubSubDispatcher {
+func NewDispatcher(ctx context.Context, deps deps.StorageDeps, params DispatcherParams, psubscribe RedisSubscribeRawFunc, pattern RedisChannelID) RedisPubSubDispatcher {
 	d := &dispatcher{
 		telemetry:        deps.Telemetry,
 		sentry:           deps.Sentry,
 		backgroundLogger: logger.Of(context.Background()),
+		params:           params.fillDefaults(),
 
 		psubscribe: psubscribe,
 		pattern:    pattern,
 		shutdownCh: make(chan interface{}),
-		awaiters:   make(map[internal.RedisChannelID]map[awaiterID]RedisPubSubPromise),
+		awaiters:   make(map[RedisChannelID]map[awaiterID]RedisPubSubPromise),
 	}
-	go func() {
-		intervalTimer := time.NewTimer(1)
-		intervalTimer.Stop()       // Just want to initialize variable with valid timer instance.
-		defer intervalTimer.Stop() // Cleanup a timer that is created in the loop below
-		for {
-			var interval time.Duration
-			if d.reconcileCycle() {
-				interval = reconcileInterval
-			} else {
-				interval = reconcileRetryInterval
-			}
-
-			intervalTimer = time.NewTimer(interval)
-			select {
-			case <-d.shutdownCh:
-				return
-			case <-intervalTimer.C: // sleep until next cycle
-			}
-		}
-	}()
+	d.resetReconcileASAPRequest()
+	go d.reconcileLoop()
 	return d
 }
 
@@ -92,7 +102,7 @@ func (d *dispatcher) Shutdown(ctx context.Context) {
 	d.terminateWorker(ctx) // Must after close(chan)
 }
 
-func (d *dispatcher) Await(ctx context.Context, channel internal.RedisChannelID) (RedisPubSubAwaiter, AwaitCancelFunc) {
+func (d *dispatcher) Await(ctx context.Context, channel RedisChannelID) (RedisPubSubAwaiter, AwaitCancelFunc) {
 	result := NewPromise()
 
 	d.awaitersLock.Lock()
@@ -133,10 +143,10 @@ func (d *dispatcher) rejectAll(err error) {
 			awaiter.Reject(err)
 		}
 	}
-	d.awaiters = make(map[internal.RedisChannelID]map[awaiterID]RedisPubSubPromise)
+	d.awaiters = make(map[RedisChannelID]map[awaiterID]RedisPubSubPromise)
 }
 
-func (d *dispatcher) reject(channel internal.RedisChannelID, id awaiterID, err error) {
+func (d *dispatcher) reject(channel RedisChannelID, id awaiterID, err error) {
 	d.backgroundLogger.Debugf(logger.CatStorage, `RedisPubSubDispatcher.reject(channel: %s, id: %s): %v`, channel, id, err)
 
 	d.awaitersLock.Lock()
@@ -155,7 +165,7 @@ func (d *dispatcher) reject(channel internal.RedisChannelID, id awaiterID, err e
 	delete(chain, id)
 }
 
-func (d *dispatcher) resolve(channel internal.RedisChannelID) {
+func (d *dispatcher) resolve(channel RedisChannelID) {
 	d.backgroundLogger.Debugf(logger.CatStorage, `RedisPubSubDispatcher.resolve(channel: %s)`, channel)
 
 	d.awaitersLock.Lock()
@@ -165,6 +175,61 @@ func (d *dispatcher) resolve(channel internal.RedisChannelID) {
 		awaiter.Resolve()
 	}
 	delete(d.awaiters, channel)
+}
+
+func (d *dispatcher) reconcileLoop() {
+	intervalTimer := time.NewTimer(1 * time.Minute)
+	intervalTimer.Stop()       // Just want to initialize variable with valid timer instance.
+	defer intervalTimer.Stop() // Cleanup a timer that is created in the loop below
+
+	lastReconcileEndAt := time.Now().Add(-d.params.ReconcileMinimumInterval)
+	for {
+		// Prevent massive retry in any case.
+		time.Sleep(d.params.ReconcileMinimumInterval - time.Since(lastReconcileEndAt))
+		d.resetReconcileASAPRequest()
+		select {
+		case <-d.shutdownCh:
+			return
+		default:
+		}
+
+		var interval time.Duration
+		if d.reconcileCycle() {
+			interval = d.params.ReconcileInterval
+		} else {
+			interval = d.params.ReconcileRetryInterval
+		}
+		lastReconcileEndAt = time.Now()
+
+		var reconcileImmediately chan interface{}
+		func() { // Do not hold lock forever
+			d.reconcileImmediatelyLock.Lock()
+			defer d.reconcileImmediatelyLock.Unlock()
+			reconcileImmediately = d.reconcileImmediately
+		}()
+
+		intervalTimer = time.NewTimer(interval)
+		select {
+		case <-d.shutdownCh:
+		case <-reconcileImmediately: // reconcile as soon as possible
+		case <-intervalTimer.C: // sleep until next cycle
+		}
+	}
+}
+
+func (d *dispatcher) reconcileASAP() {
+	d.reconcileImmediatelyLock.Lock()
+	defer d.reconcileImmediatelyLock.Unlock()
+	d.reconcileImmediatelyOnce.Do(func() {
+		close(d.reconcileImmediately)
+	})
+}
+
+func (d *dispatcher) resetReconcileASAPRequest() {
+	d.reconcileImmediatelyLock.Lock()
+	defer d.reconcileImmediatelyLock.Unlock()
+	d.reconcileImmediatelyOnce = sync.Once{}
+	d.reconcileImmediately = make(chan interface{})
 }
 
 func (d *dispatcher) reconcileCycle() bool {
@@ -216,11 +281,26 @@ func (d *dispatcher) terminateWorker(ctx context.Context) {
 
 func (d *dispatcher) repairWorker(ctx context.Context) error {
 	newWorker, err := newWorker(ctx, d.psubscribe, d.pattern, func(m *redis.Message) {
-		d.resolve(internal.RedisChannelID(m.Channel))
+		d.resolve(RedisChannelID(m.Channel))
 	})
 	if err != nil {
 		return err
 	}
+
+	newWorker.OnShutdown(func() {
+		var isWorkerActive bool
+		func() {
+			d.workerLock.Lock()
+			defer d.workerLock.Unlock()
+			isWorkerActive = (d.worker == newWorker)
+		}()
+		if !isWorkerActive {
+			// More newer worker is running now.
+			// Shutdown of this worker is not problem.
+			return
+		}
+		d.reconcileASAP()
+	})
 
 	var oldWorker worker
 	func() {
