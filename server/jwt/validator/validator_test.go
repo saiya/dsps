@@ -289,6 +289,8 @@ func TestClockLeeway(t *testing.T) {
 func TestCustomClaims(t *testing.T) {
 	chatroomTpl, err := domain.NewTemplateString(`{{.channel.id}}`)
 	assert.NoError(t, err)
+	asterTpl, err := domain.NewTemplateString(`*`)
+	assert.NoError(t, err)
 	trueTpl, err := domain.NewTemplateString(`true`)
 	assert.NoError(t, err)
 
@@ -296,9 +298,9 @@ func TestCustomClaims(t *testing.T) {
 	tpl, err := NewTemplate(ctx, &config.JwtValidationConfig{
 		Iss:  []domain.JwtIss{"https://example.com/issuer"},
 		Keys: pregeneratedPublicKeys,
-		Claims: map[string]domain.TemplateString{
-			"chatroom":                       chatroomTpl,
-			"https://example.com/payed-user": trueTpl,
+		Claims: map[string]domain.TemplateStrings{
+			"chatroom":                       domain.NewTemplateStrings(chatroomTpl, asterTpl),
+			"https://example.com/payed-user": domain.NewTemplateStrings(trueTpl),
 		},
 		ClockSkewLeeway: &domain.Duration{},
 	}, domain.RealSystemClock)
@@ -313,6 +315,7 @@ func TestCustomClaims(t *testing.T) {
 	// Valid
 	for _, claims := range []map[string]interface{}{
 		{"chatroom": "1234", "https://example.com/payed-user": "true"},
+		{"chatroom": "*", "https://example.com/payed-user": "true"},
 		{"chatroom": 1234, "https://example.com/payed-user": true},
 	} {
 		assert.NoError(t, v.Validate(ctx, GenerateJwt(t, JwtProps{
@@ -337,11 +340,11 @@ func TestCustomClaims(t *testing.T) {
 			Claims:  map[string]interface{}{"chatroom": "1234"},
 		},
 		{
-			Message: `required "chatroom" claim to be "1234" by setting but presented JWT has value "9999"`,
+			Message: `required "chatroom" claim to be \[1234 \*\] by setting but presented JWT has value "9999"`,
 			Claims:  map[string]interface{}{"chatroom": 9999, "https://example.com/payed-user": true},
 		},
 		{
-			Message: `required "https://example.com/payed-user" claim to be "true" by setting but presented JWT has value "INVALID"`,
+			Message: `required "https://example.com/payed-user" claim to be \[true\] by setting but presented JWT has value "INVALID"`,
 			Claims:  map[string]interface{}{"chatroom": 1234, "https://example.com/payed-user": "INVALID"},
 		},
 	} {
