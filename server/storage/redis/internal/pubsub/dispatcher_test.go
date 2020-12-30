@@ -26,7 +26,10 @@ func TestDispatcherAwaitCancel(t *testing.T) {
 	ctx := context.Background()
 	pubsub := newRedisRawPubSubStub(t).EnqueueDefaultSubscribeMessage().EnqueuePingResultForever(nil)
 	dispatcher, pubsubActivated := newDispatcher(t, pubsub)
-	defer dispatcher.Shutdown(ctx)
+	defer func() {
+		dispatcher.Shutdown(ctx)
+		time.Sleep(10 * time.Millisecond) // Wait until background processes exits
+	}()
 	<-pubsubActivated
 
 	err := errors.New("test error")
@@ -55,7 +58,8 @@ func TestDispatcherAwaitAfterShutdown(t *testing.T) {
 	await, cancel := dispatcher.Await(ctx, "ch-1")
 	<-await.Chan()
 	assert.Same(t, ErrClosed, await.Err())
-	cancel(nil) // No-op, should success
+	cancel(nil)                       // No-op, should success
+	time.Sleep(10 * time.Millisecond) // Wait until background processes exits
 }
 
 func TestDispatcherConnectionDown(t *testing.T) {
@@ -64,7 +68,10 @@ func TestDispatcherConnectionDown(t *testing.T) {
 	pubsub2 := newRedisRawPubSubStub(t).EnqueueDefaultSubscribeMessage().EnqueuePingResultForever(errors.New("test pubsub PING failure"))
 	pubsub3 := newRedisRawPubSubStub(t).EnqueueDefaultSubscribeMessage().EnqueuePingResultForever(nil)
 	dispatcher, pubsubActivated := newDispatcher(t, pubsub1, pubsub2, pubsub3)
-	defer dispatcher.Shutdown(ctx)
+	defer func() {
+		dispatcher.Shutdown(ctx)
+		time.Sleep(10 * time.Millisecond) // Wait until background processes exits
+	}()
 	<-pubsubActivated
 
 	{ // Successful

@@ -155,6 +155,11 @@ sentry:  # Fine-tuning configuration example
   serverName: my-server-name
   environment: my-production
 
+  tags:
+    my_tag: value
+  context:
+    my_context: value
+
   sampleRate: 1.0
   ignoreErrors:
     - "something .+"
@@ -169,6 +174,8 @@ Configuration items under `telemetry.ot.tracing` ([OpenTelemetry](https://opente
 
 - `serverName` (string, default is hostname): Server name attribute to send to sentry
 - `environment` (string, optional): [Environment name](https://docs.sentry.io/product/sentry-basics/environments/) send to sentry
+- `tags` (string to string map, optional): Set [tag](https://docs.sentry.io/platforms/go/enriching-events/tags/) values
+- `contexts` (string to string map, optional): Set [context](https://docs.sentry.io/platforms/go/enriching-events/context/) values
 - `sampleRate` (number, default `1.0`): Ratio of the sampling, between `0.0` to `1.0`.
 - `ignoreErrors` (list of regex string): If an event matches to one or more of the regex, ignore them
 - `disableStacktrace` (boolean, default `false`): If true, omit stacktrace.
