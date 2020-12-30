@@ -18,7 +18,12 @@ func TestNewSentry(t *testing.T) {
 	assert.True(t, ok)
 	sentry.Shutdown(context.Background())
 
-	sentry, err = NewSentry(&config.SentryConfig{DSN: ""})
+	sentry, err = NewSentry(&config.SentryConfig{
+		DSN: "",
+		Contexts: map[string]string{
+			"test": "value",
+		},
+	})
 	_, ok = sentry.(*emptySentry)
 	assert.NoError(t, err)
 	assert.True(t, ok)

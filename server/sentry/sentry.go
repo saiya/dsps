@@ -50,6 +50,12 @@ func NewSentry(config *config.SentryConfig) (Sentry, error) {
 	}); err != nil {
 		return nil, xerrors.Errorf("failed to initialize sentry: %w", err)
 	}
+	sentrygo.ConfigureScope(func(scope *sentrygo.Scope) {
+		scope.SetTags(config.Tags)
+		for key, value := range config.Contexts {
+			scope.SetContext(key, value)
+		}
+	})
 	return &sentry{
 		flushTimeout: config.FlushTimeout.Duration,
 	}, nil

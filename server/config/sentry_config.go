@@ -16,6 +16,9 @@ type SentryConfig struct {
 	Release      string `json:"-"` // Given by compilation time constant value
 	Distribution string `json:"-"` // Given by compilation time constant value
 
+	Tags     map[string]string `json:"tags"`
+	Contexts map[string]string `json:"contexts"`
+
 	SampleRate        *float64        `json:"sampleRate"`
 	IgnoreErrors      []*domain.Regex `json:"ignoreErrors"`
 	DisableStacktrace bool            `json:"disableStacktrace"`
