@@ -13,14 +13,14 @@ type JwtValidationConfig struct {
 	Aud  []domain.JwtAud            `json:"aud"`
 	Keys map[domain.JwtAlg][]string `json:"keys"`
 
-	Claims map[string]domain.TemplateString `json:"claims"`
+	Claims map[string]domain.TemplateStrings `json:"claims"`
 
 	ClockSkewLeeway *domain.Duration `json:"clockSkewLeeway"`
 }
 
 func postprocessJwtConfig(jwt *JwtValidationConfig) error {
 	if jwt.Claims == nil {
-		jwt.Claims = make(map[string]domain.TemplateString)
+		jwt.Claims = make(map[string]domain.TemplateStrings)
 	}
 	if jwt.ClockSkewLeeway == nil {
 		jwt.ClockSkewLeeway = makeDurationPtr("5m")

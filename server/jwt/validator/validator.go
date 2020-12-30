@@ -35,7 +35,7 @@ type Validator interface {
 type validator struct {
 	validatorTemplate
 
-	claims map[string]string
+	claims map[string][]string
 }
 
 // NewTemplate creates Template instance.
@@ -76,13 +76,13 @@ func NewTemplate(ctx context.Context, cfg *config.JwtValidationConfig, clock dom
 }
 
 func (v *validatorTemplate) NewValidator(tplEnv domain.TemplateStringEnv) (Validator, error) {
-	claims := make(map[string]string, len(v.cfg.Claims))
+	claims := make(map[string][]string, len(v.cfg.Claims))
 	for claim, tpl := range v.cfg.Claims {
-		str, err := tpl.Execute(tplEnv)
+		strs, err := tpl.Execute(tplEnv)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to evaluate template string of JWT "%s" claim configuration "%s": %w`, claim, tpl, err)
 		}
-		claims[claim] = str
+		claims[claim] = strs
 	}
 	return &validator{validatorTemplate: *v, claims: claims}, nil
 }
@@ -168,7 +168,7 @@ func (v *validator) validateAud(ctx context.Context, claims jwtgo.MapClaims) err
 }
 
 func (v *validator) validateCustomClaims(ctx context.Context, claims jwtgo.MapClaims) error {
-	for claim, expected := range v.claims {
+	for claim, expectations := range v.claims {
 		var value string
 		switch raw := claims[claim].(type) {
 		case string:
@@ -180,8 +180,16 @@ func (v *validator) validateCustomClaims(ctx context.Context, claims jwtgo.MapCl
 		default:
 			return fmt.Errorf(`required "%s" claim by setting but not present or non-string value presented in the JWT`, claim)
 		}
-		if value != expected {
-			return fmt.Errorf(`required "%s" claim to be "%s" by setting but presented JWT has value "%s"`, claim, expected, value)
+
+		found := false
+		for _, expected := range expectations {
+			if value == expected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf(`required "%s" claim to be %v by setting but presented JWT has value "%s"`, claim, expectations, value)
 		}
 	}
 	return nil

@@ -89,8 +89,10 @@ func (c *channelAtom) validateTemplateStrings() error {
 		}
 	}
 	if jwt := c.config.Jwt; jwt != nil {
-		for claim, tpl := range jwt.Claims {
-			templates[fmt.Sprintf("jwt.claims.%s", claim)] = tpl
+		for claim, tpls := range jwt.Claims {
+			for i, tpl := range tpls.Templates {
+				templates[fmt.Sprintf("jwt.claims.%s[%d]", claim, i)] = tpl
+			}
 		}
 	}
 

@@ -265,6 +265,9 @@ channels:
           - path/to/public-key-file.pem
       claims:
         chatroom: '{{.channel.id}}'
+        role:
+          - 'admin'
+          - 'user'
       clockSkewLeeway: 5m
 ```
 
@@ -281,7 +284,7 @@ Configuration item under `channels[n].jwt`:
   - For HMAC alg such as `HS512`, content of the file should be Base64 encoded key
   - For `none` alg, empty list is allowed (`none: []`)
     - `none` alg is easy way for testing purpose, but **do NOT use `none` on production**.
-- `claims` (string to template string map, optional): Validation rule of custom claims
+- `claims` (map of string to template string or list of template strings, optional): Validation rule of custom claims
   - For example, `foo: 'bar'` means JWT must have custom claim named `foo` with a value `bar`
   - You can use template string to validate value (e.g. `chatroom: '{{.channel.id}}'` means custom claim `chatroom` must match with `id` of `channels.regex`).
   - If value of JWT claim is boolean or number, validator convert them to string (e.g. `"true"`, `"3.14"`)

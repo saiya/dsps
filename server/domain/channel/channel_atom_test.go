@@ -60,7 +60,7 @@ webhooks:
 			User-Agent: "{{.channel.idX}}"`,
 		},
 		{
-			`invalid template found on jwt.claims.chatroom:.*map has no entry for key`,
+			`invalid template found on jwt.claims.chatroom\[0\]:.*map has no entry for key`,
 			`
 regex: 'chat-room-(?P<id>\d+)'
 jwt:
