@@ -19,7 +19,6 @@ http:
   discloseAuthRejectionDetail: false
 
 logging:
-  debug: false
   category:
     auth: WARN  # Set to INFO if you want auth rejection logs
     "*": INFO
