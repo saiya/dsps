@@ -46,7 +46,7 @@ Look [../../experiment-local.sh](../../experiment-local.sh) and [../../loadtest.
 
 ## Steps to reproduction
 
-1. Increase `nofile` soft ulimit and `kern.ipc.somaxconn` sysctl value (macOS default is to small)
+1. Increase `nofile` soft ulimit and `kern.ipc.somaxconn` sysctl value (macOS default is too small)
 2. Run `CHANNELS=nnn TEST_RAMPUP_SEC=0 TEST_DURATION_SEC=30 ../../experiment-local.sh . output-name` 
     - Replace `CHANNEL=nnn` to desired channel count
     - Replace `output-name` to test pattern name (directory name)
