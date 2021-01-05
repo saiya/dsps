@@ -76,7 +76,7 @@ Configuration items under `http`:
   - Note that `admin.auth.networks` rely on this configuration.
 - `trustedProxyRanges` (list of string, optional): List of CIDR notation that trusted proxy lives in
   - `realIpHeader` only accepts header values from those ranges.
-  - By default or if empty list given, allow [RFC 1918](https://tools.ietf.org/html/rfc1918) ranges `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and [RFC 4193](https://tools.ietf.org/html/rfc4193) range `fc00::/7` and also `127.0.0.0/8` ((RFC 1122)[https://tools.ietf.org/html/rfc1122#section-3.2.1.3]), `169.254.0.0/16` ((RFC 3927)[https://tools.ietf.org/html/rfc3927]), `::1/128` and `fe80::/10` ((RFC 4291)[https://tools.ietf.org/html/rfc4291]).
+  - By default or if empty list given, allow [RFC 1918](https://tools.ietf.org/html/rfc1918) ranges `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and [RFC 4193](https://tools.ietf.org/html/rfc4193) range `fc00::/7` and also `127.0.0.0/8` ([RFC 1122](https://tools.ietf.org/html/rfc1122#section-3.2.1.3)), `169.254.0.0/16` ([RFC 3927](https://tools.ietf.org/html/rfc3927)), `::1/128` and `fe80::/10` ([RFC 4291](https://tools.ietf.org/html/rfc4291)).
 - `discloseAuthRejectionDetail` (boolean, default `false`): Show detail reason of 403 to clients, **do not enable on production**
 - `readTimeout` (duration string, default `10s`): Max duration to read request from clients.
 - `writeTimeout` (duration string, default `60s`): Max duration since end of request header reading until request processing completion
@@ -310,7 +310,7 @@ admin:
 Configuration item under `admin`:
 
 - `auth.networks` (list of CIDR string, optional): List of CIDR IP ranges to accept admin API calls
-  - By default or if empty list given, allow [RFC 1918](https://tools.ietf.org/html/rfc1918) ranges `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and [RFC 4193](https://tools.ietf.org/html/rfc4193) range `fc00::/7` and also `127.0.0.0/8` ((RFC 1122)[https://tools.ietf.org/html/rfc1122#section-3.2.1.3]), `169.254.0.0/16` ((RFC 3927)[https://tools.ietf.org/html/rfc3927]), `::1/128` and `fe80::/10` ((RFC 4291)[https://tools.ietf.org/html/rfc4291]).
+  - By default or if empty list given, allow [RFC 1918](https://tools.ietf.org/html/rfc1918) ranges `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and [RFC 4193](https://tools.ietf.org/html/rfc4193) range `fc00::/7` and also `127.0.0.0/8` ([RFC 1122](https://tools.ietf.org/html/rfc1122#section-3.2.1.3)), `169.254.0.0/16` ([RFC 3927](https://tools.ietf.org/html/rfc3927)), `::1/128` and `fe80::/10` ([RFC 4291](https://tools.ietf.org/html/rfc4291)).
 - `auth.bearer` (list of string, optional): List of API keys required to call admin APIs
   - To call admin APIs, client need to send token as `Authorization: Bearer {token}` header
   - By default or if empty list given, server automatically generate random string on start.
