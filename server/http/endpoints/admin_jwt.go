@@ -11,11 +11,13 @@ import (
 // AdminJwtEndpointDependency is to inject required objects to the endpoint
 type AdminJwtEndpointDependency interface {
 	GetStorage() domain.Storage
+	GetChannelProvider() domain.ChannelProvider
 }
 
 // InitAdminJwtEndpoints registers endpoints
 func InitAdminJwtEndpoints(adminRouter *router.Router, deps AdminJwtEndpointDependency) {
 	storage := deps.GetStorage().AsJwtStorage()
+	cp := deps.GetChannelProvider()
 	adminRouter.PUT("/jwt/revoke", func(ctx context.Context, args router.HandlerArgs) {
 		if storage == nil {
 			utils.SendJwtUnsupportedError(ctx, args.W)
@@ -33,6 +35,8 @@ func InitAdminJwtEndpoints(adminRouter *router.Router, deps AdminJwtEndpointDepe
 			utils.SendInvalidParameter(ctx, args.W, "exp", err)
 			return
 		}
+		// Add clock skew leeway to prevent timing attack: https://github.com/saiya/dsps/pull/54
+		exp = domain.JwtExp(exp.Time().Add(cp.JWTClockSkewLeewayMax().Duration))
 
 		if err := storage.RevokeJwt(ctx, exp, domain.JwtJti(jti)); err != nil {
 			utils.SendInternalServerError(ctx, args.W, err)
