@@ -27,7 +27,7 @@ jobs:
 
     runs-on: ubuntu-latest
     env:
-      go-version: 1.15.5
+      go-version: 1.15.6
 
     steps:
       - uses: actions/checkout@v2

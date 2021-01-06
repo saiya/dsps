@@ -7,7 +7,7 @@ jobs:
 
     runs-on: ubuntu-latest
     env:
-      go-version: 1.15.5
+      go-version: 1.15.6
 
     steps:
       - uses: actions/checkout@v2
@@ -41,7 +41,7 @@ jobs:
     name: Server test
 
     runs-on: ubuntu-latest
-    container: golang:1.15.5-buster
+    container: golang:1.15.6-buster
     services:
       redis:
         image: redis:6.0.9
@@ -87,7 +87,7 @@ jobs:
 
     runs-on: ubuntu-latest
     env:
-      go-version: 1.15.5
+      go-version: 1.15.6
 
     steps:
       - uses: actions/checkout@v2

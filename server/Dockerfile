@@ -1,4 +1,4 @@
-FROM golang:1.15.5
+FROM golang:1.15.6
 ARG DSPS_VERSION_ID=""
 WORKDIR /go/src/github.com/dsps/server
 COPY . .
