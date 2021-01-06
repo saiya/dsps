@@ -2,7 +2,9 @@ package channel
 
 import (
 	"context"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -34,6 +36,22 @@ func TestProvider(t *testing.T) {
 	notfound, err := cp.Get("not-found")
 	assert.Nil(t, notfound)
 	dspstesting.IsError(t, domain.ErrInvalidChannel, err)
+}
+
+func TestJWTClockSkewLeewayMax(t *testing.T) {
+	cfg, err := config.ParseConfig(context.Background(), config.Overrides{}, strings.ReplaceAll(`channels: [ 
+		{ regex: "test.+", expire: "1s", jwt: { iss: [ "https://issuer.example.com/issuer-url" ], keys: { none: [] }, clockSkewLeeway: 5m } },
+		{ regex: "test.+", expire: "1s", jwt: { iss: [ "https://issuer.example.com/issuer-url" ], keys: { none: [] }, clockSkewLeeway: 15m } } 
+	]`, "\t", "  "))
+	assert.NoError(t, err)
+
+	cp, err := NewChannelProvider(context.Background(), &cfg, ProviderDeps{
+		Clock:     dspstesting.NewStubClock(t),
+		Telemetry: telemetry.NewEmptyTelemetry(t),
+		Sentry:    sentry.NewEmptySentry(),
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, domain.Duration{Duration: 15 * time.Minute}, cp.JWTClockSkewLeewayMax())
 }
 
 func TestProviderWithInvalidDeps(t *testing.T) {

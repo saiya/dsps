@@ -21,3 +21,8 @@ func (f ChannelProviderFunc) Get(id domain.ChannelID) (domain.Channel, error) {
 func (f ChannelProviderFunc) GetFileDescriptorPressure() int {
 	return 0
 }
+
+// JWTClockSkewLeewayMax implements ChannelProvider
+func (f ChannelProviderFunc) JWTClockSkewLeewayMax() domain.Duration {
+	return domain.Duration{}
+}

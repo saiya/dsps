@@ -235,6 +235,8 @@ func TestClockLeeway(t *testing.T) {
 	v, err := tpl.NewValidator(struct{}{})
 	assert.NoError(t, err)
 
+	assert.Equal(t, domain.Duration{Duration: 300 * time.Second}, tpl.JWTClockSkewLeewayMax())
+
 	// Valid, within clock skew leeway
 	for _, testcase := range []struct {
 		NbfSec, IatSec, ExpSec time.Duration

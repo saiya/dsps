@@ -60,6 +60,17 @@ func (cp *channelProvider) GetFileDescriptorPressure() int {
 	return result
 }
 
+func (cp *channelProvider) JWTClockSkewLeewayMax() domain.Duration {
+	var result domain.Duration
+	for _, atom := range cp.atoms {
+		d := atom.JWTClockSkewLeewayMax()
+		if result.Duration < d.Duration {
+			result = d
+		}
+	}
+	return result
+}
+
 func (cp *channelProvider) Get(id domain.ChannelID) (domain.Channel, error) {
 	found := make([]*channelAtom, 0, 4)
 	for _, atom := range cp.atoms {

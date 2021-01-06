@@ -17,6 +17,7 @@ type ChannelProvider interface {
 	Get(id ChannelID) (Channel, error)
 
 	GetFileDescriptorPressure() int
+	JWTClockSkewLeewayMax() Duration
 
 	Shutdown(ctx context.Context)
 }
