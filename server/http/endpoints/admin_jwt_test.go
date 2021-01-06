@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +39,7 @@ func TestJwtRevokeSuccess(t *testing.T) {
 	jti := domain.JwtJti("my-jwt")
 	exp, err := domain.ParseJwtExp("4070912400")
 	assert.NoError(t, err)
-	WithServer(t, `logging: category: "*": FATAL`, func(deps *ServerDependencies) {}, func(deps *ServerDependencies, baseURL string) {
+	WithServer(t, `logging: { category: "*": FATAL }, { regex: "test.+", expire: "1s", jwt: { iss: [ "https://issuer.example.com/issuer-url" ], keys: { none: [] }, clockSkewLeeway: 5m } }`, func(deps *ServerDependencies) {}, func(deps *ServerDependencies, baseURL string) {
 		revoked, err := deps.Storage.AsJwtStorage().IsRevokedJwt(ctx, jti)
 		assert.NoError(t, err)
 		assert.False(t, revoked)
@@ -59,6 +60,28 @@ func TestJwtRevokeSuccess(t *testing.T) {
 			"jti": string(jti),
 			"exp": float64(exp.Int64()),
 		})
+	})
+}
+
+// Regression of https://github.com/saiya/dsps/pull/54
+func TestJwtRevokeLeeway(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	jti := domain.JwtJti("my-jwt")
+	// exp < now <= exp + clockSkewLeeway
+	exp := domain.JwtExp(time.Now().Add(-5*time.Minute + 10*time.Second))
+	WithServer(t, `{ logging: { category: "*": FATAL }, channels: [ { regex: "test.+", expire: "1s", jwt: { iss: [ "https://issuer.example.com/issuer-url" ], keys: { none: [] }, clockSkewLeeway: 5m } } ] }`, func(deps *ServerDependencies) {}, func(deps *ServerDependencies, baseURL string) {
+		revoked, err := deps.Storage.AsJwtStorage().IsRevokedJwt(ctx, jti)
+		assert.NoError(t, err)
+		assert.False(t, revoked)
+
+		DoHTTPRequestWithHeaders(t, "PUT", baseURL+fmt.Sprintf("/admin/jwt/revoke?jti=%s&exp=%s", jti, exp), AdminAuthHeaders(t, deps), ``)
+
+		revoked, err = deps.Storage.AsJwtStorage().IsRevokedJwt(ctx, jti)
+		assert.NoError(t, err)
+		assert.True(t, revoked)
 	})
 }
 

@@ -15,9 +15,11 @@ const cachedChannelNegativeCacheExpire = 5 * time.Minute
 
 func newCachedChannelProvider(inner domain.ChannelProvider, clock domain.SystemClock) domain.ChannelProvider {
 	return &cachedChannels{
-		inner:      inner,
-		clock:      clock,
-		fdPressure: inner.GetFileDescriptorPressure(),
+		inner: inner,
+		clock: clock,
+
+		fdPressure:            inner.GetFileDescriptorPressure(),
+		jwtClockSkewLeewayMax: inner.JWTClockSkewLeewayMax(),
 
 		lock: sync.Mutex{},
 		m:    make(map[domain.ChannelID]*cachedChannelEntry, 1024),
@@ -26,9 +28,11 @@ func newCachedChannelProvider(inner domain.ChannelProvider, clock domain.SystemC
 }
 
 type cachedChannels struct {
-	inner      domain.ChannelProvider
-	clock      domain.SystemClock
-	fdPressure int
+	inner domain.ChannelProvider
+	clock domain.SystemClock
+
+	fdPressure            int
+	jwtClockSkewLeewayMax domain.Duration
 
 	// Writer lock blocks all further Rlocks, but reader won't take lock so long time in this usecase.
 	lock sync.Mutex
@@ -38,6 +42,10 @@ type cachedChannels struct {
 
 func (cache *cachedChannels) GetFileDescriptorPressure() int {
 	return cache.fdPressure
+}
+
+func (cache *cachedChannels) JWTClockSkewLeewayMax() domain.Duration {
+	return cache.jwtClockSkewLeewayMax
 }
 
 func (cache *cachedChannels) Shutdown(ctx context.Context) {

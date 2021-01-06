@@ -16,6 +16,7 @@ import (
 // Template is a template of Validator
 type Template interface {
 	NewValidator(tplEnv domain.TemplateStringEnv) (Validator, error)
+	JWTClockSkewLeewayMax() domain.Duration
 }
 
 type validatorTemplate struct {
@@ -85,6 +86,10 @@ func (v *validatorTemplate) NewValidator(tplEnv domain.TemplateStringEnv) (Valid
 		claims[claim] = strs
 	}
 	return &validator{validatorTemplate: *v, claims: claims}, nil
+}
+
+func (v *validatorTemplate) JWTClockSkewLeewayMax() domain.Duration {
+	return *v.cfg.ClockSkewLeeway
 }
 
 func (v *validator) Validate(ctx context.Context, jwt string) error {

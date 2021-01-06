@@ -105,14 +105,18 @@ func TestCacheChannelError(t *testing.T) {
 	dspstesting.IsError(t, errToReturn, err)
 }
 
-func TestGetFileDescriptorPressure(t *testing.T) {
+func TestCachedProviderValues(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	inner := mock.NewMockChannelProvider(ctrl)
 	inner.EXPECT().GetFileDescriptorPressure().Return(1234).Times(1)
+	leeway := domain.Duration{Duration: 123 * time.Second}
+	inner.EXPECT().JWTClockSkewLeewayMax().Return(leeway).Times(1)
 
 	cp := newCachedChannelProvider(inner, domain.RealSystemClock)
 	assert.Equal(t, 1234, cp.GetFileDescriptorPressure())
 	assert.Equal(t, 1234, cp.GetFileDescriptorPressure())
+	assert.Equal(t, leeway, cp.JWTClockSkewLeewayMax())
+	assert.Equal(t, leeway, cp.JWTClockSkewLeewayMax())
 }

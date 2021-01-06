@@ -73,6 +73,13 @@ func (c *channelAtom) GetFileDescriptorPressure() int {
 	return result
 }
 
+func (c *channelAtom) JWTClockSkewLeewayMax() domain.Duration {
+	if c.JwtValidatorTemplate == nil {
+		return domain.Duration{}
+	}
+	return c.JwtValidatorTemplate.JWTClockSkewLeewayMax()
+}
+
 func (c *channelAtom) validate() error {
 	if err := c.validateTemplateStrings(); err != nil {
 		return err
