@@ -14,7 +14,7 @@ import (
 	"github.com/saiya/dsps/server/telemetry"
 )
 
-func newChannelAtomByYaml(t *testing.T, yaml string, validate bool) *channelAtom { //nolint:golint
+func newChannelAtomByYaml(t *testing.T, yaml string, validate bool) *channelAtom {
 	yaml = fmt.Sprintf("channels:\n  - %s", strings.ReplaceAll(strings.ReplaceAll(yaml, "\t", "  "), "\n", "\n    "))
 	cfg, err := config.ParseConfig(context.Background(), config.Overrides{}, yaml)
 	assert.NoError(t, err)

@@ -6,12 +6,12 @@ import (
 	"github.com/saiya/dsps/server/domain"
 )
 
-type channelKeys struct { //nolint:unused
+type channelKeys struct {
 	// All keys must be prefixed with {channel-id} due to partioning.
 	channelID domain.ChannelID
 }
 
-func keyOfChannel(channelID domain.ChannelID) channelKeys { //nolint:deadcode,unused
+func keyOfChannel(channelID domain.ChannelID) channelKeys {
 	return channelKeys{channelID: channelID}
 }
 

@@ -63,7 +63,7 @@ type contextLoggerBuilder struct {
 
 func (b *contextLoggerBuilder) Build() context.Context {
 	newLogger := b.baseLogger.withAttributes(b.fields)
-	ctx := context.WithValue(b.ctx, loggerContextKey, newLogger) //nolint:golint,staticcheck
+	ctx := context.WithValue(b.ctx, loggerContextKey, newLogger)
 	newLogger.ctx = ctx
 	return ctx
 }
