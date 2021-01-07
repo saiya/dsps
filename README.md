@@ -1,5 +1,7 @@
 # DSPS - Durable & Simple PubSub
 
+![DSPS Banner](./img/logo/DSPS.svg)
+
 [![MIT License](https://img.shields.io/badge/LICENSE-MIT-brightgreen)](./LICENSE)
 [![Server Test](https://github.com/saiya/dsps/workflows/Server%20Test/badge.svg?1)](https://github.com/saiya/dsps/actions?query=workflow%3A%22Server+Test%22)
 [![Codecov](https://codecov.io/gh/saiya/dsps/branch/main/graph/badge.svg?token=DSSOWMB60X)](https://codecov.io/gh/saiya/dsps)
@@ -7,16 +9,23 @@
 [![DockerHub saiya/dsps](https://img.shields.io/badge/dockerhub-saiya%2Fdsps-blue)](https://hub.docker.com/r/saiya/dsps/tags?page=1&ordering=last_updated)
 [![npm version](https://badge.fury.io/js/%40dsps%2Fclient.svg)](https://badge.fury.io/js/%40dsps%2Fclient)
 
-DSPS is a PubSub system that provides following advantages:
+---
+## Intro
 
-- Durable message passing (no misfire)
-- Simple messaging interface (even `curl` is enough to communicate with the DSPS server)
+DSPS is a PubSub server that provides following advantages:
 
-DSPS supports message buffering, resending, deduplication, ordering, etc. to secure your precious messages.
+- Durable message handling
+  - No misfire, supports buffering & resending & deduplication
+- Simple messaging interface
+  - Just `curl` is enough to communicate with the DSPS server
+  - Supports JWT to control access simply
+  - Also supports outgoing webhook
 
-DSPS server supports intuitive interfaces such as HTTP short polling, long polling, outgoing webhook, etc.
+![DSPS system diagram](./img/README/diagram.drawio.png)
 
-Note that DSPS does **NOT** aim to provide followings:
+__Non goal__
+
+Note that DSPS does not aim to provide followings:
 
 - Very low latency message passing
   - DSPS suppose milliseconds latency tolerant use-case
@@ -25,8 +34,8 @@ Note that DSPS does **NOT** aim to provide followings:
 - Warehouse to keep long-living message
   - DSPS aim to provide message passing, not archiving message
 
-
-# 3 minutes to getting started with DSPS
+---
+## 3 minutes to getting started with DSPS
 
 ```sh
 # Download & run DSPS server
@@ -67,7 +76,7 @@ You may notice that your receive same messages every time you GET the subscriber
 
 The way to delete message depends on the [subscriber type](./server/doc/interface/subscribe/README.md). For example, HTTP polling subscriber (used in above example) supports HTTP DELETE method to remove messages from the subscriber.
 
-# To know more
+# More Documentations
 
 - [Detail of the DSPS server](./server/README.md)
   - Before running DSPS in production, recommend to look this document
