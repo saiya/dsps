@@ -71,7 +71,7 @@ Configuration items under `http`:
 - `listen` (string, optional): Listen string (e.g. ":3000"), this option overrides `port`
   - With [some security software](https://forum.eset.com/topic/22080-mac-firewall-issue-after-update-to-684000/), you may need to specify local IP as such as `127.0.0.1:3000` due to MTIM proxy problem.
 - `pathPrefix` (string, optional): Prefix to add all endpoints
-  - e.g. If `pathPrefix` is `/foo/bar`, endpoint `/probe/readiness` is served as `/foobar/probe/readiness`
+  - e.g. If `pathPrefix` is `/foo/bar`, endpoint `/probe/readiness` is served as `/foo/bar/probe/readiness`
 - <a name="ipheader"></a> `realIpHeader` (string, optional): HTTP header name contains reliable IP address of the client
   - Note that `admin.auth.networks` rely on this configuration.
 - `trustedProxyRanges` (list of string, optional): List of CIDR notation that trusted proxy lives in
