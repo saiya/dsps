@@ -14,6 +14,7 @@ import { Counter, Trend } from 'k6/metrics';
 
 const settings = {
     BASE_URL: __ENV.BASE_URL || "http://localhost:3000",
+    CHANNEL_ID_PREFIX: __ENV.CHANNEL_ID_PREFIX || "",
 
     TEST_RAMPUP_SEC: __ENV.TEST_RAMPUP_SEC || 1,
     TEST_DURATION_SEC: __ENV.TEST_DURATION_SEC || 3,
@@ -80,7 +81,7 @@ export function setup() {
 
 export default function (data) {
     const { randomID } = data;
-    const channelID = `${randomID}-${channelNumber}`;
+    const channelID = `${settings.CHANNEL_ID_PREFIX}${randomID}-${channelNumber}`;
     const subscriberID = `sbsc-${__VU}`;
 
     if (isPublisher) {
