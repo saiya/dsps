@@ -14,9 +14,11 @@ Note: to understand configuration file, see [configuration guite](../config.md).
 
 Redis storage implementation requires Redis Clusters or Redis nodes.
 
-The implementation can use multiple clusters or nodes to prevent data loss (see "Why DSPS (can) use multiple Redis clusters/nodes" section below). So that `redis` configuration takes array of Redis endpoint configurations.
+Note that Redis or Redis cluster could lose data when reboot/failover occurs.
+To prevent data loss, write multiple storage configurations to use multiple Redis-es.
+See [Multiple Storages](./README.md#multiple-storage) section of storage configuration document.
 
-Each `redis` configuration requires one of followings:
+Each `redis` configuration requires exactly one of followings:
 
 - `singleNode` (string): `host:port` (e.g. `'localhost:6379'`) strings point Redis
 - `cluster` (list of string): Cluster endpoint list that is list of `host:port` points seed nodes
@@ -51,24 +53,9 @@ storage:
         - 'another-node-of-cluster-2:6379'
 ```
 
-#### Why DSPS (can) use multiple Redis clusters/nodes
+### Other Redis storage options
 
-Redis or Redis Cluster may lost data.
-
-To secure messages strongly, you can use multiple Redis / Redis clusters.
-
-If you specify two or more Redis endpoints, DSPS perform followings:
-
-- Try to write to all Redis endpoints
-  - If write operation succeeded on one or more servers, DSPS responds success to publisher
-- Read from all Redis endpoints and merge results
-  - If successfully received multiple data, DSPS deduplicate them based on the message ID
-
-Because DSPS is append-only (publish-only) system, above simple rule works.
-
-### Other Redis endpoint options
-
-Each Redis endpoint option can take additional options:
+Each Redis storage option can take additional options:
 
 ```yaml
 # ex. db & timeout configurations

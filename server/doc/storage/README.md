@@ -19,7 +19,7 @@ DSPS stores some information to the storage such as...
   - DSPS (re-)send messages until subscribers acknowledge it
 - Set of [revoked JWT](../interface/admin/revoke_jwt.md)
 
-## Multiple storages
+## <a name="multiple-storage"></a> Multiple storages
 
 You can configure multiple storages.
 
@@ -36,3 +36,12 @@ storage:
     redis:
       singleNode: 'my-redis-server-host-2:6379'
 ```
+
+If you specify two or more storages, DSPS perform followings:
+
+- Try to write to all available storages
+  - If write operation succeeded at least one of storages, DSPS responds success to publisher
+- Read from all available storages and merge results
+  - If successfully read from multiple storages, DSPS merge them based on the message ID
+
+Because DSPS is append-only (publish-only) system, above simple rule works.
