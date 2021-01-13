@@ -25,10 +25,7 @@ type HTTPServerConfig struct {
 
 func httpServerConfigDefault() *HTTPServerConfig {
 	return &HTTPServerConfig{
-		Port:                        3000,
-		Listen:                      "",
-		RealIPHeader:                "",
-		DiscloseAuthRejectionDetail: false,
+		Port: 3000,
 
 		ReadTimeout:             makeDuration("10s"),
 		WriteTimeout:            makeDuration("60s"),
@@ -57,6 +54,9 @@ func PostprocessHTTPServerConfig(config *HTTPServerConfig, overrides Overrides) 
 		config.Listen = overrides.Listen
 	}
 
+	if config.Port == 0 {
+		config.Port = httpServerConfigDefault().Port
+	}
 	if len(config.TrustedProxyRanges) == 0 {
 		config.TrustedProxyRanges = make([]domain.CIDR, len(domain.PrivateCIDRs))
 		copy(config.TrustedProxyRanges, domain.PrivateCIDRs)
