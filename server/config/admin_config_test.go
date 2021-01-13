@@ -12,7 +12,7 @@ import (
 )
 
 func TestAdminDefaultConfig(t *testing.T) {
-	config, err := ParseConfig(context.Background(), Overrides{}, ``)
+	config, err := ParseConfig(context.Background(), Overrides{}, `admin: { auth: {} }`)
 	if err != nil {
 		t.Error(err)
 		return

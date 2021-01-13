@@ -13,13 +13,14 @@ import (
 )
 
 func TestHttpServerDefaultValues(t *testing.T) {
-	config, err := ParseConfig(context.Background(), Overrides{}, ``)
+	config, err := ParseConfig(context.Background(), Overrides{}, `http: {}`)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	cfg := *config.HTTPServer
+	assert.Equal(t, 3000, cfg.Port)
 	assert.Equal(t, "", cfg.RealIPHeader)
 	assert.Equal(t, len(domain.PrivateCIDRs), len(cfg.TrustedProxyRanges))
 	assert.Equal(t, domain.PrivateCIDRs[0].String(), cfg.TrustedProxyRanges[0].String())

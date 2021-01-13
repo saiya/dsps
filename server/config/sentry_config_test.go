@@ -21,7 +21,7 @@ func TestSentryDefaults(t *testing.T) {
 		config, err := ParseConfig(context.Background(), Overrides{
 			BuildVersion: "v9.8.7",
 			BuildDist:    "someOS-arch",
-		}, "")
+		}, "sentry: {}")
 		assert.NoError(t, err)
 
 		sentry := config.Sentry
