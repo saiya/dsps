@@ -54,6 +54,7 @@ func runServer(mainContext context.Context, config *config.ServerConfig, engine 
 	srv := &http.Server{
 		Addr:           addr,
 		Handler:        engine,
+		IdleTimeout:    config.HTTPServer.IdleTimeout.Duration,
 		ReadTimeout:    config.HTTPServer.ReadTimeout.Duration,
 		WriteTimeout:   config.HTTPServer.LongPollingMaxTimeout.Duration + config.HTTPServer.WriteTimeout.Duration,
 		MaxHeaderBytes: 1 << 20,
