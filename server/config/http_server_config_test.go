@@ -25,6 +25,7 @@ func TestHttpServerDefaultValues(t *testing.T) {
 	assert.Equal(t, len(domain.PrivateCIDRs), len(cfg.TrustedProxyRanges))
 	assert.Equal(t, domain.PrivateCIDRs[0].String(), cfg.TrustedProxyRanges[0].String())
 	assert.Equal(t, `deny`, cfg.DefaultHeaders["X-Frame-Options"])
+	assert.Equal(t, 90*time.Minute, cfg.IdleTimeout.Duration)
 	assert.Equal(t, 10*time.Second, cfg.ReadTimeout.Duration)
 	assert.Equal(t, 60*time.Second, cfg.WriteTimeout.Duration)
 	assert.Equal(t, 30*time.Second, cfg.LongPollingMaxTimeout.Duration)
@@ -39,6 +40,7 @@ http:
 		- 1.2.3.4/16
 	defaultHeaders:
 		X-Frame-Options:
+	idleTimeout: 123s
 	readTimeout: 1s
 	writeTimeout: 2s
 	longPollingMaxTimeout: 3s
@@ -55,6 +57,7 @@ http:
 	assert.Equal(t, 1, len(cfg.TrustedProxyRanges))
 	assert.Equal(t, "1.2.3.4/16", cfg.TrustedProxyRanges[0].String())
 	assert.Equal(t, ``, cfg.DefaultHeaders["X-Frame-Options"])
+	assert.Equal(t, 123*time.Second, cfg.IdleTimeout.Duration)
 	assert.Equal(t, 1*time.Second, cfg.ReadTimeout.Duration)
 	assert.Equal(t, 2*time.Second, cfg.WriteTimeout.Duration)
 	assert.Equal(t, 3*time.Second, cfg.LongPollingMaxTimeout.Duration)

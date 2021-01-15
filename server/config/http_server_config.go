@@ -17,6 +17,7 @@ type HTTPServerConfig struct {
 	DiscloseAuthRejectionDetail bool              `json:"discloseAuthRejectionDetail"`
 	DefaultHeaders              map[string]string `json:"defaultHeaders"`
 
+	IdleTimeout             domain.Duration `json:"idleTimeout"`
 	ReadTimeout             domain.Duration `json:"readTimeout"`
 	WriteTimeout            domain.Duration `json:"writeTimeout"`
 	LongPollingMaxTimeout   domain.Duration `json:"longPollingMaxTimeout"`
@@ -27,6 +28,7 @@ func httpServerConfigDefault() *HTTPServerConfig {
 	return &HTTPServerConfig{
 		Port: 3000,
 
+		IdleTimeout:             makeDuration("1h30m"),
 		ReadTimeout:             makeDuration("10s"),
 		WriteTimeout:            makeDuration("60s"),
 		LongPollingMaxTimeout:   makeDuration("30s"),
@@ -60,6 +62,9 @@ func PostprocessHTTPServerConfig(config *HTTPServerConfig, overrides Overrides) 
 	if len(config.TrustedProxyRanges) == 0 {
 		config.TrustedProxyRanges = make([]domain.CIDR, len(domain.PrivateCIDRs))
 		copy(config.TrustedProxyRanges, domain.PrivateCIDRs)
+	}
+	if config.IdleTimeout.Duration == 0 {
+		config.IdleTimeout = httpServerConfigDefault().IdleTimeout
 	}
 	if config.ReadTimeout.Duration == 0 {
 		config.ReadTimeout = httpServerConfigDefault().ReadTimeout
