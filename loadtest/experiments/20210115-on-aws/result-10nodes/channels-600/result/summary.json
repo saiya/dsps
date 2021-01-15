@@ -1,0 +1,231 @@
+{
+    "metrics": {
+        "checks": {
+            "fails": 0,
+            "passes": 3339197,
+            "thresholds": {
+                "rate >= 0.9999": false
+            },
+            "value": 0
+        },
+        "data_received": {
+            "count": 766462129,
+            "rate": 3155629.5835222164
+        },
+        "data_sent": {
+            "count": 540109618,
+            "rate": 2223705.2874737447
+        },
+        "dsps_fetched_messages": {
+            "count": 1109423,
+            "rate": 4567.646471988922,
+            "thresholds": {
+                "count >= 388800": false
+            }
+        },
+        "dsps_msg_delay_ms": {
+            "avg": 26.657165932200794,
+            "max": 558,
+            "med": 28,
+            "min": 4,
+            "p(90)": 38,
+            "p(95)": 44
+        },
+        "dsps_ttfb_ms_ack": {
+            "avg": 5.441270116949843,
+            "max": 91.283824,
+            "med": 5.03304,
+            "min": 0.600654,
+            "p(90)": 6.6298843,
+            "p(95)": 9.770997449999992
+        },
+        "dsps_ttfb_ms_publish": {
+            "avg": 7.563287827811629,
+            "max": 96.315349,
+            "med": 6.940612,
+            "min": 3.756781,
+            "p(90)": 8.661791899999997,
+            "p(95)": 13.172631549999988
+        },
+        "group_duration": {
+            "avg": 375.70648153489725,
+            "max": 3035.919629,
+            "med": 30.409701,
+            "min": 0.000248,
+            "p(90)": 993.3142894,
+            "p(95)": 1017.8589535
+        },
+        "http_req_blocked": {
+            "avg": 0.004279657703155169,
+            "max": 34.0649,
+            "med": 0.001794,
+            "min": 0.000707,
+            "p(90)": 0.003083,
+            "p(95)": 0.003745
+        },
+        "http_req_connecting": {
+            "avg": 0.002096005654582024,
+            "max": 34.029455,
+            "med": 0,
+            "min": 0,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "http_req_duration": {
+            "avg": 199.2424935936372,
+            "max": 3025.773768,
+            "med": 6.561136,
+            "min": 0.629724,
+            "p(90)": 963.674684,
+            "p(95)": 968.4261164999999
+        },
+        "http_req_receiving": {
+            "avg": 0.026203760456636378,
+            "max": 34.771591,
+            "med": 0.021544,
+            "min": 0.007891,
+            "p(90)": 0.03579,
+            "p(95)": 0.042523
+        },
+        "http_req_sending": {
+            "avg": 0.018053437821972943,
+            "max": 34.068471,
+            "med": 0.008635,
+            "min": 0.004264,
+            "p(90)": 0.017006,
+            "p(95)": 0.022086099999999862
+        },
+        "http_req_tls_handshaking": {
+            "avg": 0,
+            "max": 0,
+            "med": 0,
+            "min": 0,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "http_req_waiting": {
+            "avg": 199.19823639535608,
+            "max": 3025.738699,
+            "med": 6.521319,
+            "min": 0.600654,
+            "p(90)": 963.6327603999999,
+            "p(95)": 968.3815387999999
+        },
+        "http_reqs": {
+            "count": 1854779,
+            "rate": 7636.379231067988
+        },
+        "iteration_duration": {
+            "avg": 587.3976668557881,
+            "max": 3035.937853,
+            "med": 982.1452915,
+            "min": 0.090144,
+            "p(90)": 1020.6030315,
+            "p(95)": 1023.43036225
+        },
+        "iterations": {
+            "count": 865605,
+            "rate": 3563.8143651122887
+        },
+        "vus": {
+            "max": 2400,
+            "min": 25,
+            "value": 25
+        },
+        "vus_max": {
+            "max": 2400,
+            "min": 2400,
+            "value": 2400
+        }
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {
+            "publisher": {
+                "name": "publisher",
+                "path": "::publisher",
+                "id": "42834ed9b0fab346fb485eef504a199e",
+                "groups": {},
+                "checks": {
+                    "is status 200": {
+                        "name": "is status 200",
+                        "path": "::publisher::is status 200",
+                        "id": "033b4844056b121c9936aedc4ab12017",
+                        "passes": 370188,
+                        "fails": 0
+                    }
+                }
+            },
+            "setup": {
+                "name": "setup",
+                "path": "::setup",
+                "id": "5c0f8025f7e0b6654089e5b00e950f1a",
+                "groups": {},
+                "checks": {}
+            },
+            "subscriber": {
+                "name": "subscriber",
+                "path": "::subscriber",
+                "id": "8cd2fe283a36cc055d74315ba7db7039",
+                "groups": {
+                    "ack": {
+                        "name": "ack",
+                        "path": "::subscriber::ack",
+                        "id": "896b291f5e9f4a0b4a9d63c5bd0aa610",
+                        "groups": {},
+                        "checks": {
+                            "is status 204": {
+                                "name": "is status 204",
+                                "path": "::subscriber::ack::is status 204",
+                                "id": "1675e96687d722c0ea932d5d2fbfd93f",
+                                "passes": 740582,
+                                "fails": 0
+                            }
+                        }
+                    },
+                    "fetch": {
+                        "name": "fetch",
+                        "path": "::subscriber::fetch",
+                        "id": "219dd6d5879771ae4590fb2c3826ad84",
+                        "groups": {},
+                        "checks": {
+                            "has messages array": {
+                                "name": "has messages array",
+                                "path": "::subscriber::fetch::has messages array",
+                                "id": "8bcfe7144bfdfba71334cca76e6453c6",
+                                "passes": 742209,
+                                "fails": 0
+                            },
+                            "is status 200": {
+                                "name": "is status 200",
+                                "path": "::subscriber::fetch::is status 200",
+                                "id": "bee4378527eb142a3168d665c6ac821a",
+                                "passes": 742209,
+                                "fails": 0
+                            },
+                            "returns valid JSON": {
+                                "name": "returns valid JSON",
+                                "path": "::subscriber::fetch::returns valid JSON",
+                                "id": "541e2ba22921f61f022df6b245104ee6",
+                                "passes": 742209,
+                                "fails": 0
+                            }
+                        }
+                    }
+                },
+                "checks": {
+                    "is status 200": {
+                        "name": "is status 200",
+                        "path": "::subscriber::is status 200",
+                        "id": "96fdc221e3cd9ed60329154e5bb89f28",
+                        "passes": 1800,
+                        "fails": 0
+                    }
+                }
+            }
+        },
+        "checks": {}
+    }
+}
