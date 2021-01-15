@@ -57,7 +57,7 @@ export const options = {
         { duration: `${settings.TEST_RAMPDOWN_SEC}s`, target: 0 },
     ],
     thresholds: {  // https://k6.io/docs/using-k6/thresholds
-        checks: ['rate >= 1.0'],
+        checks: ['rate >= 0.9999'],
         dsps_fetched_messages: [`count >= ${0.9 * (targetVU * settings.TEST_DURATION_SEC) / settings.PUBLISH_INTERVAL_SEC}`],
     },
 };
@@ -141,11 +141,19 @@ function fetchMessages(channelID, subscriberID) {
     const res = http.get(`${settings.BASE_URL}/channel/${channelID}/subscription/polling/${subscriberID}?timeout=3s`, undefined, { tags: { endpoint: "fetch" } });
     const receivedAt = new Date();
 
-    const body = res.json();
-    check(res, {
+    let body = null;
+    let isValidJSON = true;
+    try {
+	body = res.json();
+    }catch(e){
+	console.log(`Invalid response ${res.status} (${JSON.stringify(res.headers)}): ${res.body}`);
+	isValidJSON = false;
+    }
+    if(!check(res, {
+	"returns valid JSON": () => isValidJSON,
         "is status 200": (r) => r.status === 200,
-        "has messages array": (r) => (typeof (body.messages) === "object" && typeof (body.messages.length) === "number"),
-    });
+        "has messages array": (r) => (typeof(body) === "object" && typeof (body.messages) === "object" && typeof (body.messages.length) === "number"),
+    })) return null;
     if (body.messages) {
         fetchedMessagesCounter.add(body.messages.length);
         for (let i = 0; i < body.messages.length; i++) {
