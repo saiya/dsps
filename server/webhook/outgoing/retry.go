@@ -49,9 +49,11 @@ func (r *retry) Do(ctx context.Context, sentryInstance sentry.Sentry, descriptio
 			sentryData := make(map[string]interface{})
 			if req != nil {
 				sentryData["method"] = req.Method
-				sentryData["url"] = res.Request.URL
 			}
 			if res != nil {
+				if res.Request != nil {
+					sentryData["url"] = res.Request.URL
+				}
 				sentryData["status_code"] = res.StatusCode
 			}
 			sentry.AddBreadcrumb(ctx, &sentrygo.Breadcrumb{
