@@ -89,7 +89,7 @@ func TestRetryFailureForError(t *testing.T) {
 		count: 2,
 	}).Do(context.Background(), sentry.NewStubSentry(), "test", func() (*http.Request, *http.Response, error) {
 		attempts++
-		return nil, nil, testError
+		return &http.Request{}, nil, testError
 	})
 	assert.Equal(t, testError, err)
 	assert.Equal(t, 3, attempts)
