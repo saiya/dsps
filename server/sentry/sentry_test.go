@@ -23,6 +23,7 @@ func TestNewSentry(t *testing.T) {
 		Contexts: map[string]string{
 			"test": "value",
 		},
+		HideRequestData: true,
 	})
 	_, ok = sentry.(*emptySentry)
 	assert.NoError(t, err)
