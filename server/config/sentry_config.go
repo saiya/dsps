@@ -22,6 +22,7 @@ type SentryConfig struct {
 	SampleRate        *float64        `json:"sampleRate"`
 	IgnoreErrors      []*domain.Regex `json:"ignoreErrors"`
 	DisableStacktrace bool            `json:"disableStacktrace"`
+	HideRequestData   bool            `json:"hideRequestData"`
 
 	FlushTimeout *domain.Duration `json:"flushTimeout"`
 }

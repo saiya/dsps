@@ -35,6 +35,7 @@ func NewSentry(config *config.SentryConfig) (Sentry, error) {
 	for i, regex := range config.IgnoreErrors {
 		ignoreErrors[i] = regex.String()
 	}
+	hideRequestData := config.HideRequestData
 	if err := sentrygo.Init(sentrygo.ClientOptions{
 		Dsn: config.DSN,
 
@@ -45,8 +46,14 @@ func NewSentry(config *config.SentryConfig) (Sentry, error) {
 
 		SampleRate:       *config.SampleRate,
 		AttachStacktrace: !config.DisableStacktrace,
-		IgnoreErrors:     ignoreErrors,
-		Debug:            false,
+		BeforeSend: func(event *sentrygo.Event, hint *sentrygo.EventHint) *sentrygo.Event {
+			if hideRequestData && event.Request != nil {
+				event.Request.Data = ""
+			}
+			return event
+		},
+		IgnoreErrors: ignoreErrors,
+		Debug:        false,
 	}); err != nil {
 		return nil, xerrors.Errorf("failed to initialize sentry: %w", err)
 	}

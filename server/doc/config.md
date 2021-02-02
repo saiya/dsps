@@ -164,6 +164,7 @@ sentry:  # Fine-tuning configuration example
   ignoreErrors:
     - "something .+"
   disableStacktrace: false
+  hideRequestData: false
 
   flushTimeout: 15s
 ```
@@ -179,6 +180,7 @@ Configuration items under `telemetry.ot.tracing` ([OpenTelemetry](https://opente
 - `sampleRate` (number, default `1.0`): Ratio of the sampling, between `0.0` to `1.0`.
 - `ignoreErrors` (list of regex string): If an event matches to one or more of the regex, ignore them
 - `disableStacktrace` (boolean, default `false`): If true, omit stacktrace.
+- `hideRequestData` (boolean, default `false`): If true, do not send request body data.
 - `flushTimeout` (duration string, default `15s`): Timeout to flush sentry events on application shutdown.
 
 ## <a name="channels"></a> channels configuration block
