@@ -11,6 +11,9 @@ import (
 // DisabledChannelID is ChannelID that StubChannelProvider always rejects.
 var DisabledChannelID domain.ChannelID = "disabled-channel"
 
+// StubChannelExpire is expire (TTL) of any channels pro
+var StubChannelExpire = dspstesting.MakeDuration("5m")
+
 // StubChannelProvider is simple stub implementation of ChannelProvider
 var StubChannelProvider domain.ChannelProvider = dspstesting.ChannelProviderFunc(func(id domain.ChannelID) (domain.Channel, error) {
 	if id == DisabledChannelID {
@@ -18,7 +21,7 @@ var StubChannelProvider domain.ChannelProvider = dspstesting.ChannelProviderFunc
 	}
 	return &stubChannel{
 		id:     id,
-		expire: dspstesting.MakeDuration("5m"),
+		expire: StubChannelExpire,
 	}, nil
 })
 

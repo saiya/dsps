@@ -12,7 +12,7 @@ require (
 	github.com/go-redis/redis/extra/redisotel v0.2.0
 	github.com/go-redis/redis/v8 v8.4.0
 	github.com/goccy/go-yaml v1.8.4
-	github.com/golang/mock v1.4.4
+	github.com/golang/mock v1.5.0
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/julienschmidt/httprouter v1.3.0
