@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/xerrors"
 
 	"github.com/saiya/dsps/server/domain"
@@ -22,4 +23,19 @@ func (s *redisStorage) RemoveSubscriber(ctx context.Context, sl domain.Subscribe
 		return xerrors.Errorf("Failed to delete subscriber: %w", err)
 	}
 	return nil
+}
+
+// extendSubscriberTTL extends TTL of channel clock and subscriber.
+// If no new messages comes in to the channel, fetchMessages operation should extend TTLs otherwise channel clock or subscriber could be vanished due to TTL outage.
+func (s *redisStorage) extendSubscriberTTL(ctx context.Context, sl domain.SubscriberLocator) error {
+	ttl, err := s.channelRedisTTLSec(sl.ChannelID)
+	if err != nil {
+		return xerrors.Errorf("Unable to calcurate TTL of channel: %w", err)
+	}
+
+	keys := keyOfChannel(sl.ChannelID)
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error { return s.RedisCmd.Expire(ctx, keys.Clock(), ttl.asDuration()) })
+	g.Go(func() error { return s.RedisCmd.Expire(ctx, keys.SubscriberCursor(sl.SubscriberID), ttl.asDuration()) })
+	return g.Wait()
 }

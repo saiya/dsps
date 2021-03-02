@@ -22,6 +22,8 @@ type RedisCmd interface {
 	Get(ctx context.Context, key string) (*string, error)
 	MGet(ctx context.Context, keys ...string) ([]*string, error)
 	TTL(ctx context.Context, key string) (*time.Duration, error)
+	// EXPIRE command set TTL of the entry, not discarding the entry (name came from https://redis.io/commands/expire)
+	Expire(ctx context.Context, key string, ttl time.Duration) error
 	Set(ctx context.Context, key string, value interface{}) error
 	SetEX(ctx context.Context, key string, value interface{}, expiration time.Duration) error
 	Del(ctx context.Context, key string) error
@@ -88,6 +90,10 @@ func (impl *redisCmdImpl) TTL(ctx context.Context, key string) (*time.Duration, 
 		return nil, nil
 	}
 	return &value, err
+}
+
+func (impl *redisCmdImpl) Expire(ctx context.Context, key string, ttl time.Duration) error {
+	return impl.raw.Expire(ctx, key, ttl).Err()
 }
 
 func (impl *redisCmdImpl) Set(ctx context.Context, key string, value interface{}) error {

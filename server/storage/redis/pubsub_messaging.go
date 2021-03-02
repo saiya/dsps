@@ -53,7 +53,7 @@ func (s *redisStorage) FetchMessages(ctx context.Context, sl domain.SubscriberLo
 		await, awaitCancel = s.pubsubDispatcher.Await(ctx, s.redisPubSubKeyOf(sl.ChannelID))
 	}
 
-	if messages, moreMessages, ackHandle, err = s.fetchMessagesNow(ctx, sl, max, waituntil); err != nil || len(messages) > 0 {
+	if messages, moreMessages, ackHandle, err = s.fetchMessagesNow(ctx, sl, max); err != nil || len(messages) > 0 {
 		return
 	}
 
@@ -75,7 +75,7 @@ func (s *redisStorage) FetchMessages(ctx context.Context, sl domain.SubscriberLo
 				err = await.Err()
 				return
 			}
-			if messages, moreMessages, ackHandle, err = s.fetchMessagesNow(ctx, sl, max, waituntil); err != nil || len(messages) > 0 {
+			if messages, moreMessages, ackHandle, err = s.fetchMessagesNow(ctx, sl, max); err != nil || len(messages) > 0 {
 				return
 			}
 			// Await again because no messages found (spurious wakeup)
@@ -84,7 +84,7 @@ func (s *redisStorage) FetchMessages(ctx context.Context, sl domain.SubscriberLo
 	}
 }
 
-func (s *redisStorage) fetchMessagesNow(ctx context.Context, sl domain.SubscriberLocator, max int, waituntil domain.Duration) (messages []domain.Message, moreMessages bool, ackHandle domain.AckHandle, err error) {
+func (s *redisStorage) fetchMessagesNow(ctx context.Context, sl domain.SubscriberLocator, max int) (messages []domain.Message, moreMessages bool, ackHandle domain.AckHandle, err error) {
 	keys := keyOfChannel(sl.ChannelID)
 	clocks, err := s.RedisCmd.MGet(ctx, keys.Clock(), keys.SubscriberCursor(sl.SubscriberID))
 	if err != nil {
@@ -101,6 +101,9 @@ func (s *redisStorage) fetchMessagesNow(ctx context.Context, sl domain.Subscribe
 	if chClock == nil || sbscClock == nil {
 		err = domain.ErrSubscriptionNotFound
 		return
+	}
+	if err := s.extendSubscriberTTL(ctx, sl); err != nil { // We could use GETEX (>= Redis 6.2.0) rather than issue MGET + EXPIRE in the future.
+		logger.Of(ctx).WarnError(logger.CatStorage, `Failed to extend TTL of channel clock entry and/or subscription clock entry of Redis`, err)
 	}
 
 	msgClocks := iterateClocks(max, *sbscClock, *chClock)

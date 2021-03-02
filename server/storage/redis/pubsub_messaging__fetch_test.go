@@ -11,6 +11,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/saiya/dsps/server/domain"
+	storagetesting "github.com/saiya/dsps/server/storage/testing"
 	dspstesting "github.com/saiya/dsps/server/testing"
 )
 
@@ -62,6 +63,8 @@ func TestFetchMessagesFirstPollingGetMsgBodyError(t *testing.T) {
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	clocksMget := redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "12", "10"), nil)
+	redisCmd.EXPECT().Expire(gomock.Any(), keys.Clock(), storagetesting.StubChannelExpire.Duration+ttlMargin).Return(nil)
+	redisCmd.EXPECT().Expire(gomock.Any(), keys.SubscriberCursor(sl.SubscriberID), storagetesting.StubChannelExpire.Duration+ttlMargin).Return(nil)
 	// (1st fetchMessagesNow) MGET msg1body msg2body
 	errorToReturn := errors.New("Mocked redis error")
 	redisCmd.EXPECT().MGet(gomock.Any(), keys.MessageBody(11), keys.MessageBody(12)).Return(nil, errorToReturn).After(clocksMget)
@@ -83,6 +86,8 @@ func TestFetchMessagesFirstPollingCorruptedMsgBody(t *testing.T) {
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	clocksMget := redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "13", "10"), nil)
+	redisCmd.EXPECT().Expire(gomock.Any(), keys.Clock(), storagetesting.StubChannelExpire.Duration+ttlMargin).Return(nil)
+	redisCmd.EXPECT().Expire(gomock.Any(), keys.SubscriberCursor(sl.SubscriberID), storagetesting.StubChannelExpire.Duration+ttlMargin).Return(nil)
 	// (1st fetchMessagesNow) MGET msg1body msg2body
 	msgBody1 := json.RawMessage(`{"hi":"hello1"}`)
 	envelope1, _ := json.Marshal(messageEnvelope{ID: "msg1", Content: msgBody1})
@@ -108,6 +113,8 @@ func TestFetchMessagesSecondPollingError(t *testing.T) {
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	clocksMget1 := redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "10", "10"), nil)
+	redisCmd.EXPECT().Expire(gomock.Any(), keys.Clock(), storagetesting.StubChannelExpire.Duration+ttlMargin).Return(nil)
+	redisCmd.EXPECT().Expire(gomock.Any(), keys.SubscriberCursor(sl.SubscriberID), storagetesting.StubChannelExpire.Duration+ttlMargin).Return(nil)
 	// (1st fetchMessagesNow) MGET (no messages)
 	bodyMget1 := redisCmd.EXPECT().MGet(gomock.Any()).Return(nil, nil).Do(func(ctx context.Context, keys ...string) {
 		dispatcher.Resolve(s.redisPubSubKeyOf(ch))
@@ -122,7 +129,7 @@ func TestFetchMessagesSecondPollingError(t *testing.T) {
 	assert.Contains(t, err.Error(), "FetchMessages failed due to Redis error (cursor MGET error)")
 }
 
-func TestFetchSpuriousWakeup(t *testing.T) {
+func TestFetchMessagesSpuriousWakeup(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -134,6 +141,8 @@ func TestFetchSpuriousWakeup(t *testing.T) {
 
 	// (1st fetchMessagesNow) MGET clock cursor
 	clocksMget1 := redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "10", "10"), nil)
+	redisCmd.EXPECT().Expire(gomock.Any(), keys.Clock(), storagetesting.StubChannelExpire.Duration+ttlMargin).Return(nil)
+	redisCmd.EXPECT().Expire(gomock.Any(), keys.SubscriberCursor(sl.SubscriberID), storagetesting.StubChannelExpire.Duration+ttlMargin).Return(nil)
 	// (1st fetchMessagesNow) MGET (no messages)
 	bodyMget1 := redisCmd.EXPECT().MGet(gomock.Any()).Return(nil, nil).Do(func(ctx context.Context, keys ...string) {
 		dispatcher.Resolve(s.redisPubSubKeyOf(ch)) // spurious wakeup
@@ -141,9 +150,35 @@ func TestFetchSpuriousWakeup(t *testing.T) {
 
 	// (2nd fetchMessagesNow) MGET clock cursor
 	clocksMget2 := redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "10", "10"), nil).After(bodyMget1)
+	redisCmd.EXPECT().Expire(gomock.Any(), keys.Clock(), storagetesting.StubChannelExpire.Duration+ttlMargin).Return(nil).After(bodyMget1)
+	redisCmd.EXPECT().Expire(gomock.Any(), keys.SubscriberCursor(sl.SubscriberID), storagetesting.StubChannelExpire.Duration+ttlMargin).Return(nil).After(bodyMget1)
 	// (2nd fetchMessagesNow) MGET (no messages)
 	redisCmd.EXPECT().MGet(gomock.Any()).Return(nil, nil).After(clocksMget2)
 
 	_, _, _, err := s.FetchMessages(context.Background(), sl, 100, domain.Duration{Duration: 50 * time.Millisecond})
+	assert.NoError(t, err)
+}
+
+func TestFetchMessagesTTLExtensionError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ch := randomChannelID(t)
+	keys := keyOfChannel(ch)
+	sl := domain.SubscriberLocator{ChannelID: ch, SubscriberID: "sbsc-1"}
+
+	s, redisCmd, dispatcher := newMockedRedisStorageAndPubSubDispatcher(ctrl)
+
+	// (1st fetchMessagesNow) MGET clock cursor
+	clocksMget1 := redisCmd.EXPECT().MGet(gomock.Any(), keys.Clock(), keys.SubscriberCursor(sl.SubscriberID)).Return(strPList(t, "10", "10"), nil)
+	errToReturn := errors.New("Mocked redis error of EXPIRE command")
+	redisCmd.EXPECT().Expire(gomock.Any(), keys.Clock(), storagetesting.StubChannelExpire.Duration+ttlMargin).Return(errToReturn)
+	redisCmd.EXPECT().Expire(gomock.Any(), keys.SubscriberCursor(sl.SubscriberID), storagetesting.StubChannelExpire.Duration+ttlMargin).Return(errToReturn)
+	// (1st fetchMessagesNow) MGET (no messages)
+	redisCmd.EXPECT().MGet(gomock.Any()).Return(nil, nil).Do(func(ctx context.Context, keys ...string) {
+		dispatcher.Resolve(s.redisPubSubKeyOf(ch)) // spurious wakeup
+	}).After(clocksMget1)
+
+	_, _, _, err := s.FetchMessages(context.Background(), sl, 100, domain.Duration{Duration: 0})
 	assert.NoError(t, err)
 }
