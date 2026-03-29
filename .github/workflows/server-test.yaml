@@ -1,6 +1,9 @@
 name: Server Test
 on: push
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Server lint
@@ -10,9 +13,9 @@ jobs:
       go-version: 1.15.6
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
       # Note: golangci/golangci-lint-action caches. Should not use actions/cache@v2 otherwise result in so many "File exists"
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
         with:
           go-version: ${{ env.go-version }}
       - name: generate
@@ -22,7 +25,7 @@ jobs:
           go mod download
           make generate
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@5c56cd6c9dc07901af25baab6f2b0d9f3b7c3018 # v2
         with:
           version: v1.33.0
           working-directory: server
@@ -54,14 +57,14 @@ jobs:
           --health-retries 10
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: actions/cache@8492260343ad570701412c2f464a5877dc76bace # v2
         with:
           path: /go/pkg/mod  # Not ~/go/pkg/mod because "container" is active.
           key: ${{ runner.os }}-server-gomod-${{ hashFiles('server/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-server-gomod-
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
         with:
           go-version: ${{ matrix.go-version }}
       - name: Test
@@ -71,17 +74,11 @@ jobs:
           make test
         env:
           DSPS_REDIS: "redis:6379"
-      - name: Upload to codecov
-        shell: bash
-        working-directory: server
-        run: |
-          curl -s https://codecov.io/bash > codecov.sh
-          bash codecov.sh
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
         with:
           name: coverage.html
           path: server/coverage.html
-  
+
   build-test:
     name: Server Build
 
@@ -90,9 +87,9 @@ jobs:
       go-version: 1.15.6
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
       # Note: golangci/golangci-lint-action caches. Should not use actions/cache@v2 otherwise result in so many "File exists"
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
         with:
           go-version: ${{ env.go-version }}
       - name: build

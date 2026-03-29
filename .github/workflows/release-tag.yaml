@@ -4,6 +4,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   docker-images:
     name: Publish docker images
@@ -14,18 +17,18 @@ jobs:
           tag=$(echo "${{github.ref}}" | sed 's/^refs\/tags\/v//')
           echo "::set-output name=tag::$tag"
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@27d0a4f181a40b142cce983c5393082c365d1480 # v1
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@f211e3e9ded2d9377c8cadc4489a4e38014bc4c9 # v1
       - name: Login to DockerHub
-        uses: docker/login-action@v1 
+        uses: docker/login-action@dd4fa0671be5250ee6f50aedf4cb05514abda2c7 # v1
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build and push
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a # v2
         with:
           context: ./server
           file: ./server/Dockerfile  # file is not relative to context https://github.com/docker/build-push-action/issues/51#issuecomment-702506036
@@ -44,8 +47,8 @@ jobs:
           version=$(echo "${{github.ref}}" | sed 's/^refs\/tags\/v//')
           echo "::set-output name=version::$version"
       - name: Checkout
-        uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: actions/setup-node@f1f314fca9dfce2769ece7d933488f076716723e # v1
         with:
           node-version: '12.x'
           registry-url: 'https://registry.npmjs.org'
@@ -66,8 +69,8 @@ jobs:
         run: |
           tag=$(echo "${{github.ref}}" | sed 's/^refs\/tags\/v//')
           echo "::set-output name=tag::$tag"
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
         with:
           go-version: '1.15.6'
       - name: Build
@@ -92,7 +95,7 @@ jobs:
           echo ::set-output name=COMMIT_SUMMARY::$COMMIT_SUMMARY
 
       - id: create_release
-        uses: actions/create-release@v1
+        uses: actions/create-release@0cb9c9b65d5d1901c1f53e5e66eaf4afd303e70e # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -101,7 +104,7 @@ jobs:
           body: ${{ steps.get_commit_summary.outputs.COMMIT_SUMMARY }}
           draft: true
           prerelease: true
-      - uses: actions/upload-release-asset@v1
+      - uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
